@@ -7,372 +7,364 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
         body {
             font-family: 'Noto Sans TC', sans-serif;
             scroll-behavior: smooth;
+            -webkit-tap-highlight-color: transparent;
         }
         .hero-bg {
-            background: linear-gradient(rgba(15, 23, 42, 0.6), rgba(15, 23, 42, 0.7)), url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1920&q=80') center/cover no-repeat;
+            background: linear-gradient(rgba(15, 23, 42, 0.75), rgba(15, 23, 42, 0.85)), url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1920&q=80') center/cover no-repeat;
         }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800">
+<body class="bg-slate-100 text-slate-800 antialiased">
 
-    <!-- Header / Hero Section -->
-    <header class="hero-bg text-white min-h-[60vh] flex flex-col justify-between relative">
-        <!-- Navigation -->
-        <nav class="container mx-auto px-6 py-4 flex justify-between items-center border-b border-white/10">
-            <div class="text-2xl font-bold tracking-wider flex items-center gap-2">
+    <!-- Sticky Navigation -->
+    <nav class="sticky top-0 z-50 bg-slate-900/95 backdrop-blur-md text-white border-b border-slate-800 shadow-md">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="text-lg md:text-xl font-bold tracking-wider flex items-center gap-2">
                 <i class="fa-solid fa-compass text-amber-400"></i>
                 <span>環島之旅 2026</span>
             </div>
-            <div class="hidden md:flex space-x-8 font-medium">
-                <a href="#overview" class="hover:text-amber-400 transition">行程亮點</a>
-                <a href="#itinerary" class="hover:text-amber-400 transition">每日行程</a>
-                <a href="#hotels" class="hover:text-amber-400 transition">嚴選住宿</a>
-                <a href="#subsidy" class="hover:text-amber-400 transition">補助省錢指南</a>
-            </div>
-        </nav>
-
-        <!-- Hero Content -->
-        <div class="container mx-auto px-6 py-16 text-center">
-            <span class="bg-amber-500/20 text-amber-300 border border-amber-400/30 px-4 py-1.5 rounded-full text-sm font-semibold tracking-wide">
-                2026/11/15(日) – 11/20(五) 6天5夜
-            </span>
-            <h1 class="text-4xl md:text-6xl font-extrabold mt-4 mb-6 leading-tight">
-                台灣順時針親子環島行
-            </h1>
-            <p class="text-lg md:text-xl text-slate-200 max-w-2xl mx-auto mb-8 font-light">
-                台北土城出發 ➔ 宜蘭溫泉樂園 ➔ 花蓮海洋世界 ➔ 台東縱谷單車 ➔ 屏東里港掃墓 ➔ 高雄港灣遊樂 ➔ 嘉義鵝肉名產 ➔ 返抵台中
-            </p>
-            <div class="flex flex-wrap justify-center gap-4 text-sm md:text-base font-medium">
-                <div class="bg-white/10 backdrop-blur-md px-5 py-2.5 rounded-xl border border-white/10 flex items-center gap-2">
-                    <i class="fa-solid fa-users text-amber-400"></i> 三大一小 (8歲)
-                </div>
-                <div class="bg-white/10 backdrop-blur-md px-5 py-2.5 rounded-xl border border-white/10 flex items-center gap-2">
-                    <i class="fa-solid fa-car text-amber-400"></i> 自行開車
-                </div>
-                <div class="bg-white/10 backdrop-blur-md px-5 py-2.5 rounded-xl border border-white/10 flex items-center gap-2">
-                    <i class="fa-solid fa-clock text-amber-400"></i> 每日 09:00 輕鬆出發
-                </div>
+            <div class="flex space-x-3 md:space-x-6 text-sm md:text-base font-bold">
+                <a href="#itinerary" class="text-amber-400 hover:text-amber-300 transition py-1 px-2 rounded bg-amber-400/10">每日行程</a>
+                <a href="#hotels" class="text-emerald-400 hover:text-emerald-300 transition py-1 px-2 rounded bg-emerald-400/10">嚴選住宿</a>
+                <a href="#subsidy" class="hidden sm:inline text-slate-300 hover:text-white transition py-1">補助攻略</a>
             </div>
         </div>
+    </nav>
 
-        <div class="w-full bg-slate-900/40 backdrop-blur-sm py-3 text-center text-xs text-slate-300">
-            <i class="fa-solid fa-circle-info text-amber-400 mr-1"></i> 配合國旅補助折抵，住宿預算每晚精算至 NT$ 2,000 以內
+    <!-- Header / Hero Section (精簡化，讓核心重點更快呈現) -->
+    <header class="hero-bg text-white py-10 md:py-14 text-center px-4">
+        <div class="max-w-3xl mx-auto">
+            <span class="inline-block bg-amber-500 text-slate-950 px-3.5 py-1 rounded-full text-xs md:text-sm font-black tracking-wide mb-3 shadow">
+                2026/11/15(日) – 11/20(五) 6天5夜
+            </span>
+            <h1 class="text-3xl md:text-5xl font-extrabold mb-4 leading-tight">
+                台灣順時針親子環島行
+            </h1>
+            <p class="text-sm md:text-base text-slate-200 mb-6 font-medium leading-relaxed">
+                土城 ➔ 宜蘭(住2晚) ➔ 花蓮海洋公園 ➔ 台東縱谷 ➔ 里港掃墓 ➔ 高雄港灣 ➔ 嘉義鵝肉 ➔ 台中
+            </p>
+            <div class="inline-flex flex-wrap justify-center gap-2 text-xs md:text-sm font-bold">
+                <span class="bg-white/15 border border-white/20 px-3 py-1.5 rounded-lg"><i class="fa-solid fa-users text-amber-400 mr-1"></i> 三大一小 (8歲)</span>
+                <span class="bg-white/15 border border-white/20 px-3 py-1.5 rounded-lg"><i class="fa-solid fa-car text-amber-400 mr-1"></i> 自行開車</span>
+                <span class="bg-white/15 border border-white/20 px-3 py-1.5 rounded-lg"><i class="fa-solid fa-clock text-amber-400 mr-1"></i> 每日 09:00 出發</span>
+            </div>
         </div>
     </header>
 
-    <!-- Overview / Key Rules Section -->
-    <section id="overview" class="py-12 bg-white border-b border-slate-200">
-        <div class="container mx-auto px-6">
-            <div class="grid md:grid-cols-3 gap-8 text-center">
-                <div class="p-6 rounded-2xl bg-slate-50 border border-slate-100 shadow-sm">
-                    <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-xl">
-                        <i class="fa-solid fa-bed"></i>
-                    </div>
-                    <h3 class="font-bold text-lg mb-2">宜蘭深度留宿 2 晚</h3>
-                    <p class="text-slate-600 text-sm">行程不趕路，宜蘭停留二日享受溫泉與觀光工廠體驗。</p>
-                </div>
-                <div class="p-6 rounded-2xl bg-slate-50 border border-slate-100 shadow-sm">
-                    <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4 text-xl">
-                        <i class="fa-solid fa-child-reaching"></i>
-                    </div>
-                    <h3 class="font-bold text-lg mb-2">8歲小孩活力節奏</h3>
-                    <p class="text-slate-600 text-sm">每天上午 1 個亮點景點，下午安排 2 個景點充分放電與休憩。</p>
-                </div>
-                <div class="p-6 rounded-2xl bg-slate-50 border border-slate-100 shadow-sm">
-                    <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 text-xl">
-                        <i class="fa-solid fa-hot-tub-person"></i>
-                    </div>
-                    <h3 class="font-bold text-lg mb-2">高 CP 值泡澡住宿</h3>
-                    <p class="text-slate-600 text-sm">精選附免費停車場與泡澡/湯池設施，扣除補助後每晚預算 $2,000 內。</p>
-                </div>
-            </div>
+    <!-- Key Rules Bar -->
+    <section class="bg-amber-400 text-slate-950 py-3 font-bold text-xs md:text-sm border-b border-amber-500 shadow-inner">
+        <div class="container mx-auto px-4 flex flex-wrap justify-around items-center gap-2 text-center">
+            <span><i class="fa-solid fa-bed mr-1"></i> 宜蘭停留連住 2 晚</span>
+            <span><i class="fa-solid fa-child-reaching mr-1"></i> 早上 1 景點 / 下午 2 景點</span>
+            <span><i class="fa-solid fa-piggy-bank mr-1"></i> 扣補助住宿 $2,000 內/晚</span>
         </div>
     </section>
 
-    <!-- Itinerary Section -->
-    <section id="itinerary" class="py-16 bg-slate-50">
-        <div class="container mx-auto px-6">
-            <div class="text-center max-w-2xl mx-auto mb-12">
-                <h2 class="text-3xl font-extrabold text-slate-900 mb-3">每日詳細行程規劃</h2>
-                <p class="text-slate-600">包含景點特色與每段路線的預估開車時間，掌握順暢節奏。</p>
+    <!-- Itinerary Section (比例放大、手機版優化卡片與字體) -->
+    <section id="itinerary" class="py-10 md:py-16">
+        <div class="container mx-auto px-3 md:px-6 max-w-4xl">
+            <div class="text-center mb-8 md:mb-12">
+                <span class="text-blue-600 font-extrabold text-sm tracking-wider uppercase bg-blue-50 px-3 py-1 rounded-full">Itinerary</span>
+                <h2 class="text-2xl md:text-4xl font-extrabold text-slate-900 mt-2">每日詳細行程規劃</h2>
+                <p class="text-slate-600 text-sm md:text-base mt-1">含精確路線車程時間與 8 歲小朋友放電節奏</p>
             </div>
 
-            <div class="space-y-8 max-w-5xl mx-auto">
+            <div class="space-y-6 md:space-y-10">
 
                 <!-- DAY 1 -->
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="bg-blue-600 text-white p-4 px-6 flex flex-wrap justify-between items-center gap-2">
+                <div class="bg-white rounded-2xl shadow-md border-2 border-slate-200 overflow-hidden">
+                    <div class="bg-blue-600 text-white p-4 md:p-5 flex flex-wrap justify-between items-center gap-2">
                         <div class="flex items-center gap-3">
-                            <span class="bg-white text-blue-600 font-black px-3 py-1 rounded-lg text-sm">DAY 1</span>
-                            <h3 class="font-bold text-lg">11/15 (日) 土城出發 ➔ 宜蘭山林湯泉體驗</h3>
+                            <span class="bg-amber-400 text-slate-950 font-black px-3 py-1 rounded-lg text-base md:text-lg shadow-sm">DAY 1</span>
+                            <h3 class="font-extrabold text-base md:text-xl">11/15 (日) 土城出發 ➔ 宜蘭山林湯泉</h3>
                         </div>
-                        <span class="text-blue-100 text-sm"><i class="fa-solid fa-moon mr-1"></i> 宿：宜蘭/羅東（第1晚）</span>
+                        <span class="bg-blue-700 text-blue-100 text-xs md:text-sm font-bold px-3 py-1 rounded-full"><i class="fa-solid fa-moon mr-1"></i> 宿：宜蘭/羅東（第1晚）</span>
                     </div>
-                    <div class="p-6 space-y-4">
-                        <div class="flex items-start gap-4 p-3 rounded-lg bg-slate-50">
-                            <div class="text-xs font-bold text-slate-500 w-24 shrink-0 mt-1">07:30 - 09:00</div>
-                            <div class="text-sm">
-                                <span class="font-bold text-slate-800">土城出發 ➔ 宜蘭三星</span>
-                                <span class="ml-2 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200"><i class="fa-solid fa-car"></i> 車程 1hr 20min</span>
-                            </div>
+                    <div class="p-4 md:p-6 space-y-3.5">
+                        <div class="flex items-center gap-3 p-3 rounded-xl bg-slate-100/80 border border-slate-200 text-xs md:text-sm">
+                            <span class="font-extrabold text-slate-600 w-28 shrink-0"><i class="fa-solid fa-car text-amber-500 mr-1"></i> 07:30 - 09:00</span>
+                            <div class="font-bold text-slate-800">土城出發 ➔ 宜蘭三星 <span class="text-amber-600 font-extrabold block sm:inline">(車程約 1hr 20min)</span></div>
                         </div>
-                        <div class="flex items-start gap-4 p-3 rounded-lg bg-blue-50/50 border-l-4 border-blue-500">
-                            <div class="text-xs font-bold text-blue-600 w-24 shrink-0 mt-1">09:00 - 11:30<br><span class="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">上午景點</span></div>
-                            <div class="text-sm">
-                                <h4 class="font-bold text-slate-900">張美阿嬤農場</h4>
-                                <p class="text-slate-600 text-xs mt-1">近距離餵食水豚、羊駝和小鹿，提供 DIY 及和服體驗。</p>
+                        
+                        <div class="p-4 rounded-xl bg-blue-50/70 border-l-8 border-blue-500 shadow-sm">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-xs font-black bg-blue-600 text-white px-2 py-0.5 rounded">上午景點</span>
+                                <span class="text-xs font-bold text-blue-700">09:00 - 11:30</span>
                             </div>
+                            <h4 class="font-extrabold text-slate-900 text-base md:text-lg">張美阿嬤農場</h4>
+                            <p class="text-slate-700 text-xs md:text-sm mt-1 font-medium leading-relaxed">近距離餵食水豚、羊駝和小鹿，提供手作 DIY 及和服體驗。</p>
                         </div>
-                        <div class="flex items-start gap-4 p-3 rounded-lg bg-slate-50">
-                            <div class="text-xs font-bold text-slate-500 w-24 shrink-0 mt-1">11:30 - 12:00</div>
-                            <div class="text-sm">
-                                <span class="font-bold text-slate-800">移動至清水地熱</span>
-                                <span class="ml-2 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200"><i class="fa-solid fa-car"></i> 車程 30min</span>
-                            </div>
+
+                        <div class="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 text-xs md:text-sm border border-slate-200">
+                            <span class="font-bold text-slate-500 w-28 shrink-0"><i class="fa-solid fa-route mr-1"></i> 11:30 - 12:00</span>
+                            <div class="text-slate-700">移動至清水地熱 <span class="text-amber-600 font-bold">(車程約 30min)</span></div>
                         </div>
-                        <div class="flex items-start gap-4 p-3 rounded-lg bg-emerald-50/50 border-l-4 border-emerald-500">
-                            <div class="text-xs font-bold text-emerald-600 w-24 shrink-0 mt-1">12:00 - 14:30<br><span class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">下午景點 1</span></div>
-                            <div class="text-sm">
-                                <h4 class="font-bold text-slate-900">清水地熱公園 (含午餐)</h4>
-                                <p class="text-slate-600 text-xs mt-1">用溫泉水煮溫泉蛋、玉米充當午餐，並體驗免費熱騰騰泡腳。</p>
+
+                        <div class="p-4 rounded-xl bg-emerald-50/70 border-l-8 border-emerald-500 shadow-sm">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-xs font-black bg-emerald-600 text-white px-2 py-0.5 rounded">下午景點 1</span>
+                                <span class="text-xs font-bold text-emerald-700">12:00 - 14:30</span>
                             </div>
+                            <h4 class="font-extrabold text-slate-900 text-base md:text-lg">清水地熱公園 (含煮食午餐)</h4>
+                            <p class="text-slate-700 text-xs md:text-sm mt-1 font-medium leading-relaxed">體驗用溫泉水煮溫泉蛋、玉米當午餐，並享受免費熱騰騰泡腳。</p>
                         </div>
-                        <div class="flex items-start gap-4 p-3 rounded-lg bg-slate-50">
-                            <div class="text-xs font-bold text-slate-500 w-24 shrink-0 mt-1">14:30 - 15:00</div>
-                            <div class="text-sm">
-                                <span class="font-bold text-slate-800">移動至冬山</span>
-                                <span class="ml-2 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200"><i class="fa-solid fa-car"></i> 車程 30min</span>
-                            </div>
+
+                        <div class="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 text-xs md:text-sm border border-slate-200">
+                            <span class="font-bold text-slate-500 w-28 shrink-0"><i class="fa-solid fa-route mr-1"></i> 14:30 - 15:00</span>
+                            <div class="text-slate-700">移動至冬山 <span class="text-amber-600 font-bold">(車程約 30min)</span></div>
                         </div>
-                        <div class="flex items-start gap-4 p-3 rounded-lg bg-emerald-50/50 border-l-4 border-emerald-500">
-                            <div class="text-xs font-bold text-emerald-600 w-24 shrink-0 mt-1">15:00 - 17:00<br><span class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">下午景點 2</span></div>
-                            <div class="text-sm">
-                                <h4 class="font-bold text-slate-900">勇者桂冠王 (原邱比準射擊博物館)</h4>
-                                <p class="text-slate-600 text-xs mt-1">多種趣味射擊闖關、大型彈弓等，非常適合 8 歲小朋友充分放電。</p>
+
+                        <div class="p-4 rounded-xl bg-emerald-50/70 border-l-8 border-emerald-500 shadow-sm">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-xs font-black bg-emerald-600 text-white px-2 py-0.5 rounded">下午景點 2</span>
+                                <span class="text-xs font-bold text-emerald-700">15:00 - 17:00</span>
                             </div>
+                            <h4 class="font-extrabold text-slate-900 text-base md:text-lg">勇者桂冠王 (原邱比準射擊博物館)</h4>
+                            <p class="text-slate-700 text-xs md:text-sm mt-1 font-medium leading-relaxed">多種趣味射擊闖關、空氣槍與大型彈弓，8 歲小朋友放電首選。</p>
                         </div>
                     </div>
                 </div>
 
                 <!-- DAY 2 -->
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="bg-blue-600 text-white p-4 px-6 flex flex-wrap justify-between items-center gap-2">
+                <div class="bg-white rounded-2xl shadow-md border-2 border-slate-200 overflow-hidden">
+                    <div class="bg-blue-600 text-white p-4 md:p-5 flex flex-wrap justify-between items-center gap-2">
                         <div class="flex items-center gap-3">
-                            <span class="bg-white text-blue-600 font-black px-3 py-1 rounded-lg text-sm">DAY 2</span>
-                            <h3 class="font-bold text-lg">11/16 (一) 宜蘭觀光工廠 ➔ 蘇澳海岸巡禮</h3>
+                            <span class="bg-amber-400 text-slate-950 font-black px-3 py-1 rounded-lg text-base md:text-lg shadow-sm">DAY 2</span>
+                            <h3 class="font-extrabold text-base md:text-xl">11/16 (一) 宜蘭觀光工廠 ➔ 蘇澳海岸巡禮</h3>
                         </div>
-                        <span class="text-blue-100 text-sm"><i class="fa-solid fa-moon mr-1"></i> 宿：宜蘭/羅東（第2晚）</span>
+                        <span class="bg-blue-700 text-blue-100 text-xs md:text-sm font-bold px-3 py-1 rounded-full"><i class="fa-solid fa-moon mr-1"></i> 宿：宜蘭/羅東（第2晚）</span>
                     </div>
-                    <div class="p-6 space-y-4">
-                        <div class="flex items-start gap-4 p-3 rounded-lg bg-blue-50/50 border-l-4 border-blue-500">
-                            <div class="text-xs font-bold text-blue-600 w-24 shrink-0 mt-1">09:20 - 11:30<br><span class="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">上午景點</span></div>
-                            <div class="text-sm">
-                                <h4 class="font-bold text-slate-900">蠟藝蠟筆城堡</h4>
-                                <p class="text-slate-600 text-xs mt-1">體驗四道手作 DIY 關卡，親手製作造型蠟筆與彩色筆。</p>
+                    <div class="p-4 md:p-6 space-y-3.5">
+                        <div class="p-4 rounded-xl bg-blue-50/70 border-l-8 border-blue-500 shadow-sm">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-xs font-black bg-blue-600 text-white px-2 py-0.5 rounded">上午景點</span>
+                                <span class="text-xs font-bold text-blue-700">09:20 - 11:30</span>
                             </div>
+                            <h4 class="font-extrabold text-slate-900 text-base md:text-lg">蠟藝蠟筆城堡</h4>
+                            <p class="text-slate-700 text-xs md:text-sm mt-1 font-medium leading-relaxed">四道手作 DIY 關卡，讓小朋友親手製作彩色筆與造型蠟筆。</p>
                         </div>
-                        <div class="flex items-start gap-4 p-3 rounded-lg bg-amber-50">
-                            <div class="text-xs font-bold text-amber-700 w-24 shrink-0 mt-1">11:30 - 13:00</div>
-                            <div class="text-sm">
-                                <span class="font-bold text-slate-900">宜蘭餅發明館</span>
-                                <p class="text-slate-600 text-xs">緊鄰城堡，參觀超薄宜蘭餅製作、選購伴手禮並於此享用午餐。</p>
+
+                        <div class="p-3 rounded-xl bg-amber-50/80 border border-amber-200 text-xs md:text-sm">
+                            <div class="flex justify-between font-extrabold text-amber-900 mb-0.5">
+                                <span><i class="fa-solid fa-utensils mr-1"></i> 11:30 - 13:00 午餐與伴手禮</span>
+                                <span>宜蘭餅發明館</span>
                             </div>
+                            <p class="text-slate-600 text-xs">緊鄰城堡，參觀超薄宜蘭餅製作、選購伴手禮並順道享用午餐。</p>
                         </div>
-                        <div class="flex items-start gap-4 p-3 rounded-lg bg-emerald-50/50 border-l-4 border-emerald-500">
-                            <div class="text-xs font-bold text-emerald-600 w-24 shrink-0 mt-1">13:10 - 14:30<br><span class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">下午景點 1</span></div>
-                            <div class="text-sm">
-                                <h4 class="font-bold text-slate-900">豆腐岬風景區</h4>
-                                <p class="text-slate-600 text-xs mt-1">沿著海岸步道散步、欣賞獨特的豆腐岩地質與海景。</p>
+
+                        <div class="p-4 rounded-xl bg-emerald-50/70 border-l-8 border-emerald-500 shadow-sm">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-xs font-black bg-emerald-600 text-white px-2 py-0.5 rounded">下午景點 1</span>
+                                <span class="text-xs font-bold text-emerald-700">13:10 - 14:30</span>
                             </div>
+                            <h4 class="font-extrabold text-slate-900 text-base md:text-lg">豆腐岬風景區</h4>
+                            <p class="text-slate-700 text-xs md:text-sm mt-1 font-medium leading-relaxed">沿著海岸步道散步、欣賞獨特的豆腐岩地質與海景。</p>
                         </div>
-                        <div class="flex items-start gap-4 p-3 rounded-lg bg-emerald-50/50 border-l-4 border-emerald-500">
-                            <div class="text-xs font-bold text-emerald-600 w-24 shrink-0 mt-1">14:40 - 15:30<br><span class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">下午景點 2</span></div>
-                            <div class="text-sm">
-                                <h4 class="font-bold text-slate-900">大鯖魚夢工廠</h4>
-                                <p class="text-slate-600 text-xs mt-1">認識蘇澳在地鯖魚產業，現場享用優質現烤鯖魚點心。</p>
+
+                        <div class="p-4 rounded-xl bg-emerald-50/70 border-l-8 border-emerald-500 shadow-sm">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-xs font-black bg-emerald-600 text-white px-2 py-0.5 rounded">下午景點 2</span>
+                                <span class="text-xs font-bold text-emerald-700">14:40 - 15:30</span>
                             </div>
+                            <h4 class="font-extrabold text-slate-900 text-base md:text-lg">大鯖魚夢工廠</h4>
+                            <p class="text-slate-700 text-xs md:text-sm mt-1 font-medium leading-relaxed">認識蘇澳在地鯖魚產業，現場享用優質現烤鯖魚點心。</p>
                         </div>
-                        <div class="flex items-start gap-4 p-3 rounded-lg bg-emerald-50/50 border-l-4 border-emerald-500">
-                            <div class="text-xs font-bold text-emerald-600 w-24 shrink-0 mt-1">15:40 - 17:30<br><span class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">下午景點 3</span></div>
-                            <div class="text-sm">
-                                <h4 class="font-bold text-slate-900">蘇澳冷泉公園</h4>
-                                <p class="text-slate-600 text-xs mt-1">體驗獨特有名的冷泉足湯，放鬆雙腳。</p>
+
+                        <div class="p-4 rounded-xl bg-emerald-50/70 border-l-8 border-emerald-500 shadow-sm">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-xs font-black bg-emerald-600 text-white px-2 py-0.5 rounded">下午景點 3</span>
+                                <span class="text-xs font-bold text-emerald-700">15:40 - 17:30</span>
                             </div>
+                            <h4 class="font-extrabold text-slate-900 text-base md:text-lg">蘇澳冷泉公園</h4>
+                            <p class="text-slate-700 text-xs md:text-sm mt-1 font-medium leading-relaxed">體驗獨特有名的冷泉足湯，放鬆雙腳舒緩疲勞。</p>
                         </div>
                     </div>
                 </div>
 
                 <!-- DAY 3 -->
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="bg-blue-600 text-white p-4 px-6 flex flex-wrap justify-between items-center gap-2">
+                <div class="bg-white rounded-2xl shadow-md border-2 border-slate-200 overflow-hidden">
+                    <div class="bg-blue-600 text-white p-4 md:p-5 flex flex-wrap justify-between items-center gap-2">
                         <div class="flex items-center gap-3">
-                            <span class="bg-white text-blue-600 font-black px-3 py-1 rounded-lg text-sm">DAY 3</span>
-                            <h3 class="font-bold text-lg">11/17 (二) 蘇花改 ➔ 花蓮海洋公園世界</h3>
+                            <span class="bg-amber-400 text-slate-950 font-black px-3 py-1 rounded-lg text-base md:text-lg shadow-sm">DAY 3</span>
+                            <h3 class="font-extrabold text-base md:text-xl">11/17 (二) 蘇花改 ➔ 花蓮海洋公園</h3>
                         </div>
-                        <span class="text-blue-100 text-sm"><i class="fa-solid fa-moon mr-1"></i> 宿：花蓮市區</span>
+                        <span class="bg-blue-700 text-blue-100 text-xs md:text-sm font-bold px-3 py-1 rounded-full"><i class="fa-solid fa-moon mr-1"></i> 宿：花蓮市區</span>
                     </div>
-                    <div class="p-6 space-y-4">
-                        <div class="flex items-start gap-4 p-3 rounded-lg bg-slate-50">
-                            <div class="text-xs font-bold text-slate-500 w-24 shrink-0 mt-1">09:00 - 10:40</div>
-                            <div class="text-sm">
-                                <span class="font-bold text-slate-800">宜蘭出發 ➔ 經蘇花改 ➔ 遠雄海洋公園</span>
-                                <span class="ml-2 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200"><i class="fa-solid fa-car"></i> 車程 1hr 40min</span>
-                            </div>
+                    <div class="p-4 md:p-6 space-y-3.5">
+                        <div class="flex items-center gap-3 p-3 rounded-xl bg-slate-100/80 border border-slate-200 text-xs md:text-sm">
+                            <span class="font-extrabold text-slate-600 w-28 shrink-0"><i class="fa-solid fa-car text-amber-500 mr-1"></i> 09:00 - 10:40</span>
+                            <div class="font-bold text-slate-800">宜蘭出發 ➔ 經蘇花改 ➔ 海洋公園 <span class="text-amber-600 font-extrabold block sm:inline">(車程約 1hr 40min)</span></div>
                         </div>
-                        <div class="flex items-start gap-4 p-3 rounded-lg bg-blue-50/50 border-l-4 border-blue-500">
-                            <div class="text-xs font-bold text-blue-600 w-24 shrink-0 mt-1">10:40 - 16:30<br><span class="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">全天主要景點</span></div>
-                            <div class="text-sm">
-                                <h4 class="font-bold text-slate-900">遠雄海洋公園 (園區內午餐)</h4>
-                                <p class="text-slate-600 text-xs mt-1">欣賞海豚海獅表演、參觀海底隧道水族館，暢玩親子遊樂設施。</p>
+
+                        <div class="p-4 rounded-xl bg-blue-50/70 border-l-8 border-blue-500 shadow-sm">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-xs font-black bg-blue-600 text-white px-2 py-0.5 rounded">全天重點景點</span>
+                                <span class="text-xs font-bold text-blue-700">10:40 - 16:30</span>
                             </div>
+                            <h4 class="font-extrabold text-slate-900 text-base md:text-lg">遠雄海洋公園 (園區內午餐)</h4>
+                            <p class="text-slate-700 text-xs md:text-sm mt-1 font-medium leading-relaxed">欣賞海豚海獅表演、參觀海底隧道水族館，暢玩主題遊樂設施。</p>
                         </div>
-                        <div class="flex items-start gap-4 p-3 rounded-lg bg-emerald-50/50 border-l-4 border-emerald-500">
-                            <div class="text-xs font-bold text-emerald-600 w-24 shrink-0 mt-1">17:00 ~<br><span class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">晚上行程</span></div>
-                            <div class="text-sm">
-                                <h4 class="font-bold text-slate-900">入住花蓮飯店 ➔ 東大門夜市</h4>
-                                <p class="text-slate-600 text-xs mt-1">入住市區飯店後，前往東大門夜市品嚐在地美食。</p>
+
+                        <div class="p-4 rounded-xl bg-purple-50/70 border-l-8 border-purple-500 shadow-sm">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-xs font-black bg-purple-600 text-white px-2 py-0.5 rounded">傍晚/晚上</span>
+                                <span class="text-xs font-bold text-purple-700">17:00 ~</span>
                             </div>
+                            <h4 class="font-extrabold text-slate-900 text-base md:text-lg">入住花蓮飯店 ➔ 東大門夜市</h4>
+                            <p class="text-slate-700 text-xs md:text-sm mt-1 font-medium leading-relaxed">入住市區飯店休憩後，晚間漫步東大門夜市品嚐在地美食。</p>
                         </div>
                     </div>
                 </div>
 
                 <!-- DAY 4 -->
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="bg-blue-600 text-white p-4 px-6 flex flex-wrap justify-between items-center gap-2">
+                <div class="bg-white rounded-2xl shadow-md border-2 border-slate-200 overflow-hidden">
+                    <div class="bg-blue-600 text-white p-4 md:p-5 flex flex-wrap justify-between items-center gap-2">
                         <div class="flex items-center gap-3">
-                            <span class="bg-white text-blue-600 font-black px-3 py-1 rounded-lg text-sm">DAY 4</span>
-                            <h3 class="font-bold text-lg">11/18 (三) 花東縱谷慢遊 ➔ 台東山海景致</h3>
+                            <span class="bg-amber-400 text-slate-950 font-black px-3 py-1 rounded-lg text-base md:text-lg shadow-sm">DAY 4</span>
+                            <h3 class="font-extrabold text-base md:text-xl">11/18 (三) 花東縱谷慢遊 ➔ 台東山海</h3>
                         </div>
-                        <span class="text-blue-100 text-sm"><i class="fa-solid fa-moon mr-1"></i> 宿：台東市區</span>
+                        <span class="bg-blue-700 text-blue-100 text-xs md:text-sm font-bold px-3 py-1 rounded-full"><i class="fa-solid fa-moon mr-1"></i> 宿：台東市區</span>
                     </div>
-                    <div class="p-6 space-y-4">
-                        <div class="flex items-start gap-4 p-3 rounded-lg bg-slate-50">
-                            <div class="text-xs font-bold text-slate-500 w-24 shrink-0 mt-1">09:00 - 10:40</div>
-                            <div class="text-sm">
-                                <span class="font-bold text-slate-800">花蓮 ➔ 縱谷台九線 ➔ 池上</span>
-                                <span class="ml-2 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200"><i class="fa-solid fa-car"></i> 車程 1hr 40min</span>
-                            </div>
+                    <div class="p-4 md:p-6 space-y-3.5">
+                        <div class="flex items-center gap-3 p-3 rounded-xl bg-slate-100/80 border border-slate-200 text-xs md:text-sm">
+                            <span class="font-extrabold text-slate-600 w-28 shrink-0"><i class="fa-solid fa-car text-amber-500 mr-1"></i> 09:00 - 10:40</span>
+                            <div class="font-bold text-slate-800">花蓮 ➔ 縱谷台九線 ➔ 池上 <span class="text-amber-600 font-extrabold block sm:inline">(車程約 1hr 40min)</span></div>
                         </div>
-                        <div class="flex items-start gap-4 p-3 rounded-lg bg-blue-50/50 border-l-4 border-blue-500">
-                            <div class="text-xs font-bold text-blue-600 w-24 shrink-0 mt-1">10:40 - 13:00<br><span class="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">上午景點</span></div>
-                            <div class="text-sm">
-                                <h4 class="font-bold text-slate-900">伯朗大道 (含池上便當午餐)</h4>
-                                <p class="text-slate-600 text-xs mt-1">租借 4 人電動腳踏車，舒適騎行於廣闊稻田間與畫框打卡。</p>
+
+                        <div class="p-4 rounded-xl bg-blue-50/70 border-l-8 border-blue-500 shadow-sm">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-xs font-black bg-blue-600 text-white px-2 py-0.5 rounded">上午景點</span>
+                                <span class="text-xs font-bold text-blue-700">10:40 - 13:00</span>
                             </div>
+                            <h4 class="font-extrabold text-slate-900 text-base md:text-lg">伯朗大道 (含池上便當午餐)</h4>
+                            <p class="text-slate-700 text-xs md:text-sm mt-1 font-medium leading-relaxed">租借 4 人電動腳踏車，輕鬆騎行於無邊稻田間與畫框拍照。</p>
                         </div>
-                        <div class="flex items-start gap-4 p-3 rounded-lg bg-emerald-50/50 border-l-4 border-emerald-500">
-                            <div class="text-xs font-bold text-emerald-600 w-24 shrink-0 mt-1">13:50 - 15:30<br><span class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">下午景點 1</span></div>
-                            <div class="text-sm">
-                                <h4 class="font-bold text-slate-900">台東森林公園</h4>
-                                <p class="text-slate-600 text-xs mt-1">穿梭於木麻黃黑森林間，欣賞琵琶湖湖光山色。</p>
-                            </div>
+
+                        <div class="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 text-xs md:text-sm border border-slate-200">
+                            <span class="font-bold text-slate-500 w-28 shrink-0"><i class="fa-solid fa-route mr-1"></i> 13:00 - 13:50</span>
+                            <div class="text-slate-700">移動至台東市區 <span class="text-amber-600 font-bold">(車程約 50min)</span></div>
                         </div>
-                        <div class="flex items-start gap-4 p-3 rounded-lg bg-emerald-50/50 border-l-4 border-emerald-500">
-                            <div class="text-xs font-bold text-emerald-600 w-24 shrink-0 mt-1">15:45 - 17:30<br><span class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">下午景點 2</span></div>
-                            <div class="text-sm">
-                                <h4 class="font-bold text-slate-900">國立臺灣史前文化博物館</h4>
-                                <p class="text-slate-600 text-xs mt-1">互動式展區豐富，寓教於樂了解台灣史前與原民文化。</p>
+
+                        <div class="p-4 rounded-xl bg-emerald-50/70 border-l-8 border-emerald-500 shadow-sm">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-xs font-black bg-emerald-600 text-white px-2 py-0.5 rounded">下午景點 1</span>
+                                <span class="text-xs font-bold text-emerald-700">13:50 - 15:30</span>
                             </div>
+                            <h4 class="font-extrabold text-slate-900 text-base md:text-lg">台東森林公園</h4>
+                            <p class="text-slate-700 text-xs md:text-sm mt-1 font-medium leading-relaxed">騎乘單車穿梭於木麻黃黑森林，欣賞琵琶湖天然美景。</p>
+                        </div>
+
+                        <div class="p-4 rounded-xl bg-emerald-50/70 border-l-8 border-emerald-500 shadow-sm">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-xs font-black bg-emerald-600 text-white px-2 py-0.5 rounded">下午景點 2</span>
+                                <span class="text-xs font-bold text-emerald-700">15:45 - 17:30</span>
+                            </div>
+                            <h4 class="font-extrabold text-slate-900 text-base md:text-lg">國立臺灣史前文化博物館</h4>
+                            <p class="text-slate-700 text-xs md:text-sm mt-1 font-medium leading-relaxed">室內互動展區豐富，寓教於樂了解台灣史前與原民文化。</p>
                         </div>
                     </div>
                 </div>
 
                 <!-- DAY 5 -->
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="bg-blue-600 text-white p-4 px-6 flex flex-wrap justify-between items-center gap-2">
+                <div class="bg-white rounded-2xl shadow-md border-2 border-slate-200 overflow-hidden">
+                    <div class="bg-blue-600 text-white p-4 md:p-5 flex flex-wrap justify-between items-center gap-2">
                         <div class="flex items-center gap-3">
-                            <span class="bg-white text-blue-600 font-black px-3 py-1 rounded-lg text-sm">DAY 5</span>
-                            <h3 class="font-bold text-lg">11/19 (四) 南迴 ➔ 屏東里港掃墓 ➔ 高雄港灣</h3>
+                            <span class="bg-amber-400 text-slate-950 font-black px-3 py-1 rounded-lg text-base md:text-lg shadow-sm">DAY 5</span>
+                            <h3 class="font-extrabold text-base md:text-xl">11/19 (四) 南迴 ➔ 里港掃墓 ➔ 高雄港灣</h3>
                         </div>
-                        <span class="text-blue-100 text-sm"><i class="fa-solid fa-moon mr-1"></i> 宿：高雄市區</span>
+                        <span class="bg-blue-700 text-blue-100 text-xs md:text-sm font-bold px-3 py-1 rounded-full"><i class="fa-solid fa-moon mr-1"></i> 宿：高雄市區</span>
                     </div>
-                    <div class="p-6 space-y-4">
-                        <div class="flex items-start gap-4 p-3 rounded-lg bg-slate-50">
-                            <div class="text-xs font-bold text-slate-500 w-24 shrink-0 mt-1">09:00 - 10:40</div>
-                            <div class="text-sm">
-                                <span class="font-bold text-slate-800">台東 ➔ 南迴公路(草埔隧道) ➔ 屏東里港</span>
-                                <span class="ml-2 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200"><i class="fa-solid fa-car"></i> 車程 1hr 40min</span>
-                            </div>
+                    <div class="p-4 md:p-6 space-y-3.5">
+                        <div class="flex items-center gap-3 p-3 rounded-xl bg-slate-100/80 border border-slate-200 text-xs md:text-sm">
+                            <span class="font-extrabold text-slate-600 w-28 shrink-0"><i class="fa-solid fa-car text-amber-500 mr-1"></i> 09:00 - 10:40</span>
+                            <div class="font-bold text-slate-800">台東 ➔ 南迴公路 ➔ 屏東里港 <span class="text-amber-600 font-extrabold block sm:inline">(車程約 1hr 40min)</span></div>
                         </div>
-                        <div class="flex items-start gap-4 p-3 rounded-lg bg-blue-50/50 border-l-4 border-blue-500">
-                            <div class="text-xs font-bold text-blue-600 w-24 shrink-0 mt-1">10:40 - 12:00<br><span class="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">上午重點</span></div>
-                            <div class="text-sm">
-                                <h4 class="font-bold text-slate-900">屏東里港掃墓行程</h4>
-                                <p class="text-slate-600 text-xs mt-1">執行家族重要掃墓行程。</p>
+
+                        <div class="p-4 rounded-xl bg-amber-50/80 border-l-8 border-amber-500 shadow-sm">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-xs font-black bg-amber-600 text-white px-2 py-0.5 rounded">上午重點</span>
+                                <span class="text-xs font-bold text-amber-800">10:40 - 12:00</span>
                             </div>
+                            <h4 class="font-extrabold text-slate-900 text-base md:text-lg">屏東里港掃墓行程</h4>
+                            <p class="text-slate-700 text-xs md:text-sm mt-1 font-medium leading-relaxed">執行家族重要掃墓行程。</p>
                         </div>
-                        <div class="flex items-start gap-4 p-3 rounded-lg bg-amber-50">
-                            <div class="text-xs font-bold text-amber-700 w-24 shrink-0 mt-1">12:00 - 13:00</div>
-                            <div class="text-sm">
-                                <span class="font-bold text-slate-900">文富餛飩豬腳 (午餐)</span>
-                                <p class="text-slate-600 text-xs">享用里港名產 Q 彈水煮豬腳與鮮美餛飩湯。</p>
+
+                        <div class="p-3 rounded-xl bg-amber-100/70 border border-amber-300 text-xs md:text-sm">
+                            <div class="flex justify-between font-extrabold text-amber-950 mb-0.5">
+                                <span><i class="fa-solid fa-utensils mr-1"></i> 12:00 - 13:00 午餐</span>
+                                <span>文富餛飩豬腳</span>
                             </div>
+                            <p class="text-slate-700 text-xs">享用里港名產 Q 彈水煮豬腳與鮮美餛飩湯。</p>
                         </div>
-                        <div class="flex items-start gap-4 p-3 rounded-lg bg-emerald-50/50 border-l-4 border-emerald-500">
-                            <div class="text-xs font-bold text-emerald-600 w-24 shrink-0 mt-1">13:40 - 15:50<br><span class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">下午景點 1</span></div>
-                            <div class="text-sm">
-                                <h4 class="font-bold text-slate-900">高雄市立壽山動物園</h4>
-                                <p class="text-slate-600 text-xs mt-1">漫步天空步道，親近可愛動物區，親子休憩放電。</p>
+
+                        <div class="p-4 rounded-xl bg-emerald-50/70 border-l-8 border-emerald-500 shadow-sm">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-xs font-black bg-emerald-600 text-white px-2 py-0.5 rounded">下午景點 1</span>
+                                <span class="text-xs font-bold text-emerald-700">13:40 - 15:50</span>
                             </div>
+                            <h4 class="font-extrabold text-slate-900 text-base md:text-lg">高雄市立壽山動物園</h4>
+                            <p class="text-slate-700 text-xs md:text-sm mt-1 font-medium leading-relaxed">漫步親水天空步道，近距離觀察動物，親子輕鬆放電。</p>
                         </div>
-                        <div class="flex items-start gap-4 p-3 rounded-lg bg-emerald-50/50 border-l-4 border-emerald-500">
-                            <div class="text-xs font-bold text-emerald-600 w-24 shrink-0 mt-1">16:10 - 18:00<br><span class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">下午景點 2</span></div>
-                            <div class="text-sm">
-                                <h4 class="font-bold text-slate-900">駁二藝術特區 & 大港橋</h4>
-                                <p class="text-slate-600 text-xs mt-1">欣賞港灣夕陽景緻，體驗搭乘高雄輕軌與逛文創商店。</p>
+
+                        <div class="p-4 rounded-xl bg-emerald-50/70 border-l-8 border-emerald-500 shadow-sm">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-xs font-black bg-emerald-600 text-white px-2 py-0.5 rounded">下午景點 2</span>
+                                <span class="text-xs font-bold text-emerald-700">16:10 - 18:00</span>
                             </div>
+                            <h4 class="font-extrabold text-slate-900 text-base md:text-lg">駁二藝術特區 & 大港橋</h4>
+                            <p class="text-slate-700 text-xs md:text-sm mt-1 font-medium leading-relaxed">欣賞港灣夕陽景致，體驗搭乘高雄輕軌與逛文創小店。</p>
                         </div>
                     </div>
                 </div>
 
                 <!-- DAY 6 -->
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="bg-emerald-600 text-white p-4 px-6 flex flex-wrap justify-between items-center gap-2">
+                <div class="bg-white rounded-2xl shadow-md border-2 border-slate-200 overflow-hidden">
+                    <div class="bg-emerald-600 text-white p-4 md:p-5 flex flex-wrap justify-between items-center gap-2">
                         <div class="flex items-center gap-3">
-                            <span class="bg-white text-emerald-600 font-black px-3 py-1 rounded-lg text-sm">DAY 6</span>
-                            <h3 class="font-bold text-lg">11/20 (五) 高雄駕駛樂園 ➔ 嘉義鵝肉 ➔ 返抵台中</h3>
+                            <span class="bg-amber-400 text-slate-950 font-black px-3 py-1 rounded-lg text-base md:text-lg shadow-sm">DAY 6</span>
+                            <h3 class="font-extrabold text-base md:text-xl">11/20 (五) 高雄賽車 ➔ 嘉義鵝肉 ➔ 台中</h3>
                         </div>
-                        <span class="text-emerald-100 text-sm"><i class="fa-solid fa-house mr-1"></i> 返回溫馨的家</span>
+                        <span class="bg-emerald-700 text-emerald-100 text-xs md:text-sm font-bold px-3 py-1 rounded-full"><i class="fa-solid fa-house mr-1"></i> 返回溫馨的家</span>
                     </div>
-                    <div class="p-6 space-y-4">
-                        <div class="flex items-start gap-4 p-3 rounded-lg bg-blue-50/50 border-l-4 border-blue-500">
-                            <div class="text-xs font-bold text-blue-600 w-24 shrink-0 mt-1">09:20 - 11:30<br><span class="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">上午景點</span></div>
-                            <div class="text-sm">
-                                <h4 class="font-bold text-slate-900">鈴鹿賽道樂園 (或 科工館)</h4>
-                                <p class="text-slate-600 text-xs mt-1">海外授權駕駛主題樂園，讓 8 歲小孩親自駕駛造型賽車。</p>
+                    <div class="p-4 md:p-6 space-y-3.5">
+                        <div class="p-4 rounded-xl bg-blue-50/70 border-l-8 border-blue-500 shadow-sm">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-xs font-black bg-blue-600 text-white px-2 py-0.5 rounded">上午景點</span>
+                                <span class="text-xs font-bold text-blue-700">09:20 - 11:30</span>
                             </div>
+                            <h4 class="font-extrabold text-slate-900 text-base md:text-lg">鈴鹿賽道樂園 (或 科工館)</h4>
+                            <p class="text-slate-700 text-xs md:text-sm mt-1 font-medium leading-relaxed">海外授權駕駛主題樂園，8 歲小朋友可親自駕駛各式造型賽車。</p>
                         </div>
-                        <div class="flex items-start gap-4 p-3 rounded-lg bg-slate-50">
-                            <div class="text-xs font-bold text-slate-500 w-24 shrink-0 mt-1">11:30 - 12:45</div>
-                            <div class="text-sm">
-                                <span class="font-bold text-slate-800">高雄 ➔ 國道 1 號 ➔ 嘉義民雄</span>
-                                <span class="ml-2 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200"><i class="fa-solid fa-car"></i> 車程 1hr 15min</span>
-                            </div>
+
+                        <div class="flex items-center gap-3 p-3 rounded-xl bg-slate-100/80 border border-slate-200 text-xs md:text-sm">
+                            <span class="font-extrabold text-slate-600 w-28 shrink-0"><i class="fa-solid fa-car text-amber-500 mr-1"></i> 11:30 - 12:45</span>
+                            <div class="font-bold text-slate-800">高雄 ➔ 國道 1 號 ➔ 嘉義民雄 <span class="text-amber-600 font-extrabold block sm:inline">(車程約 1hr 15min)</span></div>
                         </div>
-                        <div class="flex items-start gap-4 p-3 rounded-lg bg-amber-50">
-                            <div class="text-xs font-bold text-amber-700 w-24 shrink-0 mt-1">12:45 - 14:00</div>
-                            <div class="text-sm">
-                                <span class="font-bold text-slate-900">正宗民雄鵝肉亭 (午餐)</span>
-                                <p class="text-slate-600 text-xs">享用肉質鮮嫩多汁、在地最知名的鵝肉大餐。</p>
+
+                        <div class="p-3 rounded-xl bg-amber-100/70 border border-amber-300 text-xs md:text-sm">
+                            <div class="flex justify-between font-extrabold text-amber-950 mb-0.5">
+                                <span><i class="fa-solid fa-utensils mr-1"></i> 12:45 - 14:00 必吃午餐</span>
+                                <span>正宗民雄鵝肉亭</span>
                             </div>
+                            <p class="text-slate-700 text-xs">享用肉質鮮嫩多汁、在地名氣響亮的鵝肉大餐。</p>
                         </div>
-                        <div class="flex items-start gap-4 p-3 rounded-lg bg-emerald-50/50 border-l-4 border-emerald-500">
-                            <div class="text-xs font-bold text-emerald-600 w-24 shrink-0 mt-1">14:15 - 16:30<br><span class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">下午景點</span></div>
-                            <div class="text-sm">
-                                <h4 class="font-bold text-slate-900">民雄金桔觀光工廠</h4>
-                                <p class="text-slate-600 text-xs mt-1">綠意園區、金桔果醬 DIY，大草皮與樹屋溜滑梯完美收尾。</p>
+
+                        <div class="p-4 rounded-xl bg-emerald-50/70 border-l-8 border-emerald-500 shadow-sm">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-xs font-black bg-emerald-600 text-white px-2 py-0.5 rounded">下午景點</span>
+                                <span class="text-xs font-bold text-emerald-700">14:15 - 16:30</span>
                             </div>
+                            <h4 class="font-extrabold text-slate-900 text-base md:text-lg">民雄金桔觀光工廠</h4>
+                            <p class="text-slate-700 text-xs md:text-sm mt-1 font-medium leading-relaxed">樹林草皮園區、金桔果醬 DIY 與樹屋溜滑梯完美收尾。</p>
                         </div>
-                        <div class="flex items-start gap-4 p-3 rounded-lg bg-slate-50">
-                            <div class="text-xs font-bold text-slate-500 w-24 shrink-0 mt-1">16:30 - 17:30</div>
-                            <div class="text-sm">
-                                <span class="font-bold text-slate-800">嘉義民雄 ➔ 返抵台中溫馨的家</span>
-                                <span class="ml-2 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200"><i class="fa-solid fa-car"></i> 車程 1hr</span>
-                            </div>
+
+                        <div class="flex items-center gap-3 p-3 rounded-xl bg-emerald-100/80 border border-emerald-300 text-xs md:text-sm">
+                            <span class="font-extrabold text-emerald-800 w-28 shrink-0"><i class="fa-solid fa-flag-checkered text-emerald-600 mr-1"></i> 16:30 - 17:30</span>
+                            <div class="font-extrabold text-emerald-950">嘉義民雄 ➔ 返抵台中溫馨的家 <span class="text-emerald-700 block sm:inline">(車程約 1hr)</span></div>
                         </div>
                     </div>
                 </div>
@@ -381,77 +373,118 @@
         </div>
     </section>
 
-    <!-- Hotel Recommendations Section -->
-    <section id="hotels" class="py-16 bg-white border-t border-slate-200">
-        <div class="container mx-auto px-6">
-            <div class="text-center max-w-2xl mx-auto mb-12">
-                <h2 class="text-3xl font-extrabold text-slate-900 mb-3">嚴選補助住宿清單</h2>
-                <p class="text-slate-600">全數為觀光署認證合作旅宿，滿足「免費停車 + 泡澡/湯池 + 扣除補助自費預算 NT$ 2,000 以內」。</p>
+    <!-- Hotel Section (比例顯著放大、文字與卡片層次強化) -->
+    <section id="hotels" class="py-12 md:py-16 bg-slate-900 text-white border-t-4 border-emerald-500">
+        <div class="container mx-auto px-4 max-w-5xl">
+            <div class="text-center mb-8 md:mb-12">
+                <span class="text-emerald-400 font-extrabold text-sm tracking-wider uppercase bg-emerald-950/80 border border-emerald-800 px-3.5 py-1 rounded-full">Accommodations</span>
+                <h2 class="text-2xl md:text-4xl font-extrabold text-white mt-2">嚴選國旅補助住宿</h2>
+                <p class="text-slate-300 text-sm md:text-base mt-1">三大一小四大條件：免費停車 + 泡澡/湯池 + 扣補助後自費 <strong class="text-amber-400 font-extrabold">NT$ 2,000 以內/晚</strong></p>
             </div>
 
-            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
                 <!-- Hotel 1 -->
-                <div class="bg-slate-50 rounded-2xl p-6 border border-slate-200 flex flex-col justify-between hover:shadow-md transition">
+                <div class="bg-slate-800 rounded-2xl p-5 md:p-6 border-2 border-slate-700 shadow-xl flex flex-col justify-between hover:border-emerald-500 transition">
                     <div>
-                        <div class="flex justify-between items-start mb-3">
-                            <span class="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-1 rounded">宜蘭 2 晚</span>
-                            <span class="text-xs text-slate-500"><i class="fa-solid fa-hot-tub-person text-amber-500"></i> 房內雙湯池</span>
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="bg-blue-500 text-white font-extrabold text-xs px-3 py-1 rounded-md">宜蘭（11/15, 11/16 連住兩晚）</span>
+                            <span class="text-xs font-bold text-amber-400"><i class="fa-solid fa-hot-tub-person mr-1"></i> 房內獨立湯池</span>
                         </div>
-                        <h3 class="font-bold text-lg text-slate-900 mb-1">礁溪雪山溫泉會館 / 中冠礁溪</h3>
-                        <p class="text-xs text-slate-600 mb-4">有專屬地下停車場，房內獨立泡湯池，館內溫泉水上滑水道。</p>
+                        <h3 class="text-lg md:text-xl font-extrabold text-white mb-2">礁溪雪山溫泉會館 / 中冠礁溪</h3>
+                        <ul class="text-xs md:text-sm text-slate-300 space-y-1.5 mb-4 leading-relaxed font-medium">
+                            <li class="flex items-center"><i class="fa-solid fa-circle-check text-emerald-400 mr-2"></i> 專屬地下/平面免費停車場</li>
+                            <li class="flex items-center"><i class="fa-solid fa-circle-check text-emerald-400 mr-2"></i> 每間家庭房備有獨立超大溫泉泡湯池</li>
+                            <li class="flex items-center"><i class="fa-solid fa-circle-check text-emerald-400 mr-2"></i> 附設大型溫泉水上滑水道，小孩最愛</li>
+                        </ul>
                     </div>
-                    <div class="pt-4 border-t border-slate-200">
-                        <div class="text-xs text-slate-500">連住折抵補助後</div>
-                        <div class="text-xl font-extrabold text-emerald-600">約 $1,800 <span class="text-xs font-normal text-slate-500">/ 晚</span></div>
+                    <div class="pt-4 border-t border-slate-700 flex justify-between items-end">
+                        <div>
+                            <span class="text-[10px] md:text-xs text-slate-400 block">連住補助共享 $2,000 折抵</span>
+                            <span class="text-xs text-slate-300">扣補助後均價</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-2xl md:text-3xl font-black text-amber-400">約 $1,800</span>
+                            <span class="text-xs text-slate-400 font-bold"> / 晚 (自費)</span>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Hotel 2 -->
-                <div class="bg-slate-50 rounded-2xl p-6 border border-slate-200 flex flex-col justify-between hover:shadow-md transition">
+                <div class="bg-slate-800 rounded-2xl p-5 md:p-6 border-2 border-slate-700 shadow-xl flex flex-col justify-between hover:border-emerald-500 transition">
                     <div>
-                        <div class="flex justify-between items-start mb-3">
-                            <span class="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-1 rounded">花蓮 1 晚</span>
-                            <span class="text-xs text-slate-500"><i class="fa-solid fa-bath text-amber-500"></i> 大浴缸設施</span>
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="bg-blue-500 text-white font-extrabold text-xs px-3 py-1 rounded-md">花蓮（11/17 入住 1 晚）</span>
+                            <span class="text-xs font-bold text-amber-400"><i class="fa-solid fa-bath mr-1"></i> 獨立深型浴缸</span>
                         </div>
-                        <h3 class="font-bold text-lg text-slate-900 mb-1">花蓮麗軒國際飯店</h3>
-                        <p class="text-xs text-slate-600 mb-4">花蓮市區免費專屬停車，家庭房空間大，配有獨立泡澡浴缸。</p>
+                        <h3 class="text-lg md:text-xl font-extrabold text-white mb-2">花蓮麗軒國際飯店</h3>
+                        <ul class="text-xs md:text-sm text-slate-300 space-y-1.5 mb-4 leading-relaxed font-medium">
+                            <li class="flex items-center"><i class="fa-solid fa-circle-check text-emerald-400 mr-2"></i> 花蓮市區免費專屬平面停車場</li>
+                            <li class="flex items-center"><i class="fa-solid fa-circle-check text-emerald-400 mr-2"></i> 四人房空間寬敞，衛浴設有獨立泡澡浴缸</li>
+                            <li class="flex items-center"><i class="fa-solid fa-circle-check text-emerald-400 mr-2"></i> 方便隔天直奔海洋公園與夜市</li>
+                        </ul>
                     </div>
-                    <div class="pt-4 border-t border-slate-200">
-                        <div class="text-xs text-slate-500">折抵 800 補助後</div>
-                        <div class="text-xl font-extrabold text-emerald-600">約 $1,800 <span class="text-xs font-normal text-slate-500">/ 晚</span></div>
+                    <div class="pt-4 border-t border-slate-700 flex justify-between items-end">
+                        <div>
+                            <span class="text-[10px] md:text-xs text-slate-400 block">平日住宿折抵 $800 補助</span>
+                            <span class="text-xs text-slate-300">扣補助後自費</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-2xl md:text-3xl font-black text-amber-400">約 $1,800</span>
+                            <span class="text-xs text-slate-400 font-bold"> / 晚 (自費)</span>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Hotel 3 -->
-                <div class="bg-slate-50 rounded-2xl p-6 border border-slate-200 flex flex-col justify-between hover:shadow-md transition">
+                <div class="bg-slate-800 rounded-2xl p-5 md:p-6 border-2 border-slate-700 shadow-xl flex flex-col justify-between hover:border-emerald-500 transition">
                     <div>
-                        <div class="flex justify-between items-start mb-3">
-                            <span class="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-1 rounded">台東 1 晚</span>
-                            <span class="text-xs text-slate-500"><i class="fa-solid fa-square-parking text-amber-500"></i> 廣闊停車場</span>
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="bg-blue-500 text-white font-extrabold text-xs px-3 py-1 rounded-md">台東（11/18 入住 1 晚）</span>
+                            <span class="text-xs font-bold text-amber-400"><i class="fa-solid fa-square-parking mr-1"></i> 廣闊免費停車場</span>
                         </div>
-                        <h3 class="font-bold text-lg text-slate-900 mb-1">台東富野渡假酒店</h3>
-                        <p class="text-xs text-slate-600 mb-4">台東市區方便抵達景點，免費停車，備有溫泉泡腳池與浴缸。</p>
+                        <h3 class="text-lg md:text-xl font-extrabold text-white mb-2">台東富野渡假酒店</h3>
+                        <ul class="text-xs md:text-sm text-slate-300 space-y-1.5 mb-4 leading-relaxed font-medium">
+                            <li class="flex items-center"><i class="fa-solid fa-circle-check text-emerald-400 mr-2"></i> 位於台東市區，專屬免費廣闊停車場</li>
+                            <li class="flex items-center"><i class="fa-solid fa-circle-check text-emerald-400 mr-2"></i> 館內免費溫泉泡腳池與三溫暖/浴缸</li>
+                            <li class="flex items-center"><i class="fa-solid fa-circle-check text-emerald-400 mr-2"></i> 近森林公園與史前博物館</li>
+                        </ul>
                     </div>
-                    <div class="pt-4 border-t border-slate-200">
-                        <div class="text-xs text-slate-500">折抵 800 補助後</div>
-                        <div class="text-xl font-extrabold text-emerald-600">約 $1,700 <span class="text-xs font-normal text-slate-500">/ 晚</span></div>
+                    <div class="pt-4 border-t border-slate-700 flex justify-between items-end">
+                        <div>
+                            <span class="text-[10px] md:text-xs text-slate-400 block">平日住宿折抵 $800 補助</span>
+                            <span class="text-xs text-slate-300">扣補助後自費</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-2xl md:text-3xl font-black text-amber-400">約 $1,700</span>
+                            <span class="text-xs text-slate-400 font-bold"> / 晚 (自費)</span>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Hotel 4 -->
-                <div class="bg-slate-50 rounded-2xl p-6 border border-slate-200 flex flex-col justify-between hover:shadow-md transition">
+                <div class="bg-slate-800 rounded-2xl p-5 md:p-6 border-2 border-slate-700 shadow-xl flex flex-col justify-between hover:border-emerald-500 transition">
                     <div>
-                        <div class="flex justify-between items-start mb-3">
-                            <span class="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-1 rounded">高雄 1 晚</span>
-                            <span class="text-xs text-slate-500"><i class="fa-solid fa-gamepad text-amber-500"></i> 親子遊戲區</span>
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="bg-blue-500 text-white font-extrabold text-xs px-3 py-1 rounded-md">高雄（11/19 入住 1 晚）</span>
+                            <span class="text-xs font-bold text-amber-400"><i class="fa-solid fa-gamepad mr-1"></i> 百坪室內遊戲區</span>
                         </div>
-                        <h3 class="font-bold text-lg text-slate-900 mb-1">高雄鈞怡大飯店</h3>
-                        <p class="text-xs text-slate-600 mb-4">座落愛河旁地下停車，特定房型享景觀浴缸，百坪室內遊樂場。</p>
+                        <h3 class="text-lg md:text-xl font-extrabold text-white mb-2">高雄鈞怡大飯店</h3>
+                        <ul class="text-xs md:text-sm text-slate-300 space-y-1.5 mb-4 leading-relaxed font-medium">
+                            <li class="flex items-center"><i class="fa-solid fa-circle-check text-emerald-400 mr-2"></i> 座落愛河旁，免費專屬地下停車場</li>
+                            <li class="flex items-center"><i class="fa-solid fa-circle-check text-emerald-400 mr-2"></i> 四人房配景觀浴缸，附大型室內遊樂場</li>
+                            <li class="flex items-center"><i class="fa-solid fa-circle-check text-emerald-400 mr-2"></i> 鄰近駁二特區，方便隔天至賽道樂園</li>
+                        </ul>
                     </div>
-                    <div class="pt-4 border-t border-slate-200">
-                        <div class="text-xs text-slate-500">折抵 800 補助後</div>
-                        <div class="text-xl font-extrabold text-emerald-600">約 $1,900 <span class="text-xs font-normal text-slate-500">/ 晚</span></div>
+                    <div class="pt-4 border-t border-slate-700 flex justify-between items-end">
+                        <div>
+                            <span class="text-[10px] md:text-xs text-slate-400 block">平日住宿折抵 $800 補助</span>
+                            <span class="text-xs text-slate-300">扣補助後自費</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-2xl md:text-3xl font-black text-amber-400">約 $1,900</span>
+                            <span class="text-xs text-slate-400 font-bold"> / 晚 (自費)</span>
+                        </div>
                     </div>
                 </div>
 
@@ -459,47 +492,33 @@
         </div>
     </section>
 
-    <!-- Subsidy Tips Section -->
-    <section id="subsidy" class="py-16 bg-slate-900 text-white">
-        <div class="container mx-auto px-6 max-w-4xl">
-            <div class="text-center mb-10">
-                <span class="text-amber-400 text-sm font-bold tracking-widest uppercase">2026 最新政策</span>
-                <h2 class="text-3xl font-extrabold mt-2">觀光署國旅補助省錢清單</h2>
-            </div>
-
-            <div class="grid md:grid-cols-3 gap-6 mb-8">
-                <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-700">
-                    <div class="text-amber-400 text-2xl font-black mb-1">第 1 晚 -$800</div>
-                    <p class="text-xs text-slate-300">週日至週四平日自由行每房現折 800 元。</p>
-                </div>
-                <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-700">
-                    <div class="text-amber-400 text-2xl font-black mb-1">連住第 2 晚 -$1200</div>
-                    <p class="text-xs text-slate-300">宜蘭連續入住兩晚，第二晚加碼折抵 1,200 元。</p>
-                </div>
-                <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-700">
-                    <div class="text-amber-400 text-2xl font-black mb-1">樂園留宿禮</div>
-                    <p class="text-xs text-slate-300">入住後至官網登錄可領點數兌換樂園門票折價券。</p>
-                </div>
-            </div>
-
-            <div class="bg-slate-800 rounded-xl p-6 border border-slate-700 space-y-3 text-sm text-slate-300">
-                <h3 class="font-bold text-white text-base flex items-center gap-2">
-                    <i class="fa-solid fa-circle-check text-emerald-400"></i> 訂房申請三步驟：
+    <!-- Subsidy Section (極簡實用重點) -->
+    <section id="subsidy" class="py-10 bg-slate-200 text-slate-800">
+        <div class="container mx-auto px-4 max-w-3xl">
+            <div class="bg-white rounded-2xl p-6 border border-slate-300 shadow-sm">
+                <h3 class="font-extrabold text-lg text-slate-900 mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-lightbulb text-amber-500"></i> 國旅補助申請注意事項
                 </h3>
-                <ol class="list-decimal list-inside space-y-2 pl-2">
-                    <li><strong class="text-white">事前上傳證件：</strong>出發前至「交通部觀光署國旅補助專區」上傳隨行身分證/健保卡建檔。</li>
-                    <li><strong class="text-white">官方管道預訂：</strong>務必透過飯店官網訂房（選擇國旅補助專案）或電話訂房，海外 Agoda / Booking 等平台不適用。</li>
-                    <li><strong class="text-white">現場核對折抵：</strong>辦理 Check-in 時出示證件正本，即可現場扣抵住宿費用！</li>
-                </ol>
+                <ul class="space-y-2 text-xs md:text-sm text-slate-700 font-medium">
+                    <li class="flex items-start gap-2">
+                        <span class="font-bold text-blue-600 shrink-0">1. 上傳證件：</span>
+                        <span>入住前至「交通部觀光署國旅補助專區」上傳身分證或健保卡正面圖檔建檔。</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="font-bold text-blue-600 shrink-0">2. 指定管道：</span>
+                        <span>請務必透過<strong class="text-slate-900">飯店電話</strong>或<strong class="text-slate-900">飯店官網專案</strong>預訂，海外 OTA（如 Agoda/Booking）不適用補助。</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="font-bold text-blue-600 shrink-0">3. 現場折抵：</span>
+                        <span>Check-in 時出示申請人身分證件正本，即可現場扣抵房費。</span>
+                    </li>
+                </ul>
             </div>
         </div>
     </section>
 
-    <!-- Footer -->
-    <footer class="bg-slate-950 text-slate-500 py-8 text-center text-sm border-t border-slate-800">
-        <div class="container mx-auto px-6">
-            <p>© 2026 親子順時針環島行程規劃 | 祝您與家人旅途愉快！</p>
-        </div>
+    <footer class="bg-slate-950 text-slate-500 py-6 text-center text-xs">
+        <p>© 2026 親子順時針環島行程規劃 | 祝您與家人旅途愉快！</p>
     </footer>
 
 </body>
