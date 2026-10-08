@@ -16,6 +16,43 @@
         .hero-bg {
             background: linear-gradient(rgba(15, 23, 42, 0.75), rgba(15, 23, 42, 0.85)), url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1920&q=80') center/cover no-repeat;
         }
+        .interactive-info-card {
+            cursor: pointer;
+            transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+        }
+        .interactive-info-card:hover,
+        .interactive-info-card:focus-visible {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(15, 23, 42, .14);
+            outline: 3px solid rgba(245, 158, 11, .45);
+            outline-offset: 2px;
+        }
+        .contact-card-hint {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: .75rem;
+            width: 100%;
+            margin-top: .75rem;
+            padding-top: .65rem;
+            border-top: 1px dashed rgba(100, 116, 139, .45);
+            color: #0369a1;
+            font-size: .75rem;
+            font-weight: 800;
+        }
+        #contact-modal[hidden] { display: none; }
+        .contact-action {
+            min-height: 48px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .5rem;
+            border-radius: .85rem;
+            padding: .75rem 1rem;
+            font-weight: 900;
+            text-decoration: none;
+        }
+        body.modal-open { overflow: hidden; }
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800 antialiased">
@@ -519,6 +556,154 @@
     <footer class="bg-slate-950 text-slate-500 py-6 text-center text-xs">
         <p>© 2026 親子順時針環島行程規劃 | 祝您與家人旅途愉快！</p>
     </footer>
+
+    <!-- Shared contact / navigation modal -->
+    <div id="contact-modal" class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4" hidden aria-hidden="true">
+        <button id="contact-modal-backdrop" class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" aria-label="關閉聯絡資訊"></button>
+        <section class="relative w-full sm:max-w-lg max-h-[88vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="contact-modal-title">
+            <div class="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-slate-200 bg-white/95 p-5 backdrop-blur">
+                <div>
+                    <span id="contact-modal-type" class="text-xs font-black tracking-wider text-blue-600"></span>
+                    <h2 id="contact-modal-title" class="mt-1 text-xl font-black text-slate-900"></h2>
+                </div>
+                <button id="contact-modal-close" class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700" aria-label="關閉">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            <div class="space-y-5 p-5">
+                <div id="booking-details" class="hidden rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                    <h3 class="mb-2 font-black text-amber-900"><i class="fa-solid fa-user-check mr-2"></i>訂房資料</h3>
+                    <p class="text-sm text-slate-700"><strong>訂房人：</strong><span id="booking-name"></span></p>
+                    <p class="mt-1 text-sm text-slate-700"><strong>聯絡電話：</strong><span id="booking-phone"></span></p>
+                </div>
+                <div class="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
+                    <p><i class="fa-solid fa-phone mr-2 w-4 text-blue-600"></i><strong>電話：</strong><span id="contact-phone"></span></p>
+                    <p class="mt-3"><i class="fa-brands fa-line mr-2 w-4 text-emerald-600"></i><strong>LINE：</strong><span id="contact-line"></span></p>
+                    <p class="mt-3 flex items-start"><i class="fa-solid fa-location-dot mr-2 mt-1 w-4 shrink-0 text-rose-600"></i><span><strong>地址：</strong><span id="contact-address"></span></span></p>
+                </div>
+                <div id="contact-actions" class="grid grid-cols-1 gap-3 sm:grid-cols-3"></div>
+                <div id="alternate-place" class="hidden rounded-2xl border border-slate-200 p-4"></div>
+                <p class="text-center text-[11px] leading-relaxed text-slate-500">電話與 LINE 依業者公開資訊整理；出發前請再次確認營業狀態。</p>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const contactDirectory = {
+            '張美阿嬤農場': { type: '旅遊景點', phone: '0935-514-462', tel: '0935514462', address: '宜蘭縣三星鄉行健溪一路二段161號' },
+            '清水地熱公園 (含煮食午餐)': { type: '旅遊景點', displayName: '清水地熱公園', phone: '03-989-4500', tel: '039894500', address: '宜蘭縣大同鄉三星路八段501巷150號' },
+            '勇者桂冠王 (原邱比準射擊博物館)': { type: '旅遊景點', displayName: '勇者桂冠王', phone: '03-923-0669', tel: '039230669', address: '宜蘭縣員山鄉員山路二段255號' },
+            '蠟藝蠟筆城堡': { type: '旅遊景點', phone: '03-990-7101', tel: '039907101', address: '宜蘭縣蘇澳鎮海山西路500號' },
+            '豆腐岬風景區': { type: '旅遊景點', phone: '03-997-3421', tel: '039973421', address: '宜蘭縣蘇澳鎮南方澳漁港東側' },
+            '大鯖魚夢工廠': { type: '旅遊景點', phone: '03-990-4111', tel: '039904111', lineLabel: '@buyfish', lineUrl: 'https://lin.ee/rr3PXm8', address: '宜蘭縣蘇澳鎮大圳路118號' },
+            '蘇澳冷泉公園': { type: '旅遊景點', phone: '03-996-0645', tel: '039960645', address: '宜蘭縣蘇澳鎮冷泉路6-4號' },
+            '遠雄海洋公園 (園區內午餐)': { type: '旅遊景點', displayName: '遠雄海洋公園', phone: '03-812-3199', tel: '038123199', lineLabel: '官方 LINE', lineUrl: 'https://page.line.me/qbt6753v', address: '花蓮縣壽豐鄉鹽寮村福德189號' },
+            '入住花蓮飯店 ➔ 東大門夜市': { type: '旅遊景點', displayName: '花蓮東大門夜市', address: '花蓮縣花蓮市中山路50號' },
+            '伯朗大道 (含池上便當午餐)': { type: '旅遊景點', displayName: '伯朗大道', phone: '089-862-041', tel: '089862041', address: '臺東縣池上鄉伯朗大道（錦新三號道路）' },
+            '台東森林公園': { type: '旅遊景點', phone: '089-343-611', tel: '089343611', address: '臺東縣臺東市華泰路300號' },
+            '國立臺灣史前文化博物館': { type: '旅遊景點', phone: '089-381-166', tel: '089381166', address: '臺東縣臺東市博物館路1號' },
+            '高雄市立壽山動物園': { type: '旅遊景點', phone: '07-521-5187', tel: '075215187', lineLabel: '官方 LINE', lineUrl: 'https://page.line.me/kxa6481f', address: '高雄市鼓山區萬壽路350號' },
+            '駁二藝術特區 & 大港橋': { type: '旅遊景點', displayName: '駁二藝術特區與大港橋', phone: '07-521-4899', tel: '075214899', address: '高雄市鹽埕區大勇路1號' },
+            '鈴鹿賽道樂園 (或 科工館)': {
+                type: '旅遊景點', displayName: '鈴鹿賽道樂園', phone: '07-796-7766', tel: '077967766', lineLabel: '官方 LINE', lineUrl: 'https://page.line.me/vmj6468i', address: '高雄市前鎮區中安路1之1號',
+                alternate: { name: '備案：國立科學工藝博物館', phone: '07-380-0089', tel: '073800089', address: '高雄市三民區九如一路720號' }
+            },
+            '民雄金桔觀光工廠': { type: '旅遊景點', phone: '05-272-0351', tel: '052720351', address: '嘉義縣民雄鄉三興村陳厝寮7鄰38號' },
+            '田心民宿': { type: '住宿資訊', phone: '0982-131-954', tel: '0982131954', lineLabel: '@678rsujg', lineUrl: 'https://line.me/R/ti/p/%40678rsujg', address: '宜蘭縣冬山鄉武淵一路6巷63號', bookingName: '待提供', bookingPhone: '待提供' },
+            '花蓮麗軒國際飯店': { type: '住宿資訊', phone: '03-824-6898', tel: '038246898', lineLabel: '官方 LINE', lineUrl: 'https://page.line.me/yhp1662q', address: '花蓮市中美路99-1號', bookingName: '待提供', bookingPhone: '待提供' },
+            '台東富野渡假酒店': { type: '住宿資訊', phone: '089-350-666', tel: '089350666', address: '臺東縣臺東市復興路38號', bookingName: '待提供', bookingPhone: '待提供' },
+            '高雄鈞怡大飯店': { type: '住宿資訊', phone: '07-282-1888', tel: '072821888', address: '高雄市前金區河東路10號', bookingName: '待提供', bookingPhone: '待提供' }
+        };
+
+        const modal = document.getElementById('contact-modal');
+        const modalTitle = document.getElementById('contact-modal-title');
+        const modalType = document.getElementById('contact-modal-type');
+        const bookingDetails = document.getElementById('booking-details');
+        const contactActions = document.getElementById('contact-actions');
+        const alternatePlace = document.getElementById('alternate-place');
+        let lastFocusedCard = null;
+
+        const mapUrl = address => `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`;
+        const actionLink = (href, icon, label, classes) => `<a class="contact-action ${classes}" href="${href}" target="_blank" rel="noopener"><i class="${icon}"></i>${label}</a>`;
+
+        function openContactModal(name, info, card) {
+            lastFocusedCard = card;
+            modalTitle.textContent = info.displayName || name;
+            modalType.textContent = info.type;
+            document.getElementById('contact-phone').textContent = info.phone || '未提供';
+            document.getElementById('contact-line').textContent = info.lineLabel || '未提供官方帳號';
+            document.getElementById('contact-address').textContent = info.address;
+
+            if (info.type === '住宿資訊') {
+                bookingDetails.classList.remove('hidden');
+                document.getElementById('booking-name').textContent = info.bookingName;
+                document.getElementById('booking-phone').textContent = info.bookingPhone;
+            } else {
+                bookingDetails.classList.add('hidden');
+            }
+
+            const actions = [];
+            if (info.tel) actions.push(actionLink(`tel:${info.tel}`, 'fa-solid fa-phone', '立即撥號', 'bg-blue-600 text-white'));
+            if (info.lineUrl) actions.push(actionLink(info.lineUrl, 'fa-brands fa-line', '開啟 LINE', 'bg-emerald-500 text-white'));
+            actions.push(actionLink(mapUrl(info.address), 'fa-solid fa-location-arrow', '開始導航', 'bg-rose-600 text-white'));
+            contactActions.innerHTML = actions.join('');
+
+            if (info.alternate) {
+                const alt = info.alternate;
+                alternatePlace.classList.remove('hidden');
+                alternatePlace.innerHTML = `<h3 class="font-black text-slate-900">${alt.name}</h3><p class="mt-2 text-sm text-slate-600">${alt.phone}｜${alt.address}</p><div class="mt-3 grid grid-cols-2 gap-2">${actionLink(`tel:${alt.tel}`, 'fa-solid fa-phone', '撥號', 'bg-blue-50 text-blue-700')}${actionLink(mapUrl(alt.address), 'fa-solid fa-location-arrow', '導航', 'bg-rose-50 text-rose-700')}</div>`;
+            } else {
+                alternatePlace.classList.add('hidden');
+                alternatePlace.innerHTML = '';
+            }
+
+            modal.hidden = false;
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('modal-open');
+            document.getElementById('contact-modal-close').focus();
+        }
+
+        function closeContactModal() {
+            modal.hidden = true;
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('modal-open');
+            if (lastFocusedCard) lastFocusedCard.focus();
+        }
+
+        document.querySelectorAll('#itinerary h4, #hotels h3').forEach(heading => {
+            const name = heading.textContent.trim();
+            const info = contactDirectory[name];
+            if (!info) return;
+            const card = heading.closest('#hotels') ? heading.closest('.bg-slate-800') : heading.closest('.rounded-xl');
+            if (!card) return;
+            card.classList.add('interactive-info-card');
+            card.tabIndex = 0;
+            card.setAttribute('role', 'button');
+            card.setAttribute('aria-label', `查看${info.displayName || name}的聯絡與導航資訊`);
+
+            const hint = document.createElement('div');
+            hint.className = 'contact-card-hint';
+            hint.innerHTML = '<span><i class="fa-solid fa-circle-info mr-1"></i>查看聯絡與導航</span><i class="fa-solid fa-chevron-right"></i>';
+            card.appendChild(hint);
+
+            card.addEventListener('click', event => {
+                if (event.target.closest('a, button')) return;
+                openContactModal(name, info, card);
+            });
+            card.addEventListener('keydown', event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    openContactModal(name, info, card);
+                }
+            });
+        });
+
+        document.getElementById('contact-modal-close').addEventListener('click', closeContactModal);
+        document.getElementById('contact-modal-backdrop').addEventListener('click', closeContactModal);
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && !modal.hidden) closeContactModal();
+        });
+    </script>
 
 </body>
 </html>
