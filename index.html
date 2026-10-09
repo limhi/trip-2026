@@ -289,7 +289,7 @@
                             <p class="text-slate-700 text-xs md:text-sm mt-1 font-medium leading-relaxed">四道手作 DIY 關卡，讓小朋友親手製作彩色筆與造型蠟筆。</p>
                         </div>
 
-                        <div class="p-3 rounded-xl bg-amber-50/80 border border-amber-200 text-xs md:text-sm">
+                        <div class="p-3 rounded-xl bg-amber-50/80 border border-amber-200 text-xs md:text-sm" data-contact="宜蘭餅發明館">
                             <div class="flex justify-between font-extrabold text-amber-900 mb-0.5">
                                 <span><i class="fa-solid fa-utensils mr-1"></i> 11:30 - 12:30 蘇澳市區午餐</span>
                                 <span>宜蘭餅發明館</span>
@@ -390,7 +390,7 @@
                             <div class="text-slate-700">下午表演、纜車與遊樂設施；前一晚查看官方表演時刻，建議入園後先搭纜車到高處，再依序往下玩。</div>
                         </div>
 
-                        <div class="p-4 rounded-xl bg-emerald-50/70 border-l-8 border-emerald-500 shadow-sm">
+                        <div class="p-4 rounded-xl bg-emerald-50/70 border-l-8 border-emerald-500 shadow-sm" data-contact="童樂會親子民宿">
                             <div class="flex justify-between items-start mb-1">
                                 <span class="text-xs font-black bg-emerald-600 text-white px-2 py-0.5 rounded">離園返程</span>
                                 <span class="text-xs font-bold text-emerald-700">16:40 - 17:30</span>
@@ -433,7 +433,7 @@
                             <p class="text-slate-700 text-xs md:text-sm mt-1 font-medium leading-relaxed">10:30 - 11:30 提早午餐；11:40 - 12:40 伯朗大道或大坡池二選一。</p>
                         </div>
 
-                        <div class="p-3 rounded-xl bg-amber-100/70 border border-amber-300 text-xs md:text-sm">
+                        <div class="p-3 rounded-xl bg-amber-100/70 border border-amber-300 text-xs md:text-sm" data-contact="多良觀景休息點">
                             <div class="flex justify-between font-extrabold text-amber-950 mb-0.5">
                                 <span><i class="fa-solid fa-route mr-1"></i> 12:40 - 17:40</span>
                                 <span>池上 ➔ 多良 ➔ 屏東市</span>
@@ -485,7 +485,7 @@
                             <div class="font-bold text-slate-800">路線：屏東市 ➔ 里港 ➔ 國道10號 ➔ 國道3號 ➔ 台中。</div>
                         </div>
 
-                        <div class="p-3 rounded-xl bg-amber-100/70 border border-amber-300 text-xs md:text-sm">
+                        <div class="p-3 rounded-xl bg-amber-100/70 border border-amber-300 text-xs md:text-sm" data-contact="文富餛飩豬腳">
                             <div class="flex justify-between font-extrabold text-amber-950 mb-0.5">
                                 <span><i class="fa-solid fa-utensils mr-1"></i> 11:00 - 12:00 午餐</span>
                                 <span>文富餛飩豬腳</span>
@@ -667,9 +667,9 @@
     <script>
         const contactDirectory = {
             '張美阿嬤農場': { type: '旅遊景點', phone: '0935-514-462', tel: '0935514462', address: '宜蘭縣三星鄉行健溪一路二段161號' },
-            '清水地熱公園 (含煮食午餐)': { type: '旅遊景點', displayName: '清水地熱公園', phone: '03-989-4500', tel: '039894500', address: '宜蘭縣大同鄉三星路八段501巷150號' },
-            '勇者桂冠王 (原邱比準射擊博物館)': { type: '旅遊景點', displayName: '勇者桂冠王', phone: '03-923-0669', tel: '039230669', address: '宜蘭縣員山鄉員山路二段255號' },
+            '清水地熱公園': { type: '旅遊景點', phone: '03-989-4500', tel: '039894500', address: '宜蘭縣大同鄉三星路八段501巷150號' },
             '蠟藝蠟筆城堡': { type: '旅遊景點', phone: '03-990-7101', tel: '039907101', address: '宜蘭縣蘇澳鎮海山西路500號' },
+            '宜蘭餅發明館': { type: '旅遊景點', phone: '03-990-5999', tel: '039905999', address: '宜蘭縣蘇澳鎮海山西路369號' },
             '豆腐岬風景區': { type: '旅遊景點', phone: '03-997-3421', tel: '039973421', address: '宜蘭縣蘇澳鎮南方澳漁港東側' },
             '大鯖魚夢工廠': { type: '旅遊景點', phone: '03-990-4111', tel: '039904111', lineLabel: '@buyfish', lineUrl: 'https://lin.ee/rr3PXm8', address: '宜蘭縣蘇澳鎮大圳路118號' },
             '蘇澳冷泉公園': { type: '旅遊景點', phone: '03-996-0645', tel: '039960645', address: '宜蘭縣蘇澳鎮冷泉路6-4號' },
@@ -815,11 +815,11 @@
             if (lastFocusedCard) lastFocusedCard.focus();
         }
 
-        document.querySelectorAll('#itinerary h4, #hotels h3').forEach(heading => {
-            const name = heading.textContent.trim();
+        document.querySelectorAll('#itinerary h4, #hotels h3, [data-contact]').forEach(trigger => {
+            const name = trigger.dataset.contact || trigger.textContent.trim();
             const info = contactDirectory[name];
             if (!info) return;
-            const card = heading.closest('#hotels') ? heading.closest('.bg-slate-800') : heading.closest('.rounded-xl');
+            const card = trigger.closest('#hotels') ? trigger.closest('.bg-slate-800') : trigger.closest('.rounded-xl');
             if (!card) return;
             card.classList.add('interactive-info-card');
             card.tabIndex = 0;
