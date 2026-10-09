@@ -55,6 +55,9 @@
         }
         body.modal-open { overflow: hidden; }
         .day-body-grid {
+            display: block;
+        }
+        .day-body-grid.map-expanded {
             display: grid;
             gap: 1rem;
         }
@@ -62,6 +65,28 @@
             padding: 1rem;
             background: #f8fafc;
             border-top: 1px solid #e2e8f0;
+        }
+        .map-toggle-button {
+            min-height: 40px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .45rem;
+            padding: .55rem .85rem;
+            border: 1px solid rgba(255, 255, 255, .28);
+            border-radius: .75rem;
+            background: rgba(15, 23, 42, .24);
+            color: #fff;
+            font-size: .75rem;
+            font-weight: 900;
+            transition: background .18s ease, transform .18s ease;
+        }
+        .map-toggle-button:hover,
+        .map-toggle-button:focus-visible {
+            background: rgba(15, 23, 42, .4);
+            transform: translateY(-1px);
+            outline: 2px solid rgba(255, 255, 255, .65);
+            outline-offset: 2px;
         }
         .day-map {
             width: 100%;
@@ -117,7 +142,7 @@
             text-decoration: none;
         }
         @media (min-width: 1024px) {
-            .day-body-grid {
+            .day-body-grid.map-expanded {
                 grid-template-columns: minmax(0, 3fr) minmax(340px, 2fr);
                 align-items: start;
             }
@@ -128,6 +153,9 @@
                 border-left: 1px solid #e2e8f0;
             }
             .day-map { height: 390px; }
+        }
+        @media (max-width: 639px) {
+            .map-toggle-button { width: 100%; }
         }
     </style>
 </head>
@@ -891,6 +919,7 @@
             map.fitBounds(bounds, { padding: [28, 28], maxZoom: 13 });
             L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
             setTimeout(() => map.invalidateSize(), 0);
+            return map;
         }
 
         function initDailyMaps() {
@@ -911,6 +940,8 @@
 
                 const mapPanel = document.createElement('aside');
                 mapPanel.className = 'day-map-panel';
+                mapPanel.id = `day-map-panel-${dayData.day}`;
+                mapPanel.hidden = true;
                 mapPanel.innerHTML = `
                     <div class="flex items-center justify-between gap-3">
                         <div>
@@ -925,17 +956,36 @@
                     <div id="day-map-${dayData.day}" class="day-map" aria-label="第 ${dayData.day} 天互動行程地圖"></div>
                     <p class="mt-2 text-[10px] leading-relaxed text-slate-500">標記數字為行程順序；連線僅為順序示意，實際道路請點標記後開啟導航。</p>`;
                 layout.appendChild(mapPanel);
+
+                const dayHeader = dayCard.firstElementChild;
+                const toggleButton = document.createElement('button');
+                toggleButton.type = 'button';
+                toggleButton.className = 'map-toggle-button';
+                toggleButton.setAttribute('aria-controls', mapPanel.id);
+                toggleButton.setAttribute('aria-expanded', 'false');
+                toggleButton.innerHTML = '<i class="fa-solid fa-map-location-dot"></i><span>展開地圖</span>';
+                dayHeader.appendChild(toggleButton);
+
                 const mapElement = mapPanel.querySelector('.day-map');
-                if ('IntersectionObserver' in window) {
-                    const observer = new IntersectionObserver((entries, self) => {
-                        if (!entries.some(entry => entry.isIntersecting)) return;
-                        renderDayMap(mapElement, dayData);
-                        self.disconnect();
-                    }, { rootMargin: '300px 0px' });
-                    observer.observe(mapElement);
-                } else {
-                    renderDayMap(mapElement, dayData);
-                }
+                let leafletMap = null;
+                toggleButton.addEventListener('click', () => {
+                    const willExpand = mapPanel.hidden;
+                    mapPanel.hidden = !willExpand;
+                    layout.classList.toggle('map-expanded', willExpand);
+                    toggleButton.setAttribute('aria-expanded', String(willExpand));
+                    toggleButton.querySelector('span').textContent = willExpand ? '收合地圖' : '展開地圖';
+                    toggleButton.querySelector('i').className = willExpand ? 'fa-solid fa-compress' : 'fa-solid fa-map-location-dot';
+
+                    if (willExpand) {
+                        requestAnimationFrame(() => {
+                            if (!leafletMap) {
+                                leafletMap = renderDayMap(mapElement, dayData);
+                            } else {
+                                leafletMap.invalidateSize();
+                            }
+                        });
+                    }
+                });
             });
         }
 
