@@ -6,6 +6,7 @@
     <title>2026 親子順時針環島之旅 (6天5夜)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQ3ynhHQvVYd5JcH/7u+Z2nkwMzHWE=" crossorigin="">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
         body {
@@ -53,6 +54,81 @@
             text-decoration: none;
         }
         body.modal-open { overflow: hidden; }
+        .day-body-grid {
+            display: grid;
+            gap: 1rem;
+        }
+        .day-map-panel {
+            padding: 1rem;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+        }
+        .day-map {
+            width: 100%;
+            height: 320px;
+            border-radius: 1rem;
+            border: 1px solid #cbd5e1;
+            overflow: hidden;
+            background: #e2e8f0;
+        }
+        .day-map-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .45rem .75rem;
+            margin: .75rem 0 .5rem;
+            color: #475569;
+            font-size: .7rem;
+            font-weight: 800;
+        }
+        .day-map-legend span {
+            display: inline-flex;
+            align-items: center;
+            gap: .3rem;
+        }
+        .day-map-legend i {
+            width: .65rem;
+            height: .65rem;
+            border-radius: 999px;
+        }
+        .map-number-marker {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border: 3px solid #fff;
+            border-radius: 999px;
+            color: #fff;
+            font: 900 12px/1 'Noto Sans TC', sans-serif;
+            box-shadow: 0 3px 9px rgba(15, 23, 42, .4);
+        }
+        .map-popup-name {
+            margin-bottom: .3rem;
+            color: #0f172a;
+            font-weight: 900;
+        }
+        .map-popup-link {
+            display: inline-flex;
+            align-items: center;
+            gap: .3rem;
+            margin-top: .45rem;
+            color: #0369a1;
+            font-weight: 800;
+            text-decoration: none;
+        }
+        @media (min-width: 1024px) {
+            .day-body-grid {
+                grid-template-columns: minmax(0, 3fr) minmax(340px, 2fr);
+                align-items: start;
+            }
+            .day-map-panel {
+                position: sticky;
+                top: 4.75rem;
+                border-top: 0;
+                border-left: 1px solid #e2e8f0;
+            }
+            .day-map { height: 390px; }
+        }
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800 antialiased">
@@ -588,6 +664,7 @@
         </section>
     </div>
 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script>
         const contactDirectory = {
             '張美阿嬤農場': { type: '旅遊景點', phone: '0935-514-462', tel: '0935514462', address: '宜蘭縣三星鄉行健溪一路二段161號' },
@@ -613,6 +690,81 @@
             '花蓮麗軒國際飯店': { type: '住宿資訊', phone: '03-824-6898', tel: '038246898', lineLabel: '官方 LINE', lineUrl: 'https://page.line.me/yhp1662q', address: '花蓮市中美路99-1號', bookingName: '待提供', bookingPhone: '待提供' },
             '台東富野渡假酒店': { type: '住宿資訊', phone: '089-350-666', tel: '089350666', address: '臺東縣臺東市復興路38號', bookingName: '待提供', bookingPhone: '待提供' },
             '高雄鈞怡大飯店': { type: '住宿資訊', phone: '07-282-1888', tel: '072821888', address: '高雄市前金區河東路10號', bookingName: '待提供', bookingPhone: '待提供' }
+        };
+
+        const dailyMapData = [
+            {
+                day: 1,
+                points: [
+                    { name: '土城出發', type: 'transport', lat: 24.9722, lng: 121.4433 },
+                    { name: '張美阿嬤農場', type: 'attraction', lat: 24.6901, lng: 121.7135, address: '宜蘭縣三星鄉行健溪一路二段161號' },
+                    { name: '清水地熱公園', type: 'attraction', lat: 24.6120, lng: 121.6350, address: '宜蘭縣大同鄉三星路八段501巷150號' },
+                    { name: '勇者桂冠王', type: 'attraction', lat: 24.7442, lng: 121.7200, address: '宜蘭縣員山鄉員山路二段255號' },
+                    { name: '田心民宿', type: 'hotel', lat: 24.6718, lng: 121.8040, address: '宜蘭縣冬山鄉武淵一路6巷63號' }
+                ]
+            },
+            {
+                day: 2,
+                returnToStart: true,
+                points: [
+                    { name: '田心民宿', type: 'hotel', lat: 24.6718, lng: 121.8040, address: '宜蘭縣冬山鄉武淵一路6巷63號' },
+                    { name: '蠟藝蠟筆城堡', type: 'attraction', lat: 24.6179, lng: 121.8275, address: '宜蘭縣蘇澳鎮海山西路500號' },
+                    { name: '宜蘭餅發明館', type: 'food', lat: 24.6165, lng: 121.8270 },
+                    { name: '豆腐岬風景區', type: 'attraction', lat: 24.5815, lng: 121.8703, address: '宜蘭縣蘇澳鎮南方澳漁港東側' },
+                    { name: '大鯖魚夢工廠', type: 'attraction', lat: 24.6357, lng: 121.8337, address: '宜蘭縣蘇澳鎮大圳路118號' },
+                    { name: '蘇澳冷泉公園', type: 'attraction', lat: 24.5977, lng: 121.8492, address: '宜蘭縣蘇澳鎮冷泉路6-4號' }
+                ]
+            },
+            {
+                day: 3,
+                points: [
+                    { name: '田心民宿', type: 'hotel', lat: 24.6718, lng: 121.8040, address: '宜蘭縣冬山鄉武淵一路6巷63號' },
+                    { name: '遠雄海洋公園', type: 'attraction', lat: 23.9011, lng: 121.6030, address: '花蓮縣壽豐鄉鹽寮村福德189號' },
+                    { name: '花蓮麗軒國際飯店', type: 'hotel', lat: 23.9975, lng: 121.6240, address: '花蓮市中美路99-1號' },
+                    { name: '東大門夜市', type: 'food', lat: 23.9729, lng: 121.6103, address: '花蓮縣花蓮市中山路50號' }
+                ]
+            },
+            {
+                day: 4,
+                points: [
+                    { name: '花蓮麗軒國際飯店', type: 'hotel', lat: 23.9975, lng: 121.6240, address: '花蓮市中美路99-1號' },
+                    { name: '伯朗大道', type: 'attraction', lat: 23.0988, lng: 121.2126, address: '臺東縣池上鄉伯朗大道' },
+                    { name: '台東森林公園', type: 'attraction', lat: 22.7628, lng: 121.1555, address: '臺東縣臺東市華泰路300號' },
+                    { name: '國立臺灣史前文化博物館', type: 'attraction', lat: 22.7937, lng: 121.1137, address: '臺東縣臺東市博物館路1號' },
+                    { name: '台東富野渡假酒店', type: 'hotel', lat: 22.7518, lng: 121.1548, address: '臺東縣臺東市復興路38號' }
+                ]
+            },
+            {
+                day: 5,
+                points: [
+                    { name: '台東富野渡假酒店', type: 'hotel', lat: 22.7518, lng: 121.1548, address: '臺東縣臺東市復興路38號' },
+                    { name: '屏東里港掃墓', type: 'other', lat: 22.7790, lng: 120.4940 },
+                    { name: '文富餛飩豬腳', type: 'food', lat: 22.7768, lng: 120.4945 },
+                    { name: '高雄市立壽山動物園', type: 'attraction', lat: 22.6356, lng: 120.2750, address: '高雄市鼓山區萬壽路350號' },
+                    { name: '駁二藝術特區與大港橋', type: 'attraction', lat: 22.6200, lng: 120.2817, address: '高雄市鹽埕區大勇路1號' },
+                    { name: '高雄鈞怡大飯店', type: 'hotel', lat: 22.6220, lng: 120.2910, address: '高雄市前金區河東路10號' }
+                ]
+            },
+            {
+                day: 6,
+                points: [
+                    { name: '高雄鈞怡大飯店', type: 'hotel', lat: 22.6220, lng: 120.2910, address: '高雄市前金區河東路10號' },
+                    { name: '鈴鹿賽道樂園', type: 'attraction', lat: 22.5960, lng: 120.3299, address: '高雄市前鎮區中安路1之1號' },
+                    { name: '備案：國立科學工藝博物館', type: 'backup', lat: 22.6409, lng: 120.3226, address: '高雄市三民區九如一路720號', excludeFromRoute: true },
+                    { name: '正宗民雄鵝肉亭', type: 'food', lat: 23.5511, lng: 120.4309 },
+                    { name: '民雄金桔觀光工廠', type: 'attraction', lat: 23.5598, lng: 120.4701, address: '嘉義縣民雄鄉三興村陳厝寮7鄰38號' },
+                    { name: '返回台中', type: 'transport', lat: 24.1477, lng: 120.6736 }
+                ]
+            }
+        ];
+
+        const mapTypeStyles = {
+            attraction: { label: '景點', color: '#2563eb' },
+            hotel: { label: '住宿', color: '#059669' },
+            food: { label: '用餐', color: '#d97706' },
+            backup: { label: '備案', color: '#7c3aed' },
+            other: { label: '其他行程', color: '#db2777' },
+            transport: { label: '起訖點', color: '#475569' }
         };
 
         const modal = document.getElementById('contact-modal');
@@ -703,6 +855,91 @@
         document.addEventListener('keydown', event => {
             if (event.key === 'Escape' && !modal.hidden) closeContactModal();
         });
+
+        function createMapMarker(point, index) {
+            const style = mapTypeStyles[point.type] || mapTypeStyles.transport;
+            return L.divIcon({
+                className: '',
+                html: `<div class="map-number-marker" style="background:${style.color}">${index + 1}</div>`,
+                iconSize: [28, 28],
+                iconAnchor: [14, 14],
+                popupAnchor: [0, -16]
+            });
+        }
+
+        function renderDayMap(mapElement, dayData) {
+            const map = L.map(mapElement, { scrollWheelZoom: false, tap: true });
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            }).addTo(map);
+
+            const bounds = [];
+            dayData.points.forEach((point, index) => {
+                const latLng = [point.lat, point.lng];
+                bounds.push(latLng);
+                const addressLine = point.address ? `<div class="text-xs text-slate-600">${point.address}</div>` : '';
+                const navLink = point.address ? `<a class="map-popup-link" href="${mapUrl(point.address)}" target="_blank" rel="noopener"><i class="fa-solid fa-location-arrow"></i>開啟導航</a>` : '';
+                L.marker(latLng, { icon: createMapMarker(point, index) })
+                    .addTo(map)
+                    .bindPopup(`<div class="map-popup-name">${index + 1}. ${point.name}</div>${addressLine}${navLink}`);
+            });
+
+            const routePoints = dayData.points.filter(point => !point.excludeFromRoute).map(point => [point.lat, point.lng]);
+            if (dayData.returnToStart && routePoints.length > 1) routePoints.push(routePoints[0]);
+            L.polyline(routePoints, { color: '#475569', weight: 3, opacity: .65, dashArray: '7 7' }).addTo(map);
+            map.fitBounds(bounds, { padding: [28, 28], maxZoom: 13 });
+            L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
+            setTimeout(() => map.invalidateSize(), 0);
+        }
+
+        function initDailyMaps() {
+            if (typeof L === 'undefined') return;
+
+            dailyMapData.forEach(dayData => {
+                const dayBadge = [...document.querySelectorAll('#itinerary span')]
+                    .find(span => span.textContent.trim() === `DAY ${dayData.day}`);
+                const dayCard = dayBadge?.closest('.rounded-2xl');
+                if (!dayCard) return;
+                const itineraryBody = [...dayCard.children].find(child => child.classList.contains('space-y-3.5'));
+                if (!itineraryBody) return;
+
+                const layout = document.createElement('div');
+                layout.className = 'day-body-grid';
+                itineraryBody.parentNode.insertBefore(layout, itineraryBody);
+                layout.appendChild(itineraryBody);
+
+                const mapPanel = document.createElement('aside');
+                mapPanel.className = 'day-map-panel';
+                mapPanel.innerHTML = `
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <span class="text-xs font-black uppercase tracking-wider text-blue-600">Day ${dayData.day} Map</span>
+                            <h4 class="text-base font-black text-slate-900">當日行程地圖</h4>
+                        </div>
+                        <span class="rounded-full bg-white px-3 py-1 text-[11px] font-bold text-slate-500 shadow-sm"><i class="fa-solid fa-magnifying-glass-plus mr-1"></i>可縮放拖曳</span>
+                    </div>
+                    <div class="day-map-legend">
+                        ${Object.values(mapTypeStyles).map(item => `<span><i style="background:${item.color}"></i>${item.label}</span>`).join('')}
+                    </div>
+                    <div id="day-map-${dayData.day}" class="day-map" aria-label="第 ${dayData.day} 天互動行程地圖"></div>
+                    <p class="mt-2 text-[10px] leading-relaxed text-slate-500">標記數字為行程順序；連線僅為順序示意，實際道路請點標記後開啟導航。</p>`;
+                layout.appendChild(mapPanel);
+                const mapElement = mapPanel.querySelector('.day-map');
+                if ('IntersectionObserver' in window) {
+                    const observer = new IntersectionObserver((entries, self) => {
+                        if (!entries.some(entry => entry.isIntersecting)) return;
+                        renderDayMap(mapElement, dayData);
+                        self.disconnect();
+                    }, { rootMargin: '300px 0px' });
+                    observer.observe(mapElement);
+                } else {
+                    renderDayMap(mapElement, dayData);
+                }
+            });
+        }
+
+        initDailyMaps();
     </script>
 
 </body>
