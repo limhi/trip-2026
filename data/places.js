@@ -14,6 +14,7 @@
  *   phoneActionLabel 撥號按鈕文字（預設「立即撥號」）
  *   booking       { name, phone } 訂房資料（只有住宿用）
  *   alternate     備選地點 { name, phone, tel, address }（彈窗下方多顯示一張備選卡）
+ *   parking       交通與停車提醒（一段文字，或多段文字的陣列）；有填才會在彈窗顯示「交通與停車」區塊
  */
 window.TRIP_PLACES = {
 
@@ -50,23 +51,41 @@ window.TRIP_PLACES = {
     // ───────── 宜蘭 ─────────
     'zhangmei-farm': {
         name: '張美阿嬤農場', mapType: 'attraction', infoType: '旅遊景點',
-        phone: '0935-514-462', address: '宜蘭縣三星鄉行健溪一路二段161號',
-        lat: 24.6901, lng: 121.7135
+        phone: '0935-514-462', website: 'https://zhangmeifarm.com.tw/',
+        address: '宜蘭縣三星鄉行健溪一路二段161號',
+        lat: 24.6901, lng: 121.7135,
+        parking: [
+            '園區有免費大停車場；假日第一停車場常在 10:30 前客滿，客滿時改引導至第二停車場，步行約 3–5 分鐘。',
+            '周邊為狹窄田間道路，導航請認明「行健溪一路二段161號」，勿誤入另一間「張美阿嬤農場 2.0」（萬富七路）。'
+        ]
     },
     'qingshui-geothermal': {
         name: '清水地熱公園', mapType: 'attraction', infoType: '旅遊景點',
         phone: '03-989-4500', address: '宜蘭縣大同鄉三星路八段501巷150號',
-        lat: 24.6120, lng: 121.6350
+        lat: 24.6120, lng: 121.6350,
+        parking: [
+            '停車場計次收費，小客車約 50 元／次（兩處共約 250 席，以現場公告為準）。',
+            '末段為山區道路；假日入口前常排隊。'
+        ]
     },
     'shooting-museum': {
         name: '勇者桂冠王／邱比準射擊博物館', mapType: 'attraction', infoType: '旅遊景點',
         address: '宜蘭縣冬山鄉八仙二路93號',
-        lat: 24.6606803, lng: 121.7832922
+        lat: 24.6606803, lng: 121.7832922,
+        parking: [
+            '沒有專屬停車場，停在博物館對面的白線側路邊；放三角錐的那一側不能停。',
+            '距羅東火車站約 2.5 公里，附近沒有公車站，建議開車。'
+        ]
     },
     'crayon-castle': {
         name: '蠟藝蠟筆城堡', mapType: 'attraction', infoType: '旅遊景點',
-        phone: '03-990-7101', address: '宜蘭縣蘇澳鎮海山西路500號',
-        lat: 24.6179, lng: 121.8275
+        phone: '03-990-7101', website: 'https://luckyart.com.tw/art/guide',
+        address: '宜蘭縣蘇澳鎮海山西路500號',
+        lat: 24.6179, lng: 121.8275,
+        parking: [
+            '設有 120 個免費停車位（僅供本館遊客使用）；另有免費置物櫃與推車停放區，洽櫃台使用。',
+            '國道 5 號蘇澳交流道下，直行約 100 公尺即到。'
+        ]
     },
     'yilan-cake-museum': {
         name: '宜蘭餅發明館', mapType: 'food', infoType: '旅遊景點',
@@ -76,8 +95,13 @@ window.TRIP_PLACES = {
     'mackerel-factory': {
         name: '大鯖魚夢工廠', mapType: 'attraction', infoType: '旅遊景點',
         phone: '03-990-4111', line: { label: '@buyfish', url: 'https://lin.ee/rr3PXm8' },
+        website: 'https://www.buymackerel.com/',
         address: '宜蘭縣蘇澳鎮大圳路118號',
-        lat: 24.6357, lng: 121.8337
+        lat: 24.6357, lng: 121.8337,
+        parking: [
+            '園區自有免費停車場。',
+            '國道 5 號蘇澳交流道下約 5 分鐘。'
+        ]
     },
     'tofu-cape': {
         name: '豆腐岬風景區', mapType: 'attraction', infoType: '旅遊景點',
@@ -94,7 +118,11 @@ window.TRIP_PLACES = {
     'qixingtan': {
         name: '七星潭', mapType: 'attraction', infoType: '旅遊景點',
         address: '花蓮縣新城鄉七星街',
-        lat: 24.034006, lng: 121.628589
+        lat: 24.034006, lng: 121.628589,
+        parking: [
+            '賞星廣場前有大型停車場，費用與收費方式以現場標示為準；沿海灣另有數個停車場。',
+            '假日（尤其中午前後）車位容易客滿，建議早到或改停周邊停車場。'
+        ]
     },
     'hz52-diner': {
         name: '52Hz食堂', mapType: 'food', infoType: '餐飲資訊',
@@ -105,7 +133,11 @@ window.TRIP_PLACES = {
         name: '花蓮將軍府1936', mapType: 'attraction', infoType: '旅遊景點',
         phone: '03-831-6272', website: 'https://www.jjf1936.com/',
         address: '花蓮縣花蓮市中正路622巷6號',
-        lat: 23.980954, lng: 121.61302
+        lat: 23.980954, lng: 121.61302,
+        parking: [
+            '官方列出可停「將軍府停車場」（中正路與新興路口）與「花蓮醫院停車場」；是否收費與車位數請現場確認。',
+            '部分 blog 稱園區本身無附設停車場，假日建議提早約 30 分鐘找車位。'
+        ]
     },
     'egg-pancake-cart': {
         name: '炸蛋蔥油餅黃車', mapType: 'food', infoType: '餐飲資訊',
@@ -118,7 +150,11 @@ window.TRIP_PLACES = {
         line: { label: '官方 LINE', url: 'https://page.line.me/qbt6753v' },
         website: 'https://www.farglory-oceanpark.com.tw/',
         address: '花蓮縣壽豐鄉鹽寮村福德189號',
-        lat: 23.9011, lng: 121.6030
+        lat: 23.9011, lng: 121.6030,
+        parking: [
+            '園區設有停車場，停好車後搭手扶梯直達 5 樓售票大廳；園區沒有接駁車。',
+            '停車場於營業結束前兩小時（約 15:00）停止開放。'
+        ]
     },
 
     // ───────── 台東 ─────────
@@ -129,6 +165,7 @@ window.TRIP_PLACES = {
     },
     'brown-boulevard': {
         name: '伯朗大道', mapType: 'attraction', infoType: '旅遊景點',
+        phone: '池上鄉公所 089-862-041', phoneActionLabel: '撥打鄉公所',
         address: '臺東縣池上鄉錦新三號道路',
         lat: 23.0988, lng: 121.2126
     },
@@ -146,7 +183,7 @@ window.TRIP_PLACES = {
     // ───────── 屏東 ─────────
     'pingtung-night-market': {
         name: '屏東觀光夜市', mapType: 'food', infoType: '旅遊景點',
-        address: '屏東縣屏東市民族路',
+        address: '屏東縣屏東市民族路36號',
         lat: 22.6732, lng: 120.4885
     },
     'ligang-cemetery': {

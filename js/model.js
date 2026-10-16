@@ -25,6 +25,8 @@
             navigationUrl: place.navigationUrl,
             bookingName: place.booking && place.booking.name,
             bookingPhone: place.booking && place.booking.phone,
+            // parking 可寫成一段文字或文字陣列，統一轉成陣列
+            parking: place.parking ? [].concat(place.parking) : [],
             alternate: place.alternate
         };
     }

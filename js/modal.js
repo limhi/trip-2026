@@ -18,6 +18,8 @@
         const bookingDetails = document.getElementById('booking-details');
         const contactActions = document.getElementById('contact-actions');
         const alternatePlace = document.getElementById('alternate-place');
+        const parkingBox = document.getElementById('contact-parking');
+        const parkingList = document.getElementById('contact-parking-list');
         let lastFocusedCard = null;
 
         function openContactModal(placeId, card) {
@@ -29,6 +31,13 @@
             document.getElementById('contact-phone').textContent = info.phone || '未提供';
             document.getElementById('contact-line').textContent = info.lineLabel || '未提供官方帳號';
             document.getElementById('contact-address').textContent = info.address || '';
+
+            parkingList.replaceChildren(...info.parking.map(text => {
+                const li = document.createElement('li');
+                li.textContent = text;
+                return li;
+            }));
+            parkingBox.classList.toggle('hidden', info.parking.length === 0);
 
             if (info.bookingName !== undefined) {
                 bookingDetails.classList.remove('hidden');
