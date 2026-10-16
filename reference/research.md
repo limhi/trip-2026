@@ -130,7 +130,7 @@
 
 1. [台東民宿網：環湖與自行車攻略](https://www.travel123.com.tw/guide/dapo-pond-guide.php)
 2. [CT Player：伯朗大道串遊大坡池](https://www.ctplayer.com/eastern-taiwan-guide/chishang-brown-avenue/)
-3. [維基百科：地理與歷史](https://zh.wikipedia.org/wiki/%E5%A4%A7%E5%9D%A1%E池)
+3. [維基百科：地理與歷史](https://zh.wikipedia.org/wiki/%E5%A4%A7%E5%9D%A1%E6%B1%A0)
 4. [池上鄉公所](https://www.chi-shang.gov.tw/)
 5. [台東觀光旅遊網](https://tour.taitung.gov.tw/)
 
