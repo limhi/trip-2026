@@ -10,7 +10,7 @@
  *  stay     入住／返回住宿卡片（紫）   同上
  *  end      行程結束卡片（綠）         同上
  *  notice   提醒卡片（琥珀）           同上
- *  brief    簡短資訊框（琥珀淡底）     time, title, place?, icon?, desc
+ *  brief    簡短資訊框（琥珀淡底）     time, title, place?, icon?, desc?
  *  waypoint 只出現在地圖、不顯示卡片   place, backup?, mapName?
  *
  * ── 共通欄位 ─────────────────────────────────────────────────────
@@ -82,10 +82,10 @@ window.TRIP = {
                 { type: 'spot', tag: '上午景點', time: '09:00 - 11:20', place: 'zhangmei-farm',
                   desc: '近距離餵食水豚、羊駝和小鹿，提供手作 DIY 及和服體驗。' },
                 { type: 'move', time: '11:20 - 12:00', text: '移動至清水地熱', duration: '車程約 30min' },
-                { type: 'spot', tag: '下午景點 1', time: '12:00 - 14:20', place: 'qingshui-geothermal',
+                { type: 'spot', tag: '下午景點', time: '12:00 - 14:20', place: 'qingshui-geothermal',
                   desc: '體驗用溫泉水煮溫泉蛋、玉米當午餐，並享受免費熱騰騰泡腳；建議另備主食，只有蛋和玉米可能不夠。' },
                 { type: 'move', time: '14:20 - 15:05', text: '移動至冬山', duration: '車程約 30min' },
-                { type: 'spot', tag: '下午景點 2', time: '15:05 - 16:50', place: 'shooting-museum',
+                { type: 'spot', tag: '下午景點', time: '15:05 - 16:50', place: 'shooting-museum',
                   desc: '多種趣味射擊闖關、空氣槍與大型彈弓，8 歲小朋友放電首選。17:10 後入住田心民宿，晚餐可安排冬山或羅東。' },
                 { type: 'waypoint', place: 'tianxin-bnb' }
             ]
@@ -102,11 +102,11 @@ window.TRIP = {
                   desc: '四道手作 DIY 關卡，讓小朋友親手製作彩色筆與造型蠟筆。' },
                 { type: 'brief', icon: 'utensils', time: '11:30 - 12:30', title: '宜蘭餅發明館／蘇澳午餐', place: 'yilan-cake-museum',
                   desc: '參觀宜蘭餅發明館、採買伴手禮，再於蘇澳附近安排午餐；實際餐廳可依當天時間與營業狀況決定。' },
-                { type: 'spot', tag: '下午景點 1', time: '12:40 - 13:30', place: 'mackerel-factory',
+                { type: 'spot', tag: '下午景點', time: '12:40 - 13:30', place: 'mackerel-factory',
                   desc: '認識蘇澳在地鯖魚產業，現場享用優質現烤鯖魚點心。' },
-                { type: 'spot', tag: '下午景點 2', time: '13:50 - 15:10', place: 'tofu-cape',
+                { type: 'spot', tag: '下午景點', time: '13:50 - 15:10', place: 'tofu-cape',
                   desc: '沿著海岸步道散步、欣賞獨特的豆腐岩地質與海景。' },
-                { type: 'spot', tag: '下午景點 3', time: '15:25 - 16:20', place: 'suao-cold-spring',
+                { type: 'spot', tag: '下午景點', time: '15:25 - 16:20', place: 'suao-cold-spring',
                   desc: '體驗獨特有名的冷泉足湯，放鬆雙腳舒緩疲勞；11月可能僅部分設施開放，出發前請確認泡湯池或足湯狀態。17:00 左右返回田心民宿。' }
             ]
         },
@@ -144,9 +144,7 @@ window.TRIP = {
                   desc: '全天遊玩；11:30 - 12:20園內午餐，依當日表演時間調整。入園後先確認表演時間，可先搭纜車至高處，再由上往下遊玩。' },
                 { type: 'move', time: '16:40 - 17:00', text: '伴手禮、集合、準備離園；一般營業時間為09:30 - 17:00，仍依官方當日公告為準。' },
                 { type: 'stay', tag: '離園返程', time: '17:00 後', place: 'tongle-bnb', map: false, title: '返回童樂會親子民宿',
-                  desc: '離開海洋公園後返回志學；18:00後於志學商圈晚餐，晚上返回民宿住宿，不繞回花蓮市區。' },
-                { type: 'notice', tag: '營業時間提醒', title: '出發前確認官方公告',
-                  desc: '園區目前公布平日營業時間為 09:30 - 17:00，實際仍以出發前官方公告為準。' }
+                  desc: '離開海洋公園後返回志學；18:00後於志學商圈晚餐，晚上返回民宿住宿，不繞回花蓮市區。' }
             ]
         },
 
@@ -180,11 +178,10 @@ window.TRIP = {
                 { type: 'waypoint', place: 'pingtung-farmhouse' },
                 { type: 'spot', tag: '上午景點', time: '08:40 - 10:45', place: 'ligang-cemetery',
                   desc: '08:00 屏東市鄉下人家生活體驗退房；08:00 - 08:40 前往里港鄉第二公墓，08:40 - 10:45 掃墓。' },
+                { type: 'brief', icon: 'utensils', time: '11:00 - 12:00 午餐', title: '文富餛飩豬腳', place: 'wenfu-pork' },
                 { type: 'drive', time: '12:15', text: '文富餛飩豬腳出發 ➔ 國道10號 ➔ 國道3號 ➔ 台中。' },
-                { type: 'brief', icon: 'utensils', time: '11:00 - 12:00 午餐', title: '文富餛飩豬腳', place: 'wenfu-pork',
-                  desc: '12:15 離開里港，14:30 - 15:00 抵達台中。' },
                 { type: 'end', tag: '返抵台中', time: '14:30 - 15:00', place: 'taichung-end',
-                  desc: '12:15 離開里港，依國道車況調整休息與抵達時間。' }
+                  desc: '依國道車況調整休息與抵達時間。' }
             ]
         }
     ],
@@ -199,7 +196,7 @@ window.TRIP = {
     hotels: [
         {
             place: 'tianxin-bnb',
-            region: '宜蘭（11/15, 11/16 連住兩晚）',
+            region: '宜蘭（11/15、11/16 連住兩晚）',
             status: '已選定住宿',
             features: [
                 '位於冬山鄉，設有私人停車場',

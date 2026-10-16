@@ -79,13 +79,13 @@
         const place = ctx.places[item.place];
         const click = interactive(place, item.place);
         const icon = item.icon || 'utensils';
+        const desc = item.desc ? `<p class="text-slate-700 text-xs">${esc(item.desc)}</p>` : '';
         return `<div class="p-3 rounded-xl bg-amber-100/70 border border-amber-300 text-xs md:text-sm${click.cls}"${click.attrs}>
     <div class="flex justify-between font-extrabold text-amber-950 mb-0.5">
         <span><i class="fa-solid fa-${esc(icon)} mr-1"></i> ${esc(item.time)}</span>
         <span>${esc(item.title)}</span>
     </div>
-    <p class="text-slate-700 text-xs">${esc(item.desc)}</p>
-    ${click.hint}
+    ${desc}${click.hint}
 </div>`;
     }
 
