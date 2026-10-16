@@ -72,14 +72,16 @@
         ['itinerary', 'hotels'].forEach(sectionId => {
             const section = document.getElementById(sectionId);
             section.addEventListener('click', event => {
-                if (event.target.closest('a, button')) return;
                 const card = event.target.closest('[data-place]');
-                if (card) openContactModal(card.dataset.place, card);
+                if (!card) return;
+                // 卡片裡的連結與按鈕照常運作；card 本身是按鈕（住宿捷徑）時則開啟彈窗
+                if (card.tagName !== 'BUTTON' && event.target.closest('a, button')) return;
+                openContactModal(card.dataset.place, card);
             });
             section.addEventListener('keydown', event => {
                 if (event.key !== 'Enter' && event.key !== ' ') return;
                 const card = event.target.closest('[data-place]');
-                if (card && card === event.target) {
+                if (card && card === event.target && card.tagName !== 'BUTTON') {
                     event.preventDefault();
                     openContactModal(card.dataset.place, card);
                 }

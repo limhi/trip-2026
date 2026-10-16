@@ -29,15 +29,20 @@
         };
     }
 
-    // 某一天的地圖標記：依 items 的順序，有 place（且有座標）的項目自動成為標記
+    // 某一天的地圖標記：依 items 的順序，有 place（且有座標）的項目自動成為標記。
+    // number 是標記上的編號，左邊的卡片會顯示同一個編號；numbered:false 的項目不編號（number 為 null）。
+    // itemIndex 是該標記對應 day.items 的第幾項。
     function getMapPoints(day, places) {
         const points = [];
-        day.items.forEach(item => {
+        let number = 0;
+        day.items.forEach((item, itemIndex) => {
             if (!item.place || item.map === false) return;
             const place = places[item.place];
             if (!place || place.lat == null || place.lng == null) return;
             points.push({
                 id: item.place,
+                itemIndex,
+                number: item.numbered === false ? null : ++number,
                 name: item.mapName || place.name,
                 type: item.backup ? 'backup' : (place.mapType || 'transport'),
                 lat: place.lat,

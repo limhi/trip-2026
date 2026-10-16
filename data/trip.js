@@ -11,7 +11,7 @@
  *  end      行程結束卡片（綠）         同上
  *  notice   提醒卡片（琥珀）           同上
  *  brief    簡短資訊框（琥珀淡底）     time, title, place?, icon?, desc?
- *  waypoint 只出現在地圖、不顯示卡片   place, backup?, mapName?
+ *  waypoint 起訖點／休息點（左邊是一列簡短文字，地圖上有標記）  place, text?, backup?, mapName?
  *
  * ── 共通欄位 ─────────────────────────────────────────────────────
  *  place    引用 data/places.js 的 id。
@@ -19,6 +19,10 @@
  *           ‧ 該地點有 infoType 時，卡片可點開聯絡與導航彈窗
  *           ‧ 該項目會依出現順序自動成為當天地圖的標記
  *  map:false  有 place 但不想放上地圖
+ *  numbered:false  放上地圖但不編號（waypoint 不會在左邊出現；地圖上以小圖示呈現）
+ *
+ * ── 編號 ─────────────────────────────────────────────────────────
+ *  每天的地圖標記由上而下自動編號（1、2、3…），左邊對應的卡片／起訖點列會顯示同一個編號。
  *
  * ── 每天的選項 ───────────────────────────────────────────────────
  *  stay     { place, note }  標題列右側顯示「宿：住宿名稱（note）」
@@ -38,7 +42,7 @@ window.TRIP = {
         documentTitle: '2026 親子順時針環島之旅 (6天5夜)',
         brand: '環島之旅 2026',
         // 版本號（顯示在畫面右上角）：每次改完行程，記得手動更新版本與日期
-        version: { number: 'v1.0', date: '2026/10/16' },
+        version: { number: 'v1.1', date: '2026/10/16' },
         navLinks: [
             { href: '#itinerary', label: '每日行程', tone: 'amber' },
             { href: '#hotels', label: '嚴選住宿', tone: 'emerald' }
@@ -120,7 +124,7 @@ window.TRIP = {
             items: [
                 { type: 'waypoint', place: 'tianxin-bnb' },
                 { type: 'drive', time: '09:00 - 11:50', text: '09:00 田心民宿退房準時出發；10:10 - 10:30 南澳短暫休息，續走蘇花改前往花蓮。' },
-                { type: 'waypoint', place: 'nanao-rest' },
+                { type: 'waypoint', place: 'nanao-rest', text: '休息點' },
                 { type: 'spot', tag: '海岸散步', time: '11:50 - 12:40', place: 'qixingtan',
                   desc: '抵達花蓮後先散步、看海、休息約50分鐘。' },
                 { type: 'meal', tag: '午餐', time: '13:00 - 14:00', place: 'hz52-diner',
@@ -177,7 +181,7 @@ window.TRIP = {
             theme: 'end',
             badge: { icon: 'house', text: '返回溫馨的家' },
             items: [
-                { type: 'waypoint', place: 'pingtung-farmhouse' },
+                { type: 'waypoint', place: 'pingtung-farmhouse', numbered: false },
                 { type: 'spot', tag: '上午景點', time: '08:40 - 10:45', place: 'ligang-cemetery',
                   desc: '08:00 屏東市鄉下人家生活體驗退房；08:00 - 08:40 前往里港鄉第二公墓，08:40 - 10:45 掃墓。' },
                 { type: 'brief', icon: 'utensils', time: '11:00 - 12:00 午餐', title: '文富餛飩豬腳', place: 'wenfu-pork' },
