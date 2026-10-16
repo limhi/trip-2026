@@ -160,7 +160,7 @@ ${features}
     }
 
     // ───────── 頁首／導覽等小區塊 ─────────
-    const navLink = link => `<a href="${esc(link.href)}" class="${NAV_TONES[link.tone] || NAV_TONES.amber} transition py-1 px-2 rounded">${esc(link.label)}</a>`;
+    const navLink = link => `<a href="${esc(link.href)}" class="${NAV_TONES[link.tone] || NAV_TONES.amber} transition py-1 px-1.5 md:px-2 rounded">${esc(link.label)}</a>`;
     const heroChip = chip => `<span class="bg-white/15 border border-white/20 px-3 py-1.5 rounded-lg"><i class="fa-solid fa-${esc(chip.icon)} text-amber-400 mr-1"></i> ${esc(chip.text)}</span>`;
     const highlight = item => `<span><i class="fa-solid fa-${esc(item.icon)} mr-1"></i> ${esc(item.text)}</span>`;
 
