@@ -6,16 +6,22 @@
     const Trip = root.Trip = root.Trip || {};
 
     const MAP_TYPES = {
-        attraction: { label: '景點', color: '#2563eb' },
-        hotel: { label: '住宿', color: '#059669' },
-        food: { label: '用餐', color: '#d97706' },
-        backup: { label: '備案', color: '#7c3aed' },
-        other: { label: '其他行程', color: '#db2777' },
-        transport: { label: '起訖點', color: '#475569' }
+        attraction: { label: '景點', color: '#2563eb', icon: 'location-dot' },
+        hotel: { label: '住宿', color: '#059669', icon: 'bed' },
+        food: { label: '用餐', color: '#d97706', icon: 'utensils' },
+        backup: { label: '備案', color: '#7c3aed', icon: 'location-dot' },
+        other: { label: '其他行程', color: '#db2777', icon: 'location-dot' },
+        transport: { label: '起訖點', color: '#475569', icon: 'flag' }
     };
+    Trip.MAP_TYPES = MAP_TYPES;   // 左邊卡片的編號圓點也用同一組顏色
 
     // 每天卡片裡的地圖面板（預設收合）
-    Trip.mapPanelHtml = function (day) {
+    Trip.mapPanelHtml = function (day, places) {
+        const esc = Trip.blocks.esc;
+        const stayPlace = day.stay && places[day.stay.place];
+        const stayButton = stayPlace && stayPlace.infoType
+            ? `<button type="button" class="map-stay-button" data-place="${esc(day.stay.place)}" aria-label="查看${esc(stayPlace.name)}的住宿資訊與導航"><i class="fa-solid fa-bed"></i><span>今日住宿：${esc(stayPlace.name)}</span><i class="fa-solid fa-chevron-right"></i></button>`
+            : '';
         return `<aside class="day-map-panel" id="day-map-panel-${day.day}" hidden>
     <div class="flex items-center justify-between gap-3">
         <div>
@@ -24,19 +30,21 @@
         </div>
         <span class="rounded-full bg-white px-3 py-1 text-[11px] font-bold text-slate-500 shadow-sm"><i class="fa-solid fa-magnifying-glass-plus mr-1"></i>可縮放拖曳</span>
     </div>
+    ${stayButton}
     <div class="day-map-legend">
         ${Object.values(MAP_TYPES).map(item => `<span><i style="background:${item.color}"></i>${item.label}</span>`).join('')}
     </div>
     <div id="day-map-${day.day}" class="day-map" aria-label="第 ${day.day} 天互動行程地圖"></div>
-    <p class="mt-2 text-[10px] leading-relaxed text-slate-500">標記數字為行程順序；連線僅為順序示意，實際道路請點標記後開啟導航。</p>
+    <p class="mt-2 text-[10px] leading-relaxed text-slate-500">標記數字與左邊行程的編號相同（無數字的圓點為不列入行程的起點）；連線僅為順序示意，實際道路請點標記後開啟導航。</p>
 </aside>`;
     };
 
-    function createMarkerIcon(point, index) {
+    function createMarkerIcon(point) {
         const style = MAP_TYPES[point.type] || MAP_TYPES.transport;
+        const content = point.number == null ? `<i class="fa-solid fa-${style.icon}"></i>` : point.number;
         return L.divIcon({
             className: '',
-            html: `<div class="map-number-marker" style="background:${style.color}">${index + 1}</div>`,
+            html: `<div class="map-number-marker" style="background:${style.color}">${content}</div>`,
             iconSize: [28, 28],
             iconAnchor: [14, 14],
             popupAnchor: [0, -16]
@@ -52,15 +60,16 @@
         }).addTo(map);
 
         const bounds = [];
-        points.forEach((point, index) => {
+        points.forEach(point => {
             const latLng = [point.lat, point.lng];
             bounds.push(latLng);
             const addressLine = point.address ? `<div class="text-xs text-slate-600">${esc(point.address)}</div>` : '';
             const navTarget = point.navigationUrl || (point.address ? Trip.mapUrl(point.address) : '');
             const navLink = navTarget ? `<a class="map-popup-link" href="${navTarget}" target="_blank" rel="noopener"><i class="fa-solid fa-location-arrow"></i>開啟導航</a>` : '';
-            L.marker(latLng, { icon: createMarkerIcon(point, index) })
+            const numberPrefix = point.number == null ? '' : `${point.number}. `;
+            L.marker(latLng, { icon: createMarkerIcon(point) })
                 .addTo(map)
-                .bindPopup(`<div class="map-popup-name">${index + 1}. ${esc(point.name)}</div>${addressLine}${navLink}`);
+                .bindPopup(`<div class="map-popup-name">${numberPrefix}${esc(point.name)}</div>${addressLine}${navLink}`);
         });
 
         const routePoints = points.filter(point => !point.excludeFromRoute).map(point => [point.lat, point.lng]);

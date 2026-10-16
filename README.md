@@ -31,7 +31,8 @@ css/style.css     自訂樣式（版面本身用 Tailwind CDN）
 | 填訂房人資料 | `data/places.js` 住宿地點的 `booking` |
 | 更新版本號（畫面右上角） | `data/trip.js` 的 `site.version`（版本與日期，每次改完行程手動更新） |
 | 改區塊顏色 | `js/blocks.js` 最上方的顏色表 |
-| 改地圖標記顏色 | `js/map.js` 最上方的 `MAP_TYPES` |
+| 改地圖標記顏色 | `js/map.js` 最上方的 `MAP_TYPES`（左邊卡片的編號圓點會跟著變） |
+| 某個起點不想編號 | `data/trip.js` 該項目加 `numbered: false` |
 
 `data/trip.js` 檔案開頭有所有區塊類型（drive、move、spot、meal、stay、end、notice、brief、waypoint）與欄位的說明，`data/places.js` 開頭有地點欄位說明。
 

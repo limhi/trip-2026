@@ -23,7 +23,7 @@
         'nav-links': () => trip.site.navLinks.map(B.navLink).join(''),
         'hero-chips': () => trip.hero.chips.map(B.heroChip).join(''),
         'highlights': () => trip.highlights.map(B.highlight).join(''),
-        'days': () => trip.days.map(day => B.dayCard(day, ctx, Trip.mapPanelHtml(day))).join('\n'),
+        'days': () => trip.days.map(day => B.dayCard(day, ctx, Trip.mapPanelHtml(day, places))).join('\n'),
         'hotels': () => trip.hotels.map(hotel => B.hotelCard(hotel, ctx)).join('\n')
     };
 

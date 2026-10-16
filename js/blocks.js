@@ -41,6 +41,14 @@
         };
     }
 
+    // 與地圖標記相同的編號圓點；point 為 Trip.model.getMapPoints 的結果，沒有編號就回傳空字串
+    function numberBadge(point) {
+        if (!point || point.number == null) return '';
+        const types = Trip.MAP_TYPES;
+        const style = (types && (types[point.type] || types.transport)) || { color: '#475569' };
+        return `<span class="map-number-marker map-number-badge" style="background:${style.color}" title="地圖標記 ${point.number}">${point.number}</span>`;
+    }
+
     // ───────── 行程區塊 ─────────
     function driveRow(item) {
         const duration = item.duration ? ` <span class="text-amber-600 font-extrabold block sm:inline">(${esc(item.duration)})</span>` : '';
@@ -58,7 +66,7 @@
 </div>`;
     }
 
-    function card(item, ctx) {
+    function card(item, ctx, point) {
         const style = CARD_STYLES[item.type];
         const place = ctx.places[item.place];
         const click = interactive(place, item.place);
@@ -67,7 +75,7 @@
         const desc = item.desc ? `<p class="text-slate-700 text-xs md:text-sm mt-1 font-medium leading-relaxed">${esc(item.desc)}</p>` : '';
         return `<div class="p-4 rounded-xl ${style.box} border-l-8 shadow-sm${click.cls}"${click.attrs}>
     <div class="flex justify-between items-start mb-1">
-        <span class="text-xs font-black ${style.tag} text-white px-2 py-0.5 rounded">${esc(item.tag)}</span>
+        <span class="flex items-center gap-2">${numberBadge(point)}<span class="text-xs font-black ${style.tag} text-white px-2 py-0.5 rounded">${esc(item.tag)}</span></span>
         ${time}
     </div>
     <h4 class="font-extrabold text-slate-900 text-base md:text-lg">${esc(title)}</h4>
@@ -75,32 +83,52 @@
 </div>`;
     }
 
-    function brief(item, ctx) {
+    function brief(item, ctx, point) {
         const place = ctx.places[item.place];
         const click = interactive(place, item.place);
         const icon = item.icon || 'utensils';
         const desc = item.desc ? `<p class="text-slate-700 text-xs">${esc(item.desc)}</p>` : '';
         return `<div class="p-3 rounded-xl bg-amber-100/70 border border-amber-300 text-xs md:text-sm${click.cls}"${click.attrs}>
     <div class="flex justify-between font-extrabold text-amber-950 mb-0.5">
-        <span><i class="fa-solid fa-${esc(icon)} mr-1"></i> ${esc(item.time)}</span>
+        <span class="flex items-center gap-1.5">${numberBadge(point)}<span><i class="fa-solid fa-${esc(icon)} mr-1"></i> ${esc(item.time)}</span></span>
         <span>${esc(item.title)}</span>
     </div>
     ${desc}${click.hint}
 </div>`;
     }
 
-    function renderItem(item, ctx) {
+    // 起訖點／休息點等只有座標的項目：一列簡短文字，讓地圖上的每個編號在左邊都找得到對應
+    function waypointRow(item, ctx, point) {
+        if (!point || point.number == null) return '';    // 不編號的起點只出現在地圖
+        const place = ctx.places[item.place];
+        const click = interactive(place, item.place);
+        const types = Trip.MAP_TYPES || {};
+        const label = item.text || (types[point.type] || {}).label || '';
+        const chevron = click.cls ? '<i class="fa-solid fa-chevron-right ml-auto text-sky-700"></i>' : '';
+        return `<div class="flex items-center gap-3 p-2.5 rounded-xl bg-white border border-dashed border-slate-300 text-xs md:text-sm${click.cls}"${click.attrs}>
+    ${numberBadge(point)}
+    <span class="font-bold text-slate-800">${esc(point.name)}</span>
+    <span class="font-bold text-slate-500">${esc(label)}</span>
+    ${chevron}
+</div>`;
+    }
+
+    // point：該項目對應的地圖標記（沒有就是 undefined），用來顯示編號
+    function renderItem(item, ctx, point) {
         if (item.type === 'drive') return driveRow(item);
         if (item.type === 'move') return moveRow(item);
-        if (item.type === 'brief') return brief(item, ctx);
-        if (item.type === 'waypoint') return '';          // 只出現在地圖
-        if (CARD_STYLES[item.type]) return card(item, ctx);
+        if (item.type === 'brief') return brief(item, ctx, point);
+        if (item.type === 'waypoint') return waypointRow(item, ctx, point);
+        if (CARD_STYLES[item.type]) return card(item, ctx, point);
         return '';
     }
 
     // ───────── 每日卡片外框 ─────────
     function dayCard(day, ctx, mapPanelHtml) {
         const theme = DAY_THEMES[day.theme] || DAY_THEMES.blue;
+        const pointByItem = {};
+        Trip.model.getMapPoints(day, ctx.places).forEach(point => { pointByItem[point.itemIndex] = point; });
+        const stayPlace = day.stay && ctx.places[day.stay.place];
         let badge;
         if (day.stay) {
             const hotel = ctx.places[day.stay.place];
@@ -111,18 +139,25 @@
         } else {
             badge = '';
         }
+        // 有聯絡資訊的住宿：標題列的住宿標籤可直接點開住宿彈窗，不必翻到頁面最下方
+        let stayBadge = '';
+        if (badge && stayPlace && stayPlace.infoType) {
+            stayBadge = `<button type="button" class="stay-badge-button ${theme.badge} text-xs md:text-sm font-bold px-3 py-1 rounded-full" data-place="${esc(day.stay.place)}" aria-label="查看${esc(stayPlace.name)}的住宿資訊與導航">${badge}<i class="fa-solid fa-chevron-right ml-1.5 text-[10px]"></i></button>`;
+        } else if (badge) {
+            stayBadge = `<span class="${theme.badge} text-xs md:text-sm font-bold px-3 py-1 rounded-full">${badge}</span>`;
+        }
         return `<div class="bg-white rounded-2xl shadow-md border-2 border-slate-200 overflow-hidden" id="day-${day.day}" data-day="${day.day}">
     <div class="${theme.header} text-white p-4 md:p-5 flex flex-wrap justify-between items-center gap-2">
         <div class="flex items-center gap-3">
             <span class="bg-amber-400 text-slate-950 font-black px-3 py-1 rounded-lg text-base md:text-lg shadow-sm">DAY ${day.day}</span>
             <h3 class="font-extrabold text-base md:text-xl">${esc(day.date)}${esc(day.title)}</h3>
         </div>
-        ${badge ? `<span class="${theme.badge} text-xs md:text-sm font-bold px-3 py-1 rounded-full">${badge}</span>` : ''}
+        ${stayBadge}
         <button type="button" class="map-toggle-button" aria-controls="day-map-panel-${day.day}" aria-expanded="false"><i class="fa-solid fa-map-location-dot"></i><span>展開地圖</span></button>
     </div>
     <div class="day-body-grid">
         <div class="p-4 md:p-6 space-y-3.5">
-${day.items.map(item => renderItem(item, ctx)).filter(Boolean).join('\n')}
+${day.items.map((item, index) => renderItem(item, ctx, pointByItem[index])).filter(Boolean).join('\n')}
         </div>
         ${mapPanelHtml}
     </div>

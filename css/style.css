@@ -117,6 +117,48 @@ body.modal-open { overflow: hidden; }
     font: 900 12px/1 'Noto Sans TC', sans-serif;
     box-shadow: 0 3px 9px rgba(15, 23, 42, .4);
 }
+.map-number-badge {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    border-width: 2px;
+    font-size: 11px;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, .3);
+}
+.stay-badge-button {
+    cursor: pointer;
+    transition: filter .18s ease, transform .18s ease;
+}
+.stay-badge-button:hover,
+.stay-badge-button:focus-visible {
+    filter: brightness(1.15);
+    transform: translateY(-1px);
+    outline: 2px solid rgba(255, 255, 255, .7);
+    outline-offset: 2px;
+}
+.map-stay-button {
+    width: 100%;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    margin-top: .75rem;
+    padding: .55rem .85rem;
+    border: 1px solid #a7f3d0;
+    border-radius: .85rem;
+    background: #ecfdf5;
+    color: #065f46;
+    font-size: .8rem;
+    font-weight: 900;
+    text-align: left;
+}
+.map-stay-button span { flex: 1; }
+.map-stay-button:hover,
+.map-stay-button:focus-visible {
+    background: #d1fae5;
+    outline: 2px solid rgba(5, 150, 105, .45);
+    outline-offset: 2px;
+}
 .map-popup-name {
     margin-bottom: .3rem;
     color: #0f172a;
