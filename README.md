@@ -20,6 +20,8 @@ css/style.css     自訂樣式（版面本身用 Tailwind CDN）
 
 ## 旅遊研究資料
 
+`reference/pending-decisions.md` 是景點資料核對後還需要決定的項目清單（`AGENTS.md` 會引導 Claude 先讀它）。
+
 `reference/research.md` 收錄本行程景點的票務與預約需求，以及每個景點 5 個熱門攻略或官方資訊連結。出發前請再次確認官方公告，因為票價、營業時間、預約規則與設施開放狀態可能變動。
 
 ## 常見調整
@@ -29,6 +31,7 @@ css/style.css     自訂樣式（版面本身用 Tailwind CDN）
 | 調整某天景點的順序 | `data/trip.js`，在該天的 `items` 裡上下搬移那一行（地圖標記順序會自動跟著變） |
 | 換景點 | 在 `data/places.js` 新增地點，再把 `data/trip.js` 的 `place` 改成新的 id |
 | 改電話、地址、LINE、座標 | `data/places.js`（只改一次，卡片、彈窗、地圖都會更新） |
+| 補交通與停車提醒 | `data/places.js` 該地點的 `parking`（一段文字或文字陣列，彈窗會顯示「交通與停車」區塊） |
 | 改某個景點的時間或說明文字 | `data/trip.js` 該項目的 `time`、`desc` |
 | 新增或刪除一天 | `data/trip.js` 的 `days` 加減一個區塊（`day` 編號要唯一） |
 | 換住宿 | `data/places.js` 改住宿資料；`data/trip.js` 的 `hotels` 與該天的 `stay.place` 改成新 id |
