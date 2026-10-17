@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>資料待確認清單｜2026 環島之旅</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
+    <style>
+        /* 這個頁面只負責把 verify.md 轉成好讀、可點連結的網頁；內容請改 verify.md */
+        :root { --ink: #1e293b; --muted: #64748b; --line: #e2e8f0; --bg: #f1f5f9; --card: #fff; --accent: #2563eb; --warn: #b45309; }
+        * { box-sizing: border-box; }
+        body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.75 'Noto Sans TC', system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
+        header { background: #0f172a; color: #fff; padding: 14px 16px; }
+        header a { color: #fbbf24; text-decoration: none; font-weight: 700; font-size: 14px; }
+        main { max-width: 780px; margin: 0 auto; padding: 16px; }
+        #content { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px 18px; overflow-wrap: anywhere; }
+        h1 { font-size: 1.5rem; margin: .2em 0 .6em; line-height: 1.35; }
+        h2 { font-size: 1.2rem; margin: 2em 0 .6em; padding-top: .8em; border-top: 2px solid var(--line); }
+        h3 { font-size: 1.05rem; margin: 1.8em 0 .5em; padding: .5em .75em; background: #eff6ff; border-left: 5px solid var(--accent); border-radius: 6px; scroll-margin-top: 12px; }
+        h4 { font-size: 1rem; margin: 1.2em 0 .3em; }
+        a { color: var(--accent); }
+        li { margin: .25em 0; }
+        blockquote { margin: 1em 0; padding: .6em 1em; background: #fffbeb; border-left: 4px solid #f59e0b; border-radius: 6px; color: #78350f; }
+        blockquote p { margin: .3em 0; }
+        code { background: #f1f5f9; padding: .1em .35em; border-radius: 4px; font-size: .9em; }
+        hr { border: 0; border-top: 1px solid var(--line); margin: 1.5em 0; }
+        .table-wrap { overflow-x: auto; margin: 1em 0; }
+        table { border-collapse: collapse; width: 100%; font-size: .9rem; min-width: 480px; }
+        th, td { border: 1px solid var(--line); padding: .45em .6em; text-align: left; vertical-align: top; }
+        th { background: #f8fafc; white-space: nowrap; }
+        #status { color: var(--muted); }
+        #fallback { white-space: pre-wrap; font-size: .85rem; }
+        .foot { max-width: 780px; margin: 0 auto; padding: 0 16px 32px; color: var(--muted); font-size: .8rem; }
+    </style>
+</head>
+<body>
+    <header><a href="./">← 回到行程網頁</a></header>
+    <main>
+        <div id="content"><p id="status">載入中…</p></div>
+    </main>
+    <p class="foot">內容來源：<code>verify.md</code>。也可以在 GitHub 上直接閱讀：<a href="https://github.com/limhi/trip-2026/blob/main/verify.md" target="_blank" rel="noopener">verify.md</a></p>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+    <script>
+        (function () {
+            const box = document.getElementById('content');
+
+            function showRaw(text, note) {
+                box.innerHTML = '';
+                const p = document.createElement('p');
+                p.id = 'status';
+                p.textContent = note;
+                const pre = document.createElement('pre');
+                pre.id = 'fallback';
+                pre.textContent = text || '';
+                box.append(p, pre);
+            }
+
+            fetch('verify.md?t=' + Date.now(), { cache: 'no-store' })
+                .then(res => { if (!res.ok) throw new Error('HTTP ' + res.status); return res.text(); })
+                .then(text => {
+                    if (typeof marked === 'undefined') { showRaw(text, '轉換工具載入失敗，下面是原始文字；也可以改用頁尾的 GitHub 連結閱讀。'); return; }
+                    marked.use({
+                        renderer: {
+                            // 連結一律在新分頁開啟，避免離開清單
+                            link(href, title, text) {
+                                const t = title ? ` title="${title}"` : '';
+                                const external = /^https?:/i.test(href);
+                                return `<a href="${href}"${t}${external ? ' target="_blank" rel="noopener"' : ''}>${text}</a>`;
+                            },
+                            // 題號標題（Q1、Q2…）加上可直接連結的 id
+                            heading(text, level, raw) {
+                                const m = raw.match(/^(Q\d+)/i);
+                                const id = m ? ` id="${m[1].toLowerCase()}"` : '';
+                                return `<h${level}${id}>${text}</h${level}>`;
+                            },
+                            // 表格外包一層，手機可橫向捲動
+                            table(header, body) {
+                                return `<div class="table-wrap"><table><thead>${header}</thead><tbody>${body}</tbody></table></div>`;
+                            }
+                        }
+                    });
+                    box.innerHTML = marked.parse(text);
+                    if (location.hash) {
+                        const target = document.getElementById(location.hash.slice(1));
+                        if (target) target.scrollIntoView();
+                    }
+                })
+                .catch(err => showRaw('', '清單載入失敗（' + err.message + '）。請改用頁尾的 GitHub 連結閱讀。'));
+        })();
+    </script>
+</body>
+</html>
