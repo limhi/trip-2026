@@ -2,10 +2,19 @@
 
 2026/11/15–11/20 親子順時針環島行程網頁（純靜態，無建置步驟）。結構與常見調整方式見 `README.md`。
 
+## 發布流程（重要）
+
+- 使用者直接用**公開網頁**（GitHub Pages，發布 `main`：https://limhi.github.io/trip-2026/）檢視修改效果。
+- **使用者已確認的調整，一律直接 commit 並 push 到 `main`**，讓 Pages 儘快生效；**不要另開分支 PR**，避免小調整散落在沒合併的分支。若目前在 Claude 指定的工作分支上，commit 後執行 `git push origin HEAD:main`，並一併 push 該分支。
+- push 後用 `curl -s https://limhi.github.io/trip-2026/data/trip.js | grep "version:"` 確認線上版本號已更新（Pages 通常需 1–2 分鐘）。
+- 這項授權只涵蓋「使用者已確認」的調整；沒有使用者決定的項目（例如 `pending-decisions.md` 的 B 類）仍不要自行套用。
+
 ## 開始前先看
 
 - **待決定事項**：`reference/pending-decisions.md` 列出景點資料核對後還需要使用者決定的項目（B 類、C 類、規則範圍外的發現）。使用者回覆編號後，依該檔修改資料，並把已處理的項目移到該檔的「已套用」或刪除。**沒有使用者決定前，不要自行套用 B 類。**
-- **攻略資料**：`reference/guides.md`（與 `reference/guides.js`）是各景點的攻略整理，`reference/research.md` 是來源清單。
+- **攻略資料**：`reference/guides.js` 是各景點的攻略整理，**網頁彈窗的「景點攻略」直接讀這個檔**（`js/guides.js` 在使用者點開彈窗時才載入）；`reference/guides.md` 是同內容的可讀版，`reference/research.md` 是來源清單。修改攻略文字時，`guides.js` 與 `guides.md` 要同步改。
+- 攻略項目若標了 `hidden: true`，網頁不顯示（例如張美農場一則涉及他人刑案的新聞，公開頁面不放）。
+- 攻略文字會直接顯示在公開網頁上，不要寫「places.js」「專案資料」這類開發用語，要寫成給家人看得懂的說法（例如「本頁地址」）。
 
 ## 資料核對規則
 
@@ -20,6 +29,7 @@
 | 每天行程順序、時間、說明、頁首、住宿區文案、版本號 | `data/trip.js` |
 | 地點的電話、LINE、官網、地址、座標、導航連結、交通與停車（`parking`） | `data/places.js` |
 | 區塊顏色與樣板 | `js/blocks.js` |
+| 彈窗的景點攻略（區塊順序、預設展開） | `js/guides.js` 最上方的 `SECTIONS`；內容在 `reference/guides.js` |
 | 其餘功能 | `js/model.js`、`js/modal.js`、`js/map.js`、`js/render.js` |
 
 ## 工作規則

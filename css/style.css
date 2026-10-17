@@ -189,3 +189,9 @@ body.modal-open { overflow: hidden; }
 @media (max-width: 639px) {
     .map-toggle-button { width: 100%; }
 }
+
+/* 景點攻略（彈窗內的可展開區塊） */
+#contact-guide summary { list-style: none; }
+#contact-guide summary::-webkit-details-marker { display: none; }
+#contact-guide .guide-chevron { transition: transform .15s ease; }
+#contact-guide details[open] > summary .guide-chevron { transform: rotate(90deg); }

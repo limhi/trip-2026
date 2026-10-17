@@ -20,6 +20,7 @@
         const alternatePlace = document.getElementById('alternate-place');
         const parkingBox = document.getElementById('contact-parking');
         const parkingList = document.getElementById('contact-parking-list');
+        const guideBox = document.getElementById('contact-guide');
         let lastFocusedCard = null;
 
         function openContactModal(placeId, card) {
@@ -38,6 +39,7 @@
                 return li;
             }));
             parkingBox.classList.toggle('hidden', info.parking.length === 0);
+            Trip.guides.show(placeId, guideBox, { hasParking: info.parking.length > 0 });
 
             if (info.bookingName !== undefined) {
                 bookingDetails.classList.remove('hidden');

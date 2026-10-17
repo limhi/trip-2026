@@ -49,4 +49,7 @@
     Trip.initModal(places);
 
     if (errors.length) showProblems(errors);
+
+    // 攻略資料較大：頁面載入完成後再於背景預載，點開彈窗時通常已經就緒
+    window.addEventListener('load', () => setTimeout(() => Trip.guides.load().catch(() => {}), 1500));
 })();

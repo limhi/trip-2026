@@ -38,6 +38,8 @@ css/style.css     自訂樣式（版面本身用 Tailwind CDN）
 | 填訂房人資料 | `data/places.js` 住宿地點的 `booking` |
 | 更新版本號（畫面右上角） | `data/trip.js` 的 `site.version`（版本與日期，每次改完行程手動更新） |
 | 改區塊顏色 | `js/blocks.js` 最上方的顏色表 |
+| 改景點攻略的文字 | `reference/guides.js`（並同步 `reference/guides.md`）；彈窗會顯示，標 `hidden: true` 的項目不顯示 |
+| 調整攻略區塊的順序或預設展開 | `js/guides.js` 最上方的 `SECTIONS` |
 | 改地圖標記顏色 | `js/map.js` 最上方的 `MAP_TYPES`（左邊卡片的編號圓點會跟著變） |
 | 某個起點不想編號 | `data/trip.js` 該項目加 `numbered: false` |
 
