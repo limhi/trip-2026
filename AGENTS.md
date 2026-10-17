@@ -7,7 +7,15 @@
 - 使用者直接用**公開網頁**（GitHub Pages，發布 `main`：https://limhi.github.io/trip-2026/）檢視修改效果。
 - **使用者已確認的調整，一律直接 commit 並 push 到 `main`**，讓 Pages 儘快生效；**不要另開分支 PR**，避免小調整散落在沒合併的分支。若目前在 Claude 指定的工作分支上，commit 後執行 `git push origin HEAD:main`，並一併 push 該分支。
 - push 後用 `curl -s https://limhi.github.io/trip-2026/data/trip.js | grep "version:"` 確認線上版本號已更新（Pages 通常需 1–2 分鐘）。
-- 這項授權只涵蓋「使用者已確認」的調整；沒有使用者決定的項目（例如 `pending-decisions.md` 的 B 類）仍不要自行套用。
+- 這項授權只涵蓋「使用者已確認」的調整，以及下面「查證與確認清單」中**有官方原文佐證**的更新；其餘沒有使用者決定的項目仍不要自行套用。
+
+## 查證與確認清單
+
+- **公開確認清單**：`verify.md`（閱讀頁 `verify.html`，首頁頁尾有連結，開新分頁）。使用者會請人實際確認每一題，再用題號回覆（例如 `Q6-2`、`Q9-1 營業時間 11:00–14:30`）。
+- 收到題號回覆後：依答案更新 `data/places.js`／`data/trip.js` → 在 `verify.md` 把該題標成 ✅（記下答案與日期，或移到「已確認」區）→ 更新版本號 → 直接 push 到 `main` 並確認線上生效。
+- `verify.md` 由腳本一次產生，之後直接改 `verify.md` 即可；題號不要重編，新題接在最後。
+- **使用者授權加大查證**：對不確定的資訊，可主動查官方網頁（政府、營運單位、內政部國土測繪中心座標查詢等）。查到**明確、有官方原文**的結果就自行更新並發布，並列入 `verify.md` 的「已由 Claude 查證並更新」；仍不確定的才列成確認題目。只有部落格的資訊要標「遊記」並列入確認題目。
+- 查證方法：用 curl 抓官方頁（WebFetch 在此環境無法解析網域、WebSearch 結果很弱）；許多縣府旅遊網靠 JS 渲染，可改讀它前端呼叫的公開 JSON（需帶 `X-Requested-With` 標頭）。Facebook 與 Google 地圖讀不到。子代理的查證報告不能直接採信，套用前要自己重讀原文。
 
 ## 開始前先看
 
@@ -29,6 +37,7 @@
 | 每天行程順序、時間、說明、頁首、住宿區文案、版本號 | `data/trip.js` |
 | 地點的電話、LINE、官網、地址、座標、導航連結、交通與停車（`parking`） | `data/places.js` |
 | 區塊顏色與樣板 | `js/blocks.js` |
+| 公開確認清單（請人實際確認的題目） | `verify.md`（顯示頁 `verify.html`） |
 | 彈窗的景點攻略（區塊順序、預設展開） | `js/guides.js` 最上方的 `SECTIONS`；內容在 `reference/guides.js` |
 | 其餘功能 | `js/model.js`、`js/modal.js`、`js/map.js`、`js/render.js` |
 

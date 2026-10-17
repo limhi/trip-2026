@@ -36,6 +36,7 @@ css/style.css     自訂樣式（版面本身用 Tailwind CDN）
 | 新增或刪除一天 | `data/trip.js` 的 `days` 加減一個區塊（`day` 編號要唯一） |
 | 換住宿 | `data/places.js` 改住宿資料；`data/trip.js` 的 `hotels` 與該天的 `stay.place` 改成新 id |
 | 填訂房人資料 | `data/places.js` 住宿地點的 `booking` |
+| 看或更新「資料待確認清單」 | `verify.md`（首頁頁尾的連結會用新分頁開啟 `verify.html`） |
 | 更新版本號（畫面右上角） | `data/trip.js` 的 `site.version`（版本與日期，每次改完行程手動更新） |
 | 改區塊顏色 | `js/blocks.js` 最上方的顏色表 |
 | 改景點攻略的文字 | `reference/guides.js`（並同步 `reference/guides.md`）；彈窗會顯示，標 `hidden: true` 的項目不顯示 |

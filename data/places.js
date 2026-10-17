@@ -30,6 +30,7 @@ window.TRIP_PLACES = {
         line: { label: '@678rsujg', url: 'https://line.me/R/ti/p/%40678rsujg' },
         address: '宜蘭縣冬山鄉武淵一路6巷63號',
         lat: 24.6718, lng: 121.8040,
+        parking: '官方旅宿網與訂房平台皆載明設有私人（戶外專屬）停車場。',
         booking: { name: '待提供', phone: '待提供' }
     },
     'tongle-bnb': {
@@ -38,13 +39,18 @@ window.TRIP_PLACES = {
         line: { label: 'nana0980800821', url: 'https://line.me/R/ti/p/nana0980800821' },
         address: '花蓮縣壽豐鄉志學村中山路二段265號2-3樓',
         lat: 23.9056902, lng: 121.5272580,
+        parking: [
+            '官方訂房頁：停車免費，設有電梯。',
+            '遊記（2021）：一樓有 2 格車位，路邊也可停；多輛車請先向民宿確認。'
+        ],
         booking: { name: '待提供', phone: '待提供' }
     },
     'pingtung-farmhouse': {
         name: '屏東市鄉下人家生活體驗', mapType: 'hotel', infoType: '住宿資訊',
         phone: '0911-493-513',
         address: '屏東縣屏東市維新里光義巷5號',
-        lat: 22.6807, lng: 120.4912,
+        lat: 22.6742189, lng: 120.4807115,
+        parking: '住客評論（非官方）：合作停車位離民宿約步行 3 分鐘，訂房時請向民宿確認停車位置。',
         booking: { name: '待提供', phone: '待提供' }
     },
 
@@ -62,14 +68,15 @@ window.TRIP_PLACES = {
     'qingshui-geothermal': {
         name: '清水地熱公園', mapType: 'attraction', infoType: '旅遊景點',
         phone: '03-989-4500', address: '宜蘭縣大同鄉三星路八段501巷150號',
-        lat: 24.6120, lng: 121.6350,
+        lat: 24.6118089, lng: 121.6365653,
         parking: [
             '停車場計次收費，小客車約 50 元／次（兩處共約 250 席，以現場公告為準）。',
             '末段為山區道路；假日入口前常排隊。'
         ]
     },
     'shooting-museum': {
-        name: '勇者桂冠王／邱比準射擊博物館', mapType: 'attraction', infoType: '旅遊景點',
+        name: '邱比準射擊博物館', mapType: 'attraction', infoType: '旅遊景點',
+        phone: '03-950-7110', website: 'https://travel.dongshan.gov.tw/tourist_spot_view.asp?id=82',
         address: '宜蘭縣冬山鄉八仙二路93號',
         lat: 24.6606803, lng: 121.7832922,
         parking: [
@@ -89,15 +96,17 @@ window.TRIP_PLACES = {
     },
     'yilan-cake-museum': {
         name: '宜蘭餅發明館', mapType: 'food', infoType: '旅遊景點',
-        phone: '03-990-5999', address: '宜蘭縣蘇澳鎮海山西路369號',
-        lat: 24.6170, lng: 121.8271
+        phone: '03-990-5999', website: 'https://www.i-cake.com.tw/',
+        address: '宜蘭縣蘇澳鎮海山西路369號',
+        lat: 24.6145577, lng: 121.8291677,
+        parking: '備有大型停車場，可停小客車與遊覽車，參觀遊客皆可免費停車（官網）。'
     },
     'mackerel-factory': {
         name: '大鯖魚夢工廠', mapType: 'attraction', infoType: '旅遊景點',
         phone: '03-990-4111', line: { label: '@buyfish', url: 'https://lin.ee/rr3PXm8' },
         website: 'https://www.buymackerel.com/',
         address: '宜蘭縣蘇澳鎮大圳路118號',
-        lat: 24.6357, lng: 121.8337,
+        lat: 24.6134019, lng: 121.8326133,
         parking: [
             '園區自有免費停車場。',
             '國道 5 號蘇澳交流道下約 5 分鐘。'
@@ -106,22 +115,32 @@ window.TRIP_PLACES = {
     'tofu-cape': {
         name: '豆腐岬風景區', mapType: 'attraction', infoType: '旅遊景點',
         phone: '03-997-3421', address: '宜蘭縣蘇澳鎮南方澳漁港東側',
-        lat: 24.5815, lng: 121.8703
+        navigationUrl: 'https://www.google.com/maps/dir/?api=1&destination=24.583822%2C121.8714345',
+        lat: 24.583822, lng: 121.8714345,
+        parking: [
+            '入口旁設有停車場；是否收費官方未公告，遊記說法不一（免費或約 50 元／次），以現場為準。',
+            '本區無管理人員照料，入內請注意相關告示，不要前往水深及危險區域（官方）。'
+        ]
     },
     'suao-cold-spring': {
         name: '蘇澳冷泉公園', mapType: 'attraction', infoType: '旅遊景點',
         phone: '03-996-0645', address: '宜蘭縣蘇澳鎮冷泉路6-4號',
-        lat: 24.5977, lng: 121.8492
+        lat: 24.5973124, lng: 121.850703,
+        parking: [
+            '公有冷泉停車場：多篇 2025–2026 遊記一致寫小型車約 50 元／次，08:00–17:00 收費、其餘時段免費（非官方公告，以現場為準）；距入口步行約 1 分鐘。'
+        ]
     },
 
     // ───────── 花蓮 ─────────
     'qixingtan': {
         name: '七星潭', mapType: 'attraction', infoType: '旅遊景點',
-        address: '花蓮縣新城鄉七星街',
-        lat: 24.034006, lng: 121.628589,
+        phone: '七星潭風景區 03-822-1592（遊客中心 03-822-5898）', tel: '038221592',
+        address: '花蓮縣新城鄉七星街32號',
+        lat: 24.031426, lng: 121.62717,
         parking: [
-            '賞星廣場前有大型停車場，費用與收費方式以現場標示為準；沿海灣另有數個停車場。',
-            '假日（尤其中午前後）車位容易客滿，建議早到或改停周邊停車場。'
+            '景區南北側及遊客中心旁皆有免費停車場（花蓮旅遊網官方頁）；賞星廣場前也有大型停車場。',
+            '假日（尤其中午前後）車位容易客滿，建議早到或改停周邊停車場。',
+            '遊客中心開放 10:00–17:00（觀光署）；遊記稱週二、週三公休，11/17 是週二，需要請先電話確認。'
         ]
     },
     'hz52-diner': {
@@ -135,7 +154,7 @@ window.TRIP_PLACES = {
         address: '花蓮縣花蓮市中正路622巷6號',
         lat: 23.980954, lng: 121.61302,
         parking: [
-            '官方列出可停「將軍府停車場」（中正路與新興路口）與「花蓮醫院停車場」；是否收費與車位數請現場確認。',
+            '官網列出：將軍府停車場（中正路與新興路口，24 小時、免費）、花蓮醫院停車場（08:30–20:00，免費）、國軍英雄館停車場（24 小時、免費）；明禮路停車場收費（平日 30 分鐘 15 元、假日 20 元）。',
             '部分 blog 稱園區本身無附設停車場，假日建議提早約 30 分鐘找車位。'
         ]
     },
@@ -152,7 +171,8 @@ window.TRIP_PLACES = {
         address: '花蓮縣壽豐鄉鹽寮村福德189號',
         lat: 23.9011, lng: 121.6030,
         parking: [
-            '園區設有停車場，停好車後搭手扶梯直達 5 樓售票大廳；園區沒有接駁車。',
+            '汽車停車場：平日 200 元、連續假日 250 元、春節初一至初五 300 元；機車 50 元（官方 FAQ，實際以現場公告為準）。',
+            '停好車後搭手扶梯直達 5 樓售票大廳；園區沒有接駁車。',
             '停車場於營業結束前兩小時（約 15:00）停止開放。'
         ]
     },
@@ -167,24 +187,47 @@ window.TRIP_PLACES = {
         name: '伯朗大道', mapType: 'attraction', infoType: '旅遊景點',
         phone: '池上鄉公所 089-862-041', phoneActionLabel: '撥打鄉公所',
         address: '臺東縣池上鄉錦新三號道路',
-        lat: 23.0988, lng: 121.2126
+        lat: 23.0988, lng: 121.2126,
+        parking: [
+            '池上鄉公所公告實施車輛管制：除農務車輛、持池上鄉民通行證之車輛及慢車外，其餘車輛（含電動機車）禁止進入；違者依法處罰（約 900–1,800 元）。',
+            '自駕請把車停在外圍停車場或租車行，再步行或騎自行車進入；官方未公告停車場名稱，租車行多提供免費停車（遊記）。',
+            '「開始導航」會導到道路本身，請改導航到外圍停車場或租車行。'
+        ]
     },
     'dapo-pond': {
         name: '大坡池', mapType: 'attraction', infoType: '旅遊景點',
+        phone: '池上鄉公所 089-862-041', phoneActionLabel: '撥打鄉公所',
         address: '臺東縣池上鄉池富道路23號',
-        lat: 23.1219, lng: 121.2052
+        navigationUrl: 'https://www.google.com/maps/dir/?api=1&destination=23.119911%2C121.22404',
+        lat: 23.119911, lng: 121.22404,
+        parking: [
+            '風景區前有免費停車場（遊記）；觀光署地址只寫「臺9線322K東側轉入」，沒有門牌，導航已改用官方座標。',
+            '北側廁所 11 月約 06:30–17:30（遊記，非官方）；觀光署列無障礙廁所 3 間。'
+        ]
     },
     'duoliang-rest': {
         name: '多良休息點', mapType: 'attraction', infoType: '旅遊景點',
-        phone: '089-781-301', address: '臺東縣太麻里鄉多良村瀧溪路8-1號',
-        lat: 22.507487, lng: 120.95888
+        phone: '太麻里鄉公所 089-781-301', phoneActionLabel: '撥打鄉公所',
+        address: '臺東縣太麻里鄉多良村瀧溪路8-1號',
+        lat: 22.507487, lng: 120.95888,
+        parking: [
+            '車輛請停在台9線路邊白線內，嚴禁並排停車（太麻里鄉公所公告）；再步行上坡約 5–10 分鐘到觀景平台（遊記）。',
+            '開放時間 08:00–17:00（鄉公所公告，2025/12/1 起實施，春節等節日可能延長，以現場公告為準）。',
+            '入園每人酌收清潔費 10 元；未滿 6 歲或身高 115 公分以下、太麻里鄉民免收，8 歲孩童可能需付費。',
+            '近年有野生獼猴出沒，請勿靠近、觸摸或餵食（縣府農業處提醒）。'
+        ]
     },
 
     // ───────── 屏東 ─────────
     'pingtung-night-market': {
         name: '屏東觀光夜市', mapType: 'food', infoType: '旅遊景點',
         address: '屏東縣屏東市民族路36號',
-        lat: 22.6732, lng: 120.4885
+        lat: 22.66993, lng: 120.4899,
+        parking: [
+            '夜市沿民族路兩側，人車共道；建議把車停在附近停車場再步行，不要開進民族路。',
+            '可停民生路立體停車場（約 622 格，新聞稱鄰近民族夜市，步行約 5 分鐘）；費率以現場收費牌為準。',
+            '是否有徒步區管制官方無法確認；2026-04 遊記稱沒有封路、機車可直接騎進來，到場先看路口告示。'
+        ]
     },
     'ligang-cemetery': {
         name: '里港鄉第二公墓', mapType: 'other', infoType: '掃墓地點',
@@ -195,6 +238,7 @@ window.TRIP_PLACES = {
     },
     'wenfu-pork': {
         name: '文富餛飩豬腳', mapType: 'food', infoType: '旅遊景點',
+        phone: '08-775-8833',
         address: '屏東縣里港鄉永樂路8號',
         lat: 22.7768, lng: 120.4945
     }
