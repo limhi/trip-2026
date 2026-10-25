@@ -42,7 +42,7 @@ window.TRIP = {
         documentTitle: '2026 親子順時針環島之旅 (6天5夜)',
         brand: '環島之旅 2026',
         // 版本號（顯示在畫面右上角）：每次改完行程，記得手動更新版本與日期
-        version: { number: 'v1.9', date: '2026/10/25' },
+        version: { number: 'v2.0', date: '2026/10/25' },
         navLinks: [
             { href: '#itinerary', label: '每日行程', tone: 'amber' },
             { href: '#hotels', label: '嚴選住宿', tone: 'emerald' }
@@ -81,43 +81,44 @@ window.TRIP = {
     days: [
         // ───────── DAY 1 ─────────
         {
-            day: 1, date: '11/15（日）', title: '土城出發 ➔ 宜蘭山林親子遊',
+            day: 1, date: '11/15（日）', title: '土城出發 ➔ 蘇澳手作 DIY 親子遊',
             stay: { place: 'tianxin-bnb', note: '宜蘭第1晚' },
             items: [
                 { type: 'waypoint', place: 'tucheng-start' },
-                { type: 'drive', time: '07:30 - 09:00', text: '土城出發 ➔ 宜蘭三星', duration: '車程約 1hr 20min' },
-                { type: 'spot', tag: '上午景點', time: '09:00 - 11:20', place: 'zhangmei-farm',
-                  desc: '近距離餵食水豚、羊駝和小鹿，提供手作 DIY 及和服體驗。' },
-                { type: 'move', time: '11:20 - 12:00', text: '移動至清水地熱', duration: '車程約 30min' },
-                { type: 'spot', tag: '下午景點', time: '12:00 - 14:20', place: 'qingshui-geothermal',
-                  desc: '體驗用溫泉水煮溫泉蛋、玉米當午餐，並享受免費熱騰騰泡腳；建議另備主食，只有蛋和玉米可能不夠。' },
-                { type: 'move', time: '14:20 - 15:05', text: '移動至冬山', duration: '車程約 30min' },
-                { type: 'spot', tag: '下午景點', time: '15:05 - 16:50', place: 'shooting-museum',
-                  desc: '多種趣味射擊闖關、空氣槍與大型彈弓，8 歲小朋友放電首選。營業 09:00 - 17:00，最後售票 16:15（冬山鄉公所）。17:10 後入住田心民宿，晚餐可安排冬山或羅東。' },
-                { type: 'waypoint', place: 'tianxin-bnb' }
+                { type: 'drive', time: '07:30 - 09:20', text: '土城出發 ➔ 宜蘭蘇澳；國5 週日車多，請留緩衝。', duration: '車程約 1hr 50min（推估）' },
+                { type: 'spot', tag: '上午 DIY', time: '10:00 - 12:10', place: 'crayon-castle',
+                  desc: '四道手作 DIY 關卡，讓小朋友親手製作彩色筆與造型蠟筆，約 2 小時。09:20 先到櫃台買票、確認場次；據查每個整點都有場次，這裡排 10:00，路上耽誤可改 11:00（16:00 後停止售票），但午餐要壓縮，13:20 仍要到餅發明館報到。' },
+                { type: 'meal', tag: '午餐＋參觀', time: '12:20 - 13:20', place: 'mackerel-factory',
+                  desc: '免門票的鯖魚主題觀光工廠：2 樓有鯖魚知識展覽與互動遊戲（拿魚籃抓鯖魚卡片等），1 樓販售鯖魚產品，用餐區供應鯖魚定食、麵飯、可頌堡等，可直接在這裡吃午餐。DIY 目前不開放散客預約。與蠟筆城堡、餅發明館相距約 1 公里。' },
+                { type: 'spot', tag: '下午 DIY', time: '13:20 - 15:15', place: 'yilan-cake-museum',
+                  desc: '13:20 前到一樓門市櫃台報到繳費（官網：課前 10 分鐘，課程開始後不開放入場）；13:30 場次，約 60 - 80 分鐘，每人 200 元（鮮奶），共六片超薄宜蘭餅，4 人約 800 元。官網每月 20 日前開放次月預約，請儘快預約 11/15 的 13:30 場次（預約專線 03-990-5999）。14:50 後逛館區、買伴手禮，體驗 DIY 當日購物享 95 折。館區每天 08:30 - 18:00。' },
+                { type: 'spot', tag: '下午景點', time: '15:35 - 16:45', place: 'tofu-cape',
+                  desc: '15:25 從餅發明館出發，約 10 分鐘車程。沿著海岸步道散步、欣賞獨特的豆腐岩地質與海景。16:45 離開，約 25 分鐘回田心民宿。' },
+                { type: 'stay', tag: '入住民宿', time: '17:10 後', place: 'tianxin-bnb',
+                  desc: '入住田心民宿，晚餐可安排冬山或羅東。明天 08:30 退房，行李全部帶上車（11/16 改住花蓮）。' }
             ]
         },
 
         // ───────── DAY 2 ─────────
         {
-            day: 2, date: '11/16（一）', title: '蘇澳觀光工廠 ➔ 南方澳海岸巡禮 ➔ 前往花蓮入住',
+            day: 2, date: '11/16（一）', title: '張美農場 ➔ 清水地熱 ➔ 七星潭 ➔ 花蓮入住',
             stay: { place: 'tongle-bnb', note: '花蓮第1晚' },
             items: [
                 { type: 'waypoint', place: 'tianxin-bnb' },
-                { type: 'spot', tag: '09:00 田心民宿退房出發', time: '09:20 - 11:30', place: 'crayon-castle',
-                  desc: '四道手作 DIY 關卡，讓小朋友親手製作彩色筆與造型蠟筆。今晚改住花蓮，田心民宿只住 11/15 一晚，退房時行李全部帶上車。' },
-                { type: 'brief', icon: 'utensils', time: '11:30 - 12:30', title: '宜蘭餅發明館／蘇澳午餐', place: 'yilan-cake-museum',
-                  desc: '參觀宜蘭餅發明館、採買伴手禮，再於蘇澳附近安排午餐；實際餐廳可依當天時間與營業狀況決定。' },
-                { type: 'spot', tag: '下午景點', time: '12:40 - 13:30', place: 'mackerel-factory',
-                  desc: '免門票的鯖魚主題觀光工廠：2 樓有鯖魚知識展覽與互動遊戲（拿魚籃抓鯖魚卡片等），1 樓販售鯖魚產品，用餐區供應鯖魚定食、麵飯、可頌堡等。DIY 目前不開放散客預約。' },
-                { type: 'spot', tag: '下午景點', time: '13:50 - 15:10', place: 'tofu-cape',
-                  desc: '沿著海岸步道散步、欣賞獨特的豆腐岩地質與海景。' },
-                { type: 'notice', tag: '待定', time: '15:25 - 16:20', title: '這段行程待定',
-                  desc: '原本排蘇澳冷泉公園，但據查 11 月不開放，已先從行程拿掉。這段時間先留空，等決定後再補；16:20 前往花蓮的車程暫時不變。' },
-                { type: 'drive', time: '16:20 - 19:00', text: '蘇澳出發 ➔ 蘇花改 ➔ 花蓮志學；途中 17:30 左右在南澳短暫休息約 20 分鐘。', duration: '車程約 2hr 30min（依原行程宜蘭至花蓮的車程推估）' },
-                { type: 'waypoint', place: 'nanao-rest', text: '休息點' },
-                { type: 'stay', tag: '入住民宿', time: '19:00 後', place: 'tongle-bnb',
-                  desc: '19:00 後入住童樂會親子民宿，抵達時間較晚，建議直接到志學商圈簡單用餐（可選伊均蘭州拉麵、義起呷義式料理或丸山和食，營業時間以現場為準），再回民宿使用遊戲室。' }
+                { type: 'drive', time: '08:30 - 09:00', text: '08:30 田心民宿退房出發 ➔ 宜蘭三星', duration: '車程約 20min（推估）' },
+                { type: 'spot', tag: '上午景點', time: '09:00 - 11:00', place: 'zhangmei-farm',
+                  desc: '近距離餵食水豚、羊駝和小鹿，提供手作 DIY 及和服體驗。因為中午後要南下花蓮，停留壓縮為約 2 小時，可擇一項 DIY。' },
+                { type: 'move', time: '11:00 - 11:30', text: '移動至清水地熱', duration: '車程約 30min' },
+                { type: 'spot', tag: '中午景點', time: '11:30 - 13:10', place: 'qingshui-geothermal',
+                  desc: '體驗用溫泉水煮溫泉蛋、玉米當午餐，並享受免費熱騰騰泡腳；建議另備主食，只有蛋和玉米可能不夠。' },
+                { type: 'drive', time: '13:15 - 14:25', text: '清水地熱出發 ➔ 蘇澳 ➔ 蘇花改 ➔ 南澳。', duration: '車程約 1hr 10min（推估）' },
+                { type: 'waypoint', place: 'nanao-rest', text: '休息點（約 20 分鐘）' },
+                { type: 'drive', time: '14:45 - 16:05', text: '南澳 ➔ 蘇花改 ➔ 花蓮七星潭。', duration: '車程約 1hr 20min' },
+                { type: 'spot', tag: '順道景點', time: '16:05 - 16:55', place: 'qixingtan',
+                  desc: '南下途中順道休息：散步、看海、讓孩子活動一下，約 50 分鐘；傍晚天色暗得早，建議 16:55 前離開。' },
+                { type: 'drive', time: '16:55 - 17:35', text: '七星潭 ➔ 花蓮志學（童樂會親子民宿）。', duration: '車程約 40min（推估）' },
+                { type: 'stay', tag: '入住民宿', time: '17:35 後', place: 'tongle-bnb',
+                  desc: '入住後使用遊戲室及房內溜滑梯；18:00後於志學商圈簡單用餐，可選伊均蘭州拉麵、義起呷義式料理或丸山和食，營業時間以現場為準。' }
             ]
         },
 
@@ -144,9 +145,7 @@ window.TRIP = {
             items: [
                 { type: 'waypoint', place: 'tongle-bnb' },
                 { type: 'notice', tag: '待決定', title: '11/18 往南走，住宿與路線還沒決定',
-                  desc: '11/18 決定從花蓮往南走，當晚住池上或台東一帶，住宿尚未訂定，這一天的路線要等住宿確定後再排。下面四個花蓮市區景點是原本排在 11/17 的行程，先放在這裡當候選，沒有排時間，也不一定全部會去。' },
-                { type: 'spot', tag: '候選：海岸散步', place: 'qixingtan',
-                  desc: '散步、看海、休息約50分鐘。' },
+                  desc: '11/18 決定從花蓮往南走，當晚住池上或台東一帶，住宿尚未訂定，這一天的路線要等住宿確定後再排。下面三個花蓮市區景點是原本排在 11/17 的行程（七星潭已改到 11/16 順路停留），先放在這裡當候選，沒有排時間，也不一定全部會去。' },
                 { type: 'meal', tag: '候選：午餐', place: 'hz52-diner',
                   desc: '咖哩飯、日式豬排滑蛋丼；內用味噌湯、飲料可續，白飯可續一碗。公開營業時間為11:00 - 14:00、17:00 - 20:00，週一休息（11/18 是週三）；出發前請再次確認。' },
                 { type: 'spot', tag: '候選：歷史園區', place: 'general-mansion',
