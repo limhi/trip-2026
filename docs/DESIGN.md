@@ -81,6 +81,7 @@
 | `tools/h2t.py` | HTML 轉純文字（Python 標準庫，查證用） | 用 `python3 -I` 執行；JS 渲染頁面會是空的 |
 | `docs/` | 本文件、`TODO.md`（待辦）、`RESEARCH-LOG.md`（v1.5 官方更新的逐字證據） | |
 | `AGENTS.md` / `README.md` | 工作規則 / 常見調整對照表 | |
+| `CLAUDE.md` | 只有一行 `@AGENTS.md`，讓 Claude Code 在本機與雲端都讀到同一份專案指示 | 要改專案指示請改 `AGENTS.md`，不要改這個檔；有了 `CLAUDE.md` 後 Claude Code 預設不再單獨讀 `AGENTS.md`，所以這行引用不能刪 |
 
 ---
 
