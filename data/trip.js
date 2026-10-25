@@ -42,7 +42,7 @@ window.TRIP = {
         documentTitle: '2026 親子順時針環島之旅 (6天5夜)',
         brand: '環島之旅 2026',
         // 版本號（顯示在畫面右上角）：每次改完行程，記得手動更新版本與日期
-        version: { number: 'v1.7', date: '2026/10/25' },
+        version: { number: 'v1.8', date: '2026/10/25' },
         navLinks: [
             { href: '#itinerary', label: '每日行程', tone: 'amber' },
             { href: '#hotels', label: '嚴選住宿', tone: 'emerald' }
@@ -54,7 +54,7 @@ window.TRIP = {
     hero: {
         dateBadge: '2026/11/15(日) – 11/20(五) 6天5夜',
         title: '台灣順時針親子環島行',
-        route: '土城 ➔ 宜蘭（住1晚）➔ 花蓮（住2晚）➔ 11/18 住宿未定 ➔ 台東池上與南迴 ➔ 屏東（住1晚）➔ 里港鄉第二公墓掃墓 ➔ 台中',
+        route: '土城 ➔ 宜蘭（住1晚）➔ 花蓮（住2晚）➔ 11/18 南下（住宿未定）➔ 台東池上與南迴 ➔ 屏東（住1晚）➔ 里港鄉第二公墓掃墓 ➔ 台中',
         chips: [
             { icon: 'users', text: PARTY },
             { icon: 'car', text: '自行開車' }
@@ -139,12 +139,12 @@ window.TRIP = {
 
         // ───────── DAY 4 ─────────
         {
-            day: 4, date: '11/18（三）', title: '住宿與路線待定（花蓮市區候選景點）',
-            badge: { icon: 'circle-question', text: '今晚住宿未定' },
+            day: 4, date: '11/18（三）', title: '南下池上／台東（住宿與路線待定）',
+            badge: { icon: 'circle-question', text: '今晚住宿未定（池上或台東一帶）' },
             items: [
                 { type: 'waypoint', place: 'tongle-bnb' },
-                { type: 'notice', tag: '待決定', title: '11/18 的住宿與路線還沒決定',
-                  desc: '11/18 當晚住哪裡尚未決定，這一天的路線要等住宿確定後再排。下面四個花蓮市區景點是原本排在 11/17 的行程，先放在這裡當候選，沒有排時間，也不一定全部會去。' },
+                { type: 'notice', tag: '待決定', title: '11/18 往南走，住宿與路線還沒決定',
+                  desc: '11/18 決定從花蓮往南走，當晚住池上或台東一帶，住宿尚未訂定，這一天的路線要等住宿確定後再排。下面四個花蓮市區景點是原本排在 11/17 的行程，先放在這裡當候選，沒有排時間，也不一定全部會去。' },
                 { type: 'spot', tag: '候選：海岸散步', place: 'qixingtan',
                   desc: '散步、看海、休息約50分鐘。' },
                 { type: 'meal', tag: '候選：午餐', place: 'hz52-diner',
@@ -163,7 +163,7 @@ window.TRIP = {
             items: [
                 { type: 'waypoint', place: 'tongle-bnb' },
                 { type: 'notice', tag: '待決定', title: '起點要等 11/18 住宿決定',
-                  desc: '下面的時間是以花蓮志學（童樂會親子民宿）出發的原案。11/18 住宿決定後，這天的起點、出發時間與前段車程要一起重排。' },
+                  desc: '11/18 往南走之後，這天會改從池上或台東出發；下面的時間是以花蓮志學（童樂會親子民宿）出發的舊案，等 11/18 住宿確定後整段重排，池上到多良的前段車程也會變短。' },
                 { type: 'drive', time: '07:45 - 10:15', text: '童樂會親子民宿退房出發，花蓮志學 ➔ 台東池上。' },
                 { type: 'meal', tag: '上午重點', time: '10:30 - 11:30', place: 'chishang-bento',
                   desc: '提早午餐後，11:40 - 12:40 前往伯朗大道或大坡池（二選一）。文化故事館營業 10:30 - 19:00（營運單位官網），館內有座位可用餐。' },
@@ -201,7 +201,7 @@ window.TRIP = {
     hotelsSection: {
         badge: 'Accommodations',
         title: '嚴選住宿',
-        subtitle: '已選定住宿以家庭空間、停車便利與行程動線為優先考量。11/18 當晚住宿尚未決定。'
+        subtitle: '已選定住宿以家庭空間、停車便利與行程動線為優先考量。11/18 往南走，當晚住宿（池上或台東一帶）尚未決定。'
     },
 
     hotels: [
