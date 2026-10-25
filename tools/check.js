@@ -119,7 +119,7 @@ for (const f of files.filter(f => TEXT.test(f))) {
     if (buf[0] === 0xEF && buf[1] === 0xBB && buf[2] === 0xBF) fail(`${f}：有 BOM（應為 UTF-8 無 BOM）`);
     if (buf.includes('\r\n')) fail(`${f}：含 CRLF 換行（應為 LF）`);
     const text = new TextDecoder('utf-8', { fatal: false }).decode(buf);
-    if (text.includes('�')) fail(`${f}：含 U+FFFD 取代字元（可能已經亂碼）`);
+    if (text.includes('\uFFFD')) fail(`${f}：含 U+FFFD 取代字元（可能已經亂碼）`);
 }
 info.push(`編碼檢查 ${files.filter(f => TEXT.test(f)).length} 個檔案`);
 
