@@ -19,6 +19,7 @@
 
 ## 開始前先看
 
+- **接手先讀這兩份**：[`docs/TODO.md`](docs/TODO.md)（待辦事項：收到使用者題號回覆時各題要改什麼、出發前一週檢查清單、紅線）與 [`docs/DESIGN.md`](docs/DESIGN.md)（設計文件：架構、資料模型、決策原因、驗證方法、環境陷阱）。
 - **待決定事項**：`reference/pending-decisions.md` 列出景點資料核對後還需要使用者決定的項目（B 類、C 類、規則範圍外的發現）。使用者回覆編號後，依該檔修改資料，並把已處理的項目移到該檔的「已套用」或刪除。**沒有使用者決定前，不要自行套用 B 類。**
 - **攻略資料**：`reference/guides.js` 是各景點的攻略整理，**網頁彈窗的「景點攻略」直接讀這個檔**（`js/guides.js` 在使用者點開彈窗時才載入）；`reference/guides.md` 是同內容的可讀版，`reference/research.md` 是來源清單。修改攻略文字時，`guides.js` 與 `guides.md` 要同步改。
 - 攻略項目若標了 `hidden: true`，網頁不顯示（例如張美農場一則涉及他人刑案的新聞，公開頁面不放）。
@@ -38,6 +39,8 @@
 | 地點的電話、LINE、官網、地址、座標、導航連結、交通與停車（`parking`） | `data/places.js` |
 | 區塊顏色與樣板 | `js/blocks.js` |
 | 公開確認清單（請人實際確認的題目） | `verify.md`（顯示頁 `verify.html`） |
+| 設計文件與待辦事項（接手用） | `docs/DESIGN.md`、`docs/TODO.md`（有重大變動或完成待辦就更新） |
+| 一鍵檢查 | `node tools/check.js`（只需 Node） |
 | 彈窗的景點攻略（區塊順序、預設展開） | `js/guides.js` 最上方的 `SECTIONS`；內容在 `reference/guides.js` |
 | 其餘功能 | `js/model.js`、`js/modal.js`、`js/map.js`、`js/render.js` |
 
@@ -45,6 +48,7 @@
 
 - 所有文字檔使用 UTF-8（無 BOM）。修改含中文的檔案後，確認沒有 U+FFFD 與亂碼；不要因為終端機顯示亂碼就覆寫檔案。
 - 每次改動行程或地點資料，更新 `data/trip.js` 的 `site.version`（版本與日期）。
-- 修改後驗證：`data/places.js`、`data/trip.js` 能被載入且資料檢查（`Trip.model.validate`）沒有問題；頁面開啟後沒有紅色提示列與 JS 錯誤。
+- 修改後驗證：先跑 `node tools/check.js`（資料能載入且 `Trip.model.validate` 沒問題、攻略與確認清單一致、編碼正確）；再用瀏覽器確認頁面沒有紅色提示列與 JS 錯誤（作法見 `docs/DESIGN.md` 第 10 節）。
+- 完成 `docs/TODO.md` 裡的項目、或做了影響設計的改動，要同步更新那兩份文件，讓下一個接手的人看到的是現況。
 - 有不清楚的地方，先用編號條列跟使用者確認，選項也要編號。
 - 回報摘要預設使用繁體中文。

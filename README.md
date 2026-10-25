@@ -18,6 +18,12 @@ js/
 css/style.css     自訂樣式（版面本身用 Tailwind CDN）
 ```
 
+## 給接手的人
+
+- [`docs/DESIGN.md`](docs/DESIGN.md)：設計文件（架構、資料模型、決策原因、驗證方法、陷阱）
+- [`docs/TODO.md`](docs/TODO.md)：待辦事項（等使用者回覆的題目、出發前檢查清單、紅線）
+- `node tools/check.js`：一鍵檢查（只需 Node）
+
 ## 旅遊研究資料
 
 `reference/pending-decisions.md` 是景點資料核對後還需要決定的項目清單（`AGENTS.md` 會引導 Claude 先讀它）。
