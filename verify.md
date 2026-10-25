@@ -1,6 +1,6 @@
 # 資料待確認清單｜2026 環島之旅
 
-> 整理日 2026-10-17　・　資料版本 v1.5　・　共 21 題：1 題已確認 ✅、20 題待確認 ⏳
+> 整理日 2026-10-17　・　資料版本 v1.6　・　共 21 題：1 題已確認 ✅、20 題待確認 ⏳
 
 ## 怎麼使用
 
@@ -434,7 +434,7 @@
 | 蘇澳冷泉公園 | 座標更正 | [宜蘭縣政府旅遊網（2026-09-21 更新）](https://travel.yilan.gov.tw/zh-tw/attractions/) |
 | 宜蘭餅發明館 | 座標更正、加官網與免費停車 | [官網](https://www.i-cake.com.tw/pages/locations) |
 | 邱比準 | 改名、加電話 03-950-7110 與營業資訊 | [冬山鄉公所官方頁](https://travel.dongshan.gov.tw/tourist_spot_view.asp?id=82) |
-| 遠雄海洋公園 | 加汽車停車費（平日 200／連假 250／春節 300，機車 50） | [官網 FAQ](https://www.farglory-oceanpark.com.tw/faq/752yN80qMdpm4PG6) |
+| 遠雄海洋公園 | 加汽車停車費（平假日 200／連假 250／春節 300，機車 50） | [官網 FAQ](https://www.farglory-oceanpark.com.tw/faq/752yN80qMdpm4PG6) |
 | 花蓮將軍府1936 | 停車場詳情、園區禁帶外食與全區禁菸 | [園區官網](https://www.jjf1936.com/pages/transportation) |
 | 童樂會親子民宿 | 地址、電話、LINE、停車免費、電梯皆與官方訂房頁一致 | [官方訂房頁](https://site.traiwan.com/childhappy/index.html) |
 | 田心民宿 | 地址、電話、私人停車場與官方旅宿網一致 | [交通部觀光署旅宿網](https://www.taiwanstay.net.tw/TSA/web_page/TSA020200.jsp?hohi_id=9302) |

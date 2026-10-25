@@ -1,6 +1,6 @@
 # 設計文件（給接手的 AI／開發者）
 
-最後更新：2026-10-25｜資料版本 v1.5｜搭配 [`TODO.md`](TODO.md)（待辦事項）一起讀。
+最後更新：2026-10-25｜資料版本 v1.6｜搭配 [`TODO.md`](TODO.md)（待辦事項）一起讀。
 
 這份文件回答三個問題：**這個專案是什麼、為什麼這樣設計、改的時候要注意什麼**。操作層面的「想改 X 要動哪個檔」請看 [`README.md`](../README.md)，工作規則請看 [`AGENTS.md`](../AGENTS.md)。
 
@@ -77,7 +77,9 @@
 | `reference/pending-decisions.md` | 需要使用者決定的項目與已處理紀錄 | |
 | `verify.md` / `verify.html` | 公開的人工確認清單與其閱讀頁 | 見第 7 節 |
 | `tools/check.js` | 一鍵檢查（Node，無套件） | 見第 10 節 |
-| `docs/` | 本文件與 `TODO.md` | |
+| `tools/e2e.js` | 瀏覽器端到端測試（Playwright；自己起 Node 靜態伺服器） | 見第 10.2 節 |
+| `tools/h2t.py` | HTML 轉純文字（Python 標準庫，查證用） | 用 `python3 -I` 執行；JS 渲染頁面會是空的 |
+| `docs/` | 本文件、`TODO.md`（待辦）、`RESEARCH-LOG.md`（v1.5 官方更新的逐字證據） | |
 | `AGENTS.md` / `README.md` | 工作規則 / 常見調整對照表 | |
 
 ---
@@ -177,6 +179,7 @@
 3. **查到明確、有官方原文的結果可自行更新並發布**（使用者已授權），並寫進 `verify.md` 的「已由 Claude 查證並更新」；仍不確定的列成題目。
 4. **子代理的查證報告不能直接採信**：套用前要自己重讀原文。實際發生過：研究員說「03-997-3421 是蘇澳鎮公所總機」，我重讀頁面找不到該段頁尾，所以沒採用；他引用的自由時報我讀不到（被擋），所以沒當事實寫進網頁。
 5. 座標：優先用縣府／觀光署的官方座標；沒有官方座標時，用內政部國土測繪中心查詢**確認座標落在地址所在的行政區**（見下）。
+6. **每項已套用的官方更新，其逐字原文、網址、日期與核對結果在 [`RESEARCH-LOG.md`](RESEARCH-LOG.md)**（原始抓取檔不留，所以保留的是引句與比對結果）。新增更新時也要補進去。引句要逐字：這次比對就抓到我把官網的「平假日」抄成「平日」（已更正），所以轉寫數字與條件時要對照原文，不要憑印象。
 
 ### 查證用的管道（這個環境實測過）
 | 管道 | 用法 |
@@ -195,7 +198,7 @@
 - 使用者直接看**公開網頁**驗收；**已確認的調整一律直接 commit 並 push 到 `main`，不開分支 PR**（避免小調整散落在沒合併的分支）。在 Claude 指定的工作分支上時：`git push origin HEAD:main`，並一併 push 該分支（stop hook 會檢查工作分支是否有未推送的 commit）。
 - push 後用 `curl -s https://limhi.github.io/trip-2026/data/trip.js | grep "version:"` 確認線上版本已更新；Pages 通常 **約 45 秒–1 分鐘**。
 - **版本號**在 `data/trip.js` 的 `site.version`（`{number:'v1.5', date:'2026/10/17'}`）：改行程或地點資料就更新；純文件或確認清單狀態更新可以不改。
-- 版本歷史：v1.0 拆分單檔（PR #1）→ v1.1 版本號與左側編號對應地圖／住宿捷徑（PR #2，另一個工作階段）→ v1.2 `parking` 欄位與第一批資料（PR #3）→ v1.3 景點攻略接進彈窗 → v1.4 四項行程文字修正 → v1.5 加大查證（座標更正、確認清單）。
+- 版本歷史：v1.0 拆分單檔（PR #1）→ v1.1 版本號與左側編號對應地圖／住宿捷徑（PR #2，另一個工作階段）→ v1.2 `parking` 欄位與第一批資料（PR #3）→ v1.3 景點攻略接進彈窗 → v1.4 四項行程文字修正 → v1.5 加大查證（座標更正、確認清單）→ v1.6 更正遠雄停車說明（官網是「平假日」不是「平日」）。
 
 ---
 
@@ -207,19 +210,23 @@ node tools/check.js
 ```
 只需要 Node。檢查：資料能載入且 `validate()` 通過、座標在台灣範圍內、guides 的 id／來源編號／開發用語、`guides.md` 與 `guides.js` 同步、`verify.md` 的題號與狀態一致、所有文字檔 UTF-8 無 BOM／無 U+FFFD／無 CRLF、版本號格式。已用 7 種人為錯誤做過反向測試，確認抓得到。**它不能取代瀏覽器實測。**
 
-### 10.2 瀏覽器實測（這個環境的做法）
-先前都用 Playwright（Node）＋ Chromium（雲端容器：`/opt/node-tools/node_modules/playwright`、`/opt/pw-browsers/chromium-1194/chrome-linux/chrome`）。要點：
+### 10.2 瀏覽器端到端測試（`tools/e2e.js`）
+改到功能（`js/`、`index.html`、`verify.html`、`css/`）就要跑；只改資料文字可以只跑 `check.js`。
 
-- 起本機伺服器：`python3 -m http.server 8765`（**用 PID 檔來關，不要用 `pkill -f`**，見下一節）。
-- 用 `page.route` 放行 `localhost`、`abort` 其他外部請求；測 file:// 時同理。
-- **CDN 在這個沙箱被擋**（Tailwind、Leaflet、Font Awesome），因此：
-  - 版面：在暫存資料夾 `npm install tailwindcss@3.4.17`，用 `content: ['index.html','js/*.js']` 編譯出 CSS，再 `page.addStyleTag` 注入；Font Awesome 用 `.fa-solid{display:inline-block;width:1.1em}` 補寬度（否則導覽列寬度會算少一個圖示）。
-  - 地圖：用 `page.addInitScript` 在頁面載入前定義假的 `window.L`（**不要用 route 回傳假的 leaflet.js：頁面有 SRI `integrity`，內容不符會被擋，結果地圖按鈕被程式移除**）。
-  - `verify.html`：route 攔截 `marked@12.0.2/marked.min.js`，回傳本機 `npm install marked@12.0.2` 的檔案。
-- 實測過的項目：資料與頁面文字、彈窗（含鍵盤、訂房資料、導航連結）、14 個景點攻略、各天地圖標記數與連線、打錯 id 的紅色提示列、版本號、導覽列各寬度（320/360/375/414/768/1280）、`verify.html` 渲染與備援。
+```bash
+# 這個專案的雲端沙箱用法
+PLAYWRIGHT_MODULE=/opt/node-tools/node_modules/playwright \
+CHROME_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome \
+MARKED_JS=<本機 marked@12.0.2 的 marked.min.js> \
+TAILWIND_CSS=<本機編譯的 Tailwind CSS> \
+node tools/e2e.js
+```
+- `MARKED_JS`、`TAILWIND_CSS` 可省略：沒有 `MARKED_JS` 只測 `verify.html` 的轉換失敗備援；沒有 `TAILWIND_CSS` 只測行為、不測版面（導覽列寬度）。取得方式：在**暫存資料夾**（不要在 repo 裡）`npm install marked@12.0.2 tailwindcss@3.4.17`；Tailwind 用 `content: ['<repo>/index.html','<repo>/js/*.js']` 編譯成 CSS。
+- 測試內容（最小模式 15 項、完整模式 19 項）：首頁無錯誤與版本號、每個有彈窗的地點（標題、停車區塊、攻略、`hidden` 項目不顯示、無開發用語、導航按鈕、訂房區塊、Esc 關閉）、每天地圖（標記數、路線連線、展開／收合）、打錯 id 的紅色提示列、file:// 開啟與攻略動態載入、`verify.html`（題號錨點、撥號連結、新分頁連結、備援）、導覽列 360／375／414／768／1280px 不溢出。
+- 做法：自己起 Node 靜態伺服器（**不用 python／pkill**）、放行本機請求並 `abort` 外部請求，沙箱連不到 Tailwind／Leaflet／Font Awesome CDN。地圖用 `addInitScript` 在頁面載入前放假的 `window.L`；**不要改成 route 回傳假的 leaflet.js**——頁面有 SRI `integrity`，內容不符會被擋，結果地圖按鈕被程式整個移除，測試會以為地圖壞了。
+- 每個測試區塊獨立執行，出例外只記成一項失敗，不會擋住其他結果。結束碼：0 全過、1 有失敗、2 測試本身無法執行。
+- **已做過反向測試**：在複本裡植入 6 種功能破壞（停車區塊永遠隱藏、攻略路徑壞掉、路線不連回起點、頁尾連結不開新分頁、題號錨點消失、不顯示紅色提示列），全部被抓到；過程中也抓到並修掉兩個測試本身的缺陷（一個永遠為真的斷言、一個例外會中斷全部結果的寫法）。**改測試時請維持這個標準：新增斷言就要想辦法證明它會失敗。**
 - **AI 從來沒有在真實瀏覽器看過**：Font Awesome 圖示、Leaflet 真實地圖、Tailwind 的真實外觀。這些要請使用者在手機與電腦看一次（見 TODO）。
-
----
 
 ## 11. 決策紀錄（為什麼這樣做）
 
@@ -251,6 +258,11 @@ node tools/check.js
 - 地圖圖磚用 OpenStreetMap，有使用政策；目前流量極小沒問題。
 - stop hook 會抱怨「工作分支有未推送 commit」或「有未追蹤檔案」：commit 後同時 push `main` 與工作分支即可。
 - GitHub MCP 工具有時需要先用 `ToolSearch` 載入；目前流程用 git 直接 push，不需要它。
+- `git push` 回 **403**（Claude 沒有寫入授權）：請使用者到 https://claude.ai/connect-github 重新連結 GitHub，並確認 Claude GitHub App 已安裝在這個 repo；**不要改用其他路徑繞過**。
+- 舊版單檔 `index.html`（拆分前最後一版）在 git 歷史 commit `2a43d75`，要回頭看原貌可以 `git show 2a43d75:index.html`。
+- **子代理的環境和主環境相同**：WebFetch DNS 失敗、curl 可用、同樣讀不到 Facebook／Google 地圖。子代理的報告有過：把同一頁不連續的句子合併成一句引句、把出處標錯（登記證號與地址的出處、愛貝客與 curly 的地址）、做出沒有佐證的推論。所以才有 `RESEARCH-LOG.md` 的逐句比對；**子代理說的話一律當成「待核對」**。
+- **寫檔時 `\uFFFD` 這類跳脫序列要小心**：如果寫成真正的字元，`check.js` 會把自己抓出來（發生過）。commit 訊息也一樣，別放真正的替換字元。
+- **不要用 `cmd | tail && git commit`**：管線的結束碼是 `tail` 的，檢查失敗會被吃掉（發生過，有問題的版本被推上去）。要寫成 `cmd; rc=$?; [ $rc -eq 0 ] || exit 1`。
 
 ---
 

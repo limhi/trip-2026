@@ -22,7 +22,9 @@ css/style.css     自訂樣式（版面本身用 Tailwind CDN）
 
 - [`docs/DESIGN.md`](docs/DESIGN.md)：設計文件（架構、資料模型、決策原因、驗證方法、陷阱）
 - [`docs/TODO.md`](docs/TODO.md)：待辦事項（等使用者回覆的題目、出發前檢查清單、紅線）
+- `docs/RESEARCH-LOG.md`：官方更新的逐字證據與核對結果
 - `node tools/check.js`：一鍵檢查（只需 Node）
+- `node tools/e2e.js`：瀏覽器端到端測試（需要 Playwright；用法見 `docs/DESIGN.md`）
 
 ## 旅遊研究資料
 

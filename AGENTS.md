@@ -15,6 +15,7 @@
 - 收到題號回覆後：依答案更新 `data/places.js`／`data/trip.js` → 在 `verify.md` 把該題標成 ✅（記下答案與日期，或移到「已確認」區）→ 更新版本號 → 直接 push 到 `main` 並確認線上生效。
 - `verify.md` 由腳本一次產生，之後直接改 `verify.md` 即可；題號不要重編，新題接在最後。
 - **使用者授權加大查證**：對不確定的資訊，可主動查官方網頁（政府、營運單位、內政部國土測繪中心座標查詢等）。查到**明確、有官方原文**的結果就自行更新並發布，並列入 `verify.md` 的「已由 Claude 查證並更新」；仍不確定的才列成確認題目。只有部落格的資訊要標「遊記」並列入確認題目。
+- 套用官方更新時，把「網址、頁面日期、逐字原文」補進 `docs/RESEARCH-LOG.md`；引句要逐字，轉寫數字與條件要對照原文。
 - 查證方法：用 curl 抓官方頁（WebFetch 在此環境無法解析網域、WebSearch 結果很弱）；許多縣府旅遊網靠 JS 渲染，可改讀它前端呼叫的公開 JSON（需帶 `X-Requested-With` 標頭）。Facebook 與 Google 地圖讀不到。子代理的查證報告不能直接採信，套用前要自己重讀原文。
 
 ## 開始前先看
@@ -41,6 +42,9 @@
 | 公開確認清單（請人實際確認的題目） | `verify.md`（顯示頁 `verify.html`） |
 | 設計文件與待辦事項（接手用） | `docs/DESIGN.md`、`docs/TODO.md`（有重大變動或完成待辦就更新） |
 | 一鍵檢查 | `node tools/check.js`（只需 Node） |
+| 瀏覽器端到端測試 | `node tools/e2e.js`（需要 Playwright，用法見 `docs/DESIGN.md` 第 10.2 節） |
+| 查證用：HTML 轉純文字 | `python3 -I tools/h2t.py in.html out.txt` |
+| 官方更新的逐字證據（新增更新時要補） | `docs/RESEARCH-LOG.md` |
 | 彈窗的景點攻略（區塊順序、預設展開） | `js/guides.js` 最上方的 `SECTIONS`；內容在 `reference/guides.js` |
 | 其餘功能 | `js/model.js`、`js/modal.js`、`js/map.js`、`js/render.js` |
 
@@ -48,7 +52,7 @@
 
 - 所有文字檔使用 UTF-8（無 BOM）。修改含中文的檔案後，確認沒有 U+FFFD 與亂碼；不要因為終端機顯示亂碼就覆寫檔案。
 - 每次改動行程或地點資料，更新 `data/trip.js` 的 `site.version`（版本與日期）。
-- 修改後驗證：先跑 `node tools/check.js`（資料能載入且 `Trip.model.validate` 沒問題、攻略與確認清單一致、編碼正確）；再用瀏覽器確認頁面沒有紅色提示列與 JS 錯誤（作法見 `docs/DESIGN.md` 第 10 節）。
+- 修改後驗證：先跑 `node tools/check.js`（資料能載入且 `Trip.model.validate` 沒問題、攻略與確認清單一致、編碼正確）；動到功能（`js/`、`index.html`、`verify.html`、`css/`）再跑 `tools/e2e.js` 確認頁面沒有紅色提示列與 JS 錯誤（作法見 `docs/DESIGN.md` 第 10 節）。**commit 前要看檢查的結束碼，不要用 `cmd | tail && git commit`（會吃掉失敗狀態）。**
 - 完成 `docs/TODO.md` 裡的項目、或做了影響設計的改動，要同步更新那兩份文件，讓下一個接手的人看到的是現況。
 - 有不清楚的地方，先用編號條列跟使用者確認，選項也要編號。
 - 回報摘要預設使用繁體中文。
