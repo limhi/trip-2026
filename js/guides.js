@@ -1,7 +1,7 @@
 /*
  * 景點攻略：使用者點開景點彈窗時，在下方顯示 reference/guides.js（window.TRIP_GUIDES）整理的內容。
  *  - guides.js 檔案較大，所以不在首頁載入：頁面載入完成後在背景預載，或第一次點開彈窗時才載。
- *  - key 對應 data/places.js 的 place id，沒有攻略的地點不會顯示這一塊。
+ *  - key 對應 data/places.json 的 place id，沒有攻略的地點不會顯示這一塊。
  *  - 項目標了 hidden: true 的不顯示（資料保留在 guides.js，想顯示就把標記拿掉）。
  */
 (function (root) {
@@ -11,7 +11,7 @@
     // 區塊設定（順序即顯示順序）
     //   key            guides.js 的欄位名稱
     //   open           預設是否展開
-    //   skipIfParking  該地點已有 places.js 的 parking（彈窗上方已顯示）時不重複顯示
+    //   skipIfParking  該地點已有 places.json 的 parking（彈窗上方已顯示）時不重複顯示
     const SECTIONS = [
         { key: 'highlights', title: '旅遊重點', icon: 'star', color: 'text-amber-500', open: true },
         { key: 'kidTips', title: '親子重點', icon: 'child', color: 'text-emerald-600' },

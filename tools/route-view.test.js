@@ -53,6 +53,18 @@ test('dayRoutes：有快取的段落算出顯示分鐘、文字、是否超過�
     assert.equal(info.factorNote, '預估・含路況緩衝 ×1.25');
 });
 
+test('dayRoutes：autoByRow（綁定的交通列）與 autoAfter（沒有交通列時補在前一項後面），只含有快取的路段', () => {
+    const day = { items: [spot('a'), { type: 'drive', time: '08:00 - 09:00', text: '開車' }, spot('b'), spot('c')] };
+    const info = routeView.dayRoutes(day, P, routes({
+        [KEY_AB]: { distance: 75323, duration: 3900 },
+        [KEY_BC]: { distance: 20000, duration: 1200 }
+    }), SITE);
+    assert.deepEqual(info.autoByRow, { 1: { text: '約 1 小時 21 分・75.3 km', note: '預估・含路況緩衝 ×1.25' } });
+    assert.deepEqual(info.autoAfter, { 2: { text: '約 25 分・20.0 km', note: '預估・含路況緩衝 ×1.25' } });
+    const none = routeView.dayRoutes(day, P, routes({}), SITE);
+    assert.deepEqual([none.autoByRow, none.autoAfter], [{}, {}]);
+});
+
 test('dayRoutes：剛好等於門檻不算超過', () => {
     const day = { items: [spot('a'), spot('b')] };
     // 144 分 × 1.25 = 180 分

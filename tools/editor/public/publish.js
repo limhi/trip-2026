@@ -17,6 +17,8 @@
         return [
             ...changes.days.map(d => ({ label: `DAY ${d.day}`, text: d.note })),
             ...changes.places.map(p => ({ label: '地點', text: `${KIND[p.kind]}「${p.name}」` })),
+            ...(changes.routes.added || changes.routes.removed || changes.routes.changed
+                ? [{ label: '路線', text: `${[['新增', 'added'], ['移除', 'removed'], ['重算', 'changed']].filter(([, k]) => changes.routes[k]).map(([t, k]) => `${t} ${changes.routes[k]}`).join('、')} 段` }] : []),
             ...(changes.hotels ? [{ label: '住宿區', text: '有變更' }] : []),
             ...(changes.other ? [{ label: '網站設定', text: '有變更' }] : [])
         ];

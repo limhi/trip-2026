@@ -63,15 +63,23 @@
             return { leg, cached: c, minutes, over: minutes > max, text: model.formatLeg(c, factor) };
         });
         const have = legs.filter(l => l.cached);
+        // 給 blocks.js 用：綁定到交通列的、沒有交通列時補在前一項後面的計算結果（key 是 day.items 的索引）
+        const factorNote = model.formatFactorNote(factor);
+        const autoByRow = {}, autoAfter = {};
+        have.forEach(l => {
+            const auto = { text: l.text, note: factorNote };
+            if (l.leg.rowIndex != null) autoByRow[l.leg.rowIndex] = auto;
+            else if (l.leg.needsRow) autoAfter[l.leg.fromItemIndex] = auto;
+        });
         const summary = have.length ? {
             minutes: have.reduce((s, l) => s + l.minutes, 0),
             meters: have.reduce((s, l) => s + l.cached.distance, 0),
             missing: legs.length - have.length
         } : null;
         return {
-            factor, max, legs, summary,
+            factor, max, legs, summary, autoByRow, autoAfter,
             hasCache: have.length > 0,
-            factorNote: model.formatFactorNote(factor),
+            factorNote,
             summaryText: summary
                 ? `總車程 ${model.formatDuration(summary.minutes)}・總里程 ${model.formatDistance(summary.meters)}${summary.missing ? '（部分路段未計算）' : ''}`
                 : ''

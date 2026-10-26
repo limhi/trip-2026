@@ -16,7 +16,7 @@ const TARGETS = [
 
 const render = (name, data) => `${HEADER}window.${name} = ${JSON.stringify(data, null, 4)};\n`;
 
-// 路線快取 data/routes.json（結構見 docs/DESIGN.md／spec 7.2）。
+// 路線快取 data/routes.json（結構見 docs/DESIGN.md 第 15.2 節）。
 // 它不在 TARGETS 裡：編輯器的 trip／places 存檔與 mtime 檢查不涉及它。
 const ROUTES_JSON = 'data/routes.json';
 

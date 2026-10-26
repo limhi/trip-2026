@@ -1,6 +1,6 @@
-// 編輯器的路線服務：記憶體草稿（路線快取）＋呼叫 provider（spec 7.5）。
+// 編輯器的路線服務：記憶體草稿（路線快取）＋呼叫 provider（docs/DESIGN.md 第 15.5 節）。
 // 草稿一開始是磁碟上的 data/routes.json；存檔時由 store 寫回（並移除沒用的舊筆）。
-// 計算失敗不改草稿、不自動重試；provider 自己負責逐一送出、間隔與逾時。
+// 計算失敗：該段不留在草稿裡（退回直線；重新計算失敗時舊路線也一併移除），不自動重試；provider 自己負責逐一送出、間隔與逾時。
 const { httpError } = require('./store');
 const cache = require('../routing/cache');
 const model = require('../../js/model');
@@ -47,7 +47,12 @@ function createRoutesService({ root, provider, onChange = () => {} }) {
                     provider: provider.name || 'osrm', computedAt: today()
                 };
                 return { status: 'ok', distance: r.distance, duration: r.duration };
-            }, e => ({ status: 'failed', error: e.message }));
+            }, e => {
+                // 失敗的段落退回直線：舊快取（重新計算時才會有）一併移除，公開預覽才不會繼續畫舊路線
+                const removed = !!draft().legs[l.key];
+                delete draft().legs[l.key];
+                return { status: 'failed', error: e.message, removed };
+            });
             inflight.set(l.key, p);
             p.finally(() => inflight.delete(l.key));
         }
@@ -65,7 +70,7 @@ function createRoutesService({ root, provider, onChange = () => {} }) {
             else pending.push(computeOne(l).then(r => { results[l.key] = r; }));
         }
         await Promise.all(pending);
-        if (Object.values(results).some(r => r.status === 'ok')) onChange();
+        if (Object.values(results).some(r => r.status === 'ok' || r.removed)) onChange();
         return { results };
     }
 

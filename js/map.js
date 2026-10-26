@@ -21,7 +21,7 @@
 
     // 路線快取：routeCtx = { routes: window.TRIP_ROUTES, site }。沒有快取時回傳 null，地圖維持灰色虛線
     function dayRouteInfo(day, places, routeCtx) {
-        if (!routeCtx || !Trip.routeView) return null;
+        if (!routeCtx) return null;
         const info = Trip.routeView.dayRoutes(day, places, routeCtx.routes, routeCtx.site);
         return info.hasCache ? info : null;
     }
@@ -83,10 +83,12 @@
     }
 
     // 路段中間的「時間・距離」標示（不攔截點擊，標記仍可點）
-    function createLegLabel(text, over) {
+    // 時間一律標示「預估」與係數（短形式可見，完整說明放 title）
+    function createLegLabel(text, over, info) {
+        const esc = Trip.blocks.esc;
         return L.divIcon({
             className: 'map-leg-label-icon',
-            html: `<div class="map-leg-label${over ? ' map-leg-label-over' : ''}">${Trip.blocks.esc(text)}</div>`,
+            html: `<div class="map-leg-label${over ? ' map-leg-label-over' : ''}" title="${esc(info.factorNote)}">${esc(text)} <span class="map-leg-factor">預估 ×${esc(info.factor)}</span></div>`,
             iconSize: [0, 0]
         });
     }
@@ -110,7 +112,7 @@
             else L.polyline([[leg.from.lat, leg.from.lng], [leg.to.lat, leg.to.lng]], item.over ? { ...dashed, color: OVER_COLOR, opacity: .85 } : dashed).addTo(group);
             if (item.cached) {
                 const at = Trip.routeView.midpoint(line, leg.from, leg.to);
-                L.marker(at, { icon: createLegLabel(item.text, item.over), interactive: false, keyboard: false, zIndexOffset: -500 }).addTo(group);
+                L.marker(at, { icon: createLegLabel(item.text, item.over, info), interactive: false, keyboard: false, zIndexOffset: -500 }).addTo(group);
             }
         });
     }

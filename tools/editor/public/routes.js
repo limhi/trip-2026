@@ -1,4 +1,4 @@
-// 路線功能的畫面（ticket 10）：項目之間的車程、當天總車程、路線設定、全部重算、「排太緊」等警告。
+// 路線功能的畫面：項目之間的車程、當天總車程、路線設定、全部重算、「排太緊」等警告。
 // 計算流程在 routes-controller.js、純邏輯在 routes-logic.js、規則在 js/model.js。
 //   const routes = EditorRoutes.create({ pane, bar, data, changed, onComputed });
 //   routes.legHtml(di, ii) / routes.dayHeadHtml(di)   給 days.js 畫在項目之間與日標題

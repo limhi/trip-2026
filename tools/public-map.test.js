@@ -202,3 +202,17 @@ test('兩天的地圖在 geo 載入完成前都展開：只載入一次，載入
     assert.equal(env.rec.groups.length, 2);
     for (const g of env.rec.groups) assert.ok(g.layers.filter(l => l.kind === 'polyline').every(l => !l.opts.dashArray));
 });
+
+test('中點標示一律帶「預估」與係數（可見文字，title 為完整說明）', async () => {
+    const env = makeEnv();
+    expand(env, CACHE);
+    env.ctx.window.TRIP_ROUTES_GEO = GEO;
+    env.rec.scripts[0].onload();
+    await tick();
+    const ls = labels(env);
+    assert.equal(ls.length, 2);
+    for (const l of ls) {
+        assert.match(l.opts.icon.html, /預估\s*×1\.25/);
+        assert.match(l.opts.icon.html, /title="預估・含路況緩衝 ×1\.25"/);
+    }
+});

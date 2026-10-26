@@ -69,6 +69,28 @@ test('plan：與 HEAD 比對出哪幾天、哪些地點、住宿區有異動，�
     assert.doesNotMatch(plan.message, /Co-Authored|Claude/i);
 });
 
+test('plan：只改路線快取也算異動（列出新增／移除／變動的段落數，寫進預設訊息）', t => {
+    const { root } = makePublishRepo(t);
+    const cache = require('../routing/cache');
+    const leg = n => ({ distance: n, duration: n, geometry: 'abc', provider: 'osrm', computedAt: '2026-10-26' });
+    const k = n => `121.0000${n},24.00000>121.1000${n},24.10000`;
+    const write = routes => buildData.writeAtomic(root, { 'data/routes.json': cache.serialize(routes), ...buildData.buildRoutes(routes) });
+    write({ profile: 'driving', legs: { [k(1)]: leg(1), [k(2)]: leg(2) } });   // HEAD 的版本：2 段
+    git(root, 'add', '-A');
+    git(root, 'commit', '-q', '-m', 'seed routes');
+    write({ profile: 'driving', legs: { [k(2)]: leg(20), [k(3)]: leg(3) } }); // 移除 k1、變動 k2、新增 k3
+    const plan = publisher.plan(root, { now: NOW });
+    assert.deepEqual(plan.changes.routes, { added: 1, removed: 1, changed: 1 });
+    assert.equal(plan.hasChanges, true);
+    assert.match(plan.message, /路線/);
+    assert.doesNotMatch(plan.message, /無異動/);
+});
+
+test('plan：沒改路線時 changes.routes 全為 0', t => {
+    const { root } = makePublishRepo(t);
+    assert.deepEqual(publisher.plan(root, { now: NOW }).changes.routes, { added: 0, removed: 0, changed: 0 });
+});
+
 test('plan：缺少路線快取的路段只警告，不擋', t => {
     const { root } = makePublishRepo(t);
     const empty = { ...readJson(root, 'data/routes.json'), legs: {} };
@@ -158,6 +180,46 @@ test('publish 拒絕：commit 訊息是空的回 400；沒帶 trip／places 回 
     const { root } = makePublishRepo(t);
     assertRejected(root, { ...diskBody(root), message: '   ' }, 400, /訊息/);
     assertRejected(root, { message: 'x' }, 400, /trip/);
+});
+
+const GENERATED = ['data/trip.json', 'data/trip.js', 'data/places.js', 'data/routes.js', 'data/routes-geo.js'];
+const snapshot = root => Object.fromEntries(GENERATED.map(f => [f, fs.readFileSync(path.join(root, f), 'utf8')]));
+
+test('版本號寫入後第二次 check.js 失敗：trip.json 與 data/*.js 還原成寫入前的內容，不 commit', t => {
+    const { root } = makePublishRepo(t);
+    const body = saveEdit(root, d => { d.trip.site.documentTitle = '會被還原的發布'; });
+    const before = snapshot(root);
+    const nextNumber = publisher.plan(root, { now: NOW }).version.next.number;
+    // 只在版本號已經改成下一版時才失敗（第一次 check 通過、第二次失敗）
+    fs.appendFileSync(path.join(root, 'tools/check.js'),
+        `\nif (JSON.parse(require('fs').readFileSync(require('path').join(__dirname, '..', 'data/trip.json'), 'utf8')).site.version.number === ${JSON.stringify(nextNumber)}) { console.error('故意失敗'); process.exit(1); }\n`);
+    const commits = commitCount(root);
+    assert.throws(() => publisher.publish(root, { ...body, message: 'x' }, { now: NOW }), e => {
+        assert.equal(e.status, 422);
+        assert.ok(e.steps.some(s => /還原/.test(s.name) && s.ok));
+        return true;
+    });
+    assert.deepEqual(snapshot(root), before);
+    assert.equal(commitCount(root), commits);
+    assert.equal(git(root, 'diff', '--cached', '--name-only'), '');
+});
+
+test('git commit 失敗（pre-commit hook 擋下）：檔案還原、暫存區清掉、不留版本號', t => {
+    const { root } = makePublishRepo(t);
+    const body = saveEdit(root, d => { d.trip.site.documentTitle = '會被還原的發布'; });
+    const before = snapshot(root);
+    const hook = path.join(root, '.git', 'hooks', 'pre-commit');
+    fs.writeFileSync(hook, '#!/bin/sh\necho "no commit" >&2\nexit 1\n', { mode: 0o755 });
+    const commits = commitCount(root);
+    assert.throws(() => publisher.publish(root, { ...body, message: 'x' }, { now: NOW }), e => {
+        assert.equal(e.status, 500);
+        assert.ok(e.steps.some(s => /還原/.test(s.name) && s.ok));
+        return true;
+    });
+    assert.deepEqual(snapshot(root), before);
+    assert.equal(commitCount(root), commits);
+    assert.equal(git(root, 'diff', '--cached', '--name-only'), '');
+    execFileSync(process.execPath, ['tools/check.js'], { cwd: root, stdio: 'pipe' });   // 還原後仍然同步
 });
 
 function cloneAndPush(remote) {

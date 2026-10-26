@@ -31,7 +31,7 @@ test('save：改一個欄位後 JSON 內容正確、格式固定，data/*.js 同
     const firstId = Object.keys(d.places)[0];
     d.places[firstId].name = '改過的名稱「測試」';
     const res = store.save(root, d);
-    assert.deepEqual(Object.keys(res.mtimes), ['trip', 'places']);
+    assert.deepEqual(Object.keys(res.mtimes), ['trip', 'places', 'routes']);
 
     const text = read(root, 'data/places.json');
     assert.equal(text, JSON.stringify(JSON.parse(text), null, 2) + '\n');

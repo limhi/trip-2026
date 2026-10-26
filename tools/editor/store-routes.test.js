@@ -1,4 +1,4 @@
-// 存檔時一併寫路線快取（ticket 10）：node --test tools/editor/store-routes.test.js
+// 存檔時一併寫路線快取：node --test tools/editor/store-routes.test.js
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
@@ -43,6 +43,26 @@ test('save（帶 routes）：routes.json 不含已不用的舊筆，routes.js／
     assert.ok(read(root, 'data/routes-geo.js').includes('abc'));
     assert.deepEqual(Object.keys(res.routes.legs), [used], '回傳修剪後的快取，讓伺服器更新草稿');
     check(root);
+}));
+
+test('save：磁碟上的 routes.json 比載入時新（被外部改過）回 409 且不寫入任何檔案', withRepo(root => {
+    const d = store.load(root);
+    assert.equal(typeof d.mtimes.routes, 'number');
+    const file = path.join(root, 'data/routes.json');
+    const later = new Date(Date.now() + 5000); fs.utimesSync(file, later, later);
+    const files = ['data/trip.json', 'data/places.json', 'data/routes.json', 'data/routes.js'];
+    const before = files.map(f => read(root, f));
+    d.trip.site.documentTitle = '不該被寫入';
+    assert.throws(() => store.save(root, d, { routes: { profile: 'driving', legs: {} } }), e => e.status === 409 && /routes\.json/.test(e.message));
+    assert.deepEqual(files.map(f => read(root, f)), before);
+}));
+
+test('save：回傳的 mtimes 含 routes，拿來再存一次不會誤報衝突；缺 routes 的 mtimes 回 400', withRepo(root => {
+    const d = store.load(root);
+    const res = store.save(root, d, { routes: { profile: 'driving', legs: { [firstLegKey(d)]: entry } } });
+    assert.equal(typeof res.mtimes.routes, 'number');
+    store.save(root, { ...d, mtimes: res.mtimes }, { routes: res.routes });
+    assert.throws(() => store.save(root, { ...d, mtimes: { trip: res.mtimes.trip, places: res.mtimes.places } }), e => e.status === 400);
 }));
 
 test('save（沒帶 routes）：不動 routes 相關檔案', withRepo(root => {

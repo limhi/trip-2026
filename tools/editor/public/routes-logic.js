@@ -46,14 +46,13 @@
         return { text: M.formatLeg(entry, factor), minutes, over: minutes > maxMinutes };
     }
 
-    // 有地點、會顯示在地圖、但地點沒有座標的項目（這些不會算路線）
+    // 有地點、會顯示在地圖、但地點沒有座標的項目（這些不會算路線；判斷與 validate 相同，見 model.lacksCoords）
     function missingCoords(trip, places) {
         const out = [];
         for (const day of trip.days) {
             day.items.forEach((item, itemIndex) => {
-                if (!item.place || item.map === false) return;
                 const p = places[item.place];
-                if (p && (p.lat == null || p.lng == null)) out.push({ day: day.day, itemIndex, placeId: item.place, name: p.name || item.place });
+                if (M.lacksCoords(item, p)) out.push({ day: day.day, itemIndex, placeId: item.place, name: p.name || item.place });
             });
         }
         return out;

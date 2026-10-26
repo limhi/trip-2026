@@ -66,7 +66,7 @@ test('真實 data/routes.json 序列化後逐位元組不變（檔案已是固�
     assert.equal(cache.serialize(JSON.parse(text)), text);
 });
 
-test('write／read：寫入 routes.json 並同步產生 routes.js、routes-geo.js（內容符合 spec 7.2）', t => {
+test('write／read：寫入 routes.json 並同步產生 routes.js、routes-geo.js（內容格式見 docs/DESIGN.md 第 15.2 節）', t => {
     const root = makeRepoCopy();
     t.after(() => cleanup(root));
     cache.write(root, { profile: 'driving', legs: { [K1]: leg(), [K2]: leg({ geometry: 'zzz' }) } });

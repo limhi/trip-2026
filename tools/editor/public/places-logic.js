@@ -1,19 +1,16 @@
 /*
  * 地點庫編輯的純邏輯（不碰 DOM，瀏覽器與 node:test 共用）。
- * id 規則見 spec 4.7：格式 ^[a-z0-9-]+$、不得重複；改 id 同步更新引用；被引用不能刪。
+ * id 規則：格式 ^[a-z0-9-]+$、不得重複；改 id 同步更新引用；被引用不能刪。
  * 函式都就地修改傳入的 places／trip（草稿的物件參考要保持不變）。
  */
 (function (root) {
+    const M = (root.Trip && root.Trip.model) || require('../../../js/model');
     const ID_RE = /^[a-z0-9-]+$/;
 
-    // 引用地點的位置：days[].stay.place、days[].items[].place、hotels[].place
+    // 引用地點的位置（遍歷規則在 js/model.js 的 forEachPlaceRef）
     function placeRefs(trip, id) {
         const refs = [];
-        trip.days.forEach(d => {
-            if (d.stay && d.stay.place === id) refs.push(`DAY ${d.day} 住宿`);
-            d.items.forEach((it, i) => { if (it.place === id) refs.push(`DAY ${d.day} 第 ${i + 1} 項`); });
-        });
-        (trip.hotels || []).forEach((h, i) => { if (h.place === id) refs.push(`住宿區第 ${i + 1} 間`); });
+        M.forEachPlaceRef(trip, (refId, label) => { if (refId === id) refs.push(label); });
         return refs;
     }
 
@@ -33,11 +30,7 @@
         Object.keys(places).forEach(k => delete places[k]);
         entries.forEach(([k, v]) => { places[k === oldId ? newId : k] = v; });
         let count = 0;
-        trip.days.forEach(d => {
-            if (d.stay && d.stay.place === oldId) { d.stay.place = newId; count++; }
-            d.items.forEach(it => { if (it.place === oldId) { it.place = newId; count++; } });
-        });
-        (trip.hotels || []).forEach(h => { if (h.place === oldId) { h.place = newId; count++; } });
+        M.forEachPlaceRef(trip, (id, label, owner) => { if (id === oldId) { owner.place = newId; count++; } });
         return { ok: true, count };
     }
 
