@@ -58,14 +58,18 @@ preview.start();
 
 const days = DaysTab.create($('pane-days'), { data: () => state.data, errors: () => state.errors, changed, toast, onDayOpen: n => preview.scrollToDay(n) });
 
+const places = PlacesTab.create($('pane-places'), { data: () => state.data, changed, toast });
+
 async function load() {
     showNotice('');
     try {
         state.data = await api('GET');
         state.saved = snapshot();
         days.reset();
+        places.reset();
         changed();
         days.render();
+        places.render();
     } catch (e) {
         showNotice(`載入失敗：${e.message}`);
     }
@@ -86,7 +90,12 @@ async function save() {
 
 $('tabs').addEventListener('click', e => {
     const b = e.target.closest('[data-tab]');
-    if (b) { state.tab = b.dataset.tab; renderChrome(); }
+    if (b) {
+        state.tab = b.dataset.tab; renderChrome();
+        // 另一個分頁可能改了地點（名稱、id），切過去時重畫
+        if (state.data && state.tab === 'days') days.render();
+        if (state.data && state.tab === 'places') places.render();
+    }
 });
 $('errbar').addEventListener('click', e => {
     if (e.target.closest('[data-act="errtoggle"]')) { state.errOpen = !state.errOpen; renderChrome(); }
