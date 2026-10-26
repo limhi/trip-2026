@@ -7,7 +7,8 @@ const state = { data: null, saved: '', errors: [], tab: 'days', errOpen: false }
 
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const snapshot = () => JSON.stringify({ trip: state.data.trip, places: state.data.places });
-const dirty = () => !!state.data && snapshot() !== state.saved;
+const textDirty = () => !!state.data && snapshot() !== state.saved;
+const dirty = () => textDirty() || !!(routes && routes.unsaved());   // 路線快取算出新結果也要存檔
 
 function toast(msg) {
     const t = $('toast'); t.textContent = msg; t.classList.remove('hidden');
@@ -25,7 +26,8 @@ async function api(method, body) {
 function renderChrome() {
     const status = $('status');
     if (!state.data) { status.textContent = '載入中…'; status.className = 'text-xs'; }
-    else if (dirty()) { status.textContent = '● 有未存檔的修改'; status.className = 'text-xs font-bold text-amber-300'; }
+    else if (textDirty()) { status.textContent = '● 有未存檔的修改'; status.className = 'text-xs font-bold text-amber-300'; }
+    else if (dirty()) { status.textContent = '● 路線計算結果未存檔'; status.className = 'text-xs font-bold text-amber-300'; }
     else { status.textContent = '已存檔（與磁碟相同）'; status.className = 'text-xs text-emerald-300'; }
     $('save').disabled = !dirty();
     document.querySelectorAll('#tabs button').forEach(b => {
@@ -64,7 +66,8 @@ const days = DaysTab.create($('pane-days'), {
 });
 routes = EditorRoutes.create({
     pane: $('pane-days'), bar: $('routebar'), data: () => state.data, changed,
-    onComputed: () => preview.sendDraft({ trip: state.data.trip, places: state.data.places })
+    onComputed: () => preview.sendDraft({ trip: state.data.trip, places: state.data.places }),
+    onStatus: renderChrome
 });
 
 const places = PlacesTab.create($('pane-places'), { data: () => state.data, changed, toast });
@@ -96,6 +99,7 @@ async function save() {
         const res = await api('PUT', state.data);
         state.data.mtimes = res.mtimes;
         state.saved = snapshot();
+        routes.markSaved();   // 內部會重畫外框
         showNotice('');
         renderChrome();
         toast('已存檔');

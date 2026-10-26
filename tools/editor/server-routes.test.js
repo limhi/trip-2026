@@ -66,11 +66,12 @@ test('POST /api/routes/compute：壞請求回 400', async t => {
 
 test('GET /api/routes：回草稿的 distance 與 duration（不含 geometry）', async t => {
     const { base } = await withServer(t);
-    assert.deepEqual((await json(base, '/api/routes', 'GET')).body, { legs: {} });
+    assert.deepEqual((await json(base, '/api/routes', 'GET')).body, { legs: {}, unsaved: false });
     const { legs } = await twoLegs(base);
     await json(base, '/api/routes/compute', 'POST', { legs });
     const r = (await json(base, '/api/routes', 'GET')).body;
     assert.deepEqual(r.legs[legs[0].key], { distance: 12345, duration: 3000 });
+    assert.equal(r.unsaved, true);
 });
 
 test('預覽：算完後 /preview/data/routes.js 與 routes-geo.js 是草稿，真檔不受影響', async t => {
@@ -113,6 +114,7 @@ test('PUT /api/data：存檔寫入 routes.json（移除沒用的舊筆）並同�
     assert.ok(read(root, 'data/routes-geo.js').includes('geo1'));
     // 草稿也同步修剪
     assert.equal(Object.keys((await json(base, '/api/routes', 'GET')).body.legs).length, 2);
+    assert.equal((await json(base, '/api/routes', 'GET')).body.unsaved, false, '存檔後路線草稿與磁碟一致');
 });
 
 test('provider 失敗：回 failed 與錯誤，草稿不變，存檔仍成功', async t => {
@@ -122,7 +124,7 @@ test('provider 失敗：回 failed 與錯誤，草稿不變，存檔仍成功', 
     assert.equal(r.status, 200);
     assert.equal(r.body.results[legs[0].key].status, 'failed');
     assert.match(r.body.results[legs[0].key].error, /連線失敗/);
-    assert.deepEqual((await json(base, '/api/routes', 'GET')).body, { legs: {} });
+    assert.deepEqual((await json(base, '/api/routes', 'GET')).body, { legs: {}, unsaved: false });
 
     d.trip.site.documentTitle = '失敗後仍可存檔';
     const res = await json(base, '/api/data', 'PUT', d);

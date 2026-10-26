@@ -1,6 +1,6 @@
 // 路線功能的畫面：項目之間的車程、當天總車程、路線設定、全部重算、「排太緊」等警告。
 // 計算流程在 routes-controller.js、純邏輯在 routes-logic.js、規則在 js/model.js。
-//   const routes = EditorRoutes.create({ pane, bar, data, changed, onComputed });
+//   const routes = EditorRoutes.create({ pane, bar, data, changed, onComputed, onStatus });
 //   routes.legHtml(di, ii) / routes.dayHeadHtml(di)   給 days.js 畫在項目之間與日標題
 //   routes.reset()                                    重新載入資料後呼叫
 // 草稿變動（document 的 'draftchange'）時自動重畫並排程計算；結果更新時只就地換掉路線區塊，不重畫整個分頁（避免輸入中失去焦點）。
@@ -12,8 +12,9 @@
 
     // pane：每日行程分頁（放路線區塊）；bar：路線設定與警告列；data()：{ trip, places }；
     // changed()：草稿改了（重新驗證並通知預覽）；onComputed()：有新算出的路線（預覽要重新整理）
-    function create({ pane, bar, data, changed, onComputed }) {
-        const ctl = window.RoutesController.create({ data, onUpdate: () => refresh(), onComputed });
+    // onStatus()：路線狀態變了（含「有未存檔的路線」），外框要重畫
+    function create({ pane, bar, data, changed, onComputed, onStatus = () => {} }) {
+        const ctl = window.RoutesController.create({ data, onUpdate: () => { refresh(); onStatus(); }, onComputed });
         let warnOpen = false;
 
         const site = () => data().trip.site || {};
@@ -138,6 +139,8 @@
 
         return {
             legHtml, dayHeadHtml,
+            unsaved: () => ctl.unsaved(),
+            markSaved: () => ctl.markSaved(),
             reset() {
                 syncInputs();
                 ctl.load().catch(() => {}).then(() => ctl.schedule());

@@ -116,11 +116,12 @@ test('compute：重複的 key 只算一次；key 與座標對不上或格式錯�
     await assert.rejects(svc.compute({}), e => e.status === 400);
 });
 
-test('summary：只含 distance 與 duration（不含 geometry）', async t => {
+test('summary：只含 distance 與 duration（不含 geometry），並回報草稿是否與磁碟不同', async t => {
     const ab = leg(A, B);
     const { svc } = setup(t);
+    assert.equal(svc.summary().unsaved, false, '剛載入時與磁碟相同');
     await svc.compute({ legs: [ab] });
-    assert.deepEqual(svc.summary(), { legs: { [ab.key]: { distance: 1000, duration: 600 } } });
+    assert.deepEqual(svc.summary(), { legs: { [ab.key]: { distance: 1000, duration: 600 } }, unsaved: true });
 });
 
 test('draft：一開始是磁碟上的 routes.json', t => {

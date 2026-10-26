@@ -20,11 +20,18 @@ function createRoutesService({ root, provider, onChange = () => {} }) {
     const draft = () => routes || (routes = cache.read(root));
     const set = r => { routes = r; };
 
-    // 給前端顯示用：只有 distance 與 duration
+    // 草稿與磁碟上的 routes.json 不同（算了還沒存檔）；前端用它決定存檔鈕要不要亮
+    function unsaved() {
+        let onDisk;
+        try { onDisk = cache.read(root); } catch { onDisk = cache.empty(); }
+        return cache.serialize(draft()) !== cache.serialize(onDisk);
+    }
+
+    // 給前端顯示用：只有 distance 與 duration，加上是否有未存檔的路線
     function summary() {
         const legs = {};
         for (const [k, v] of Object.entries(draft().legs)) legs[k] = { distance: v.distance, duration: v.duration };
-        return { legs };
+        return { legs, unsaved: unsaved() };
     }
 
     function parseLegs(body) {

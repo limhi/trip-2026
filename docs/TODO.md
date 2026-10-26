@@ -50,10 +50,10 @@
 - 程式與資料都在 repo；本地只需要 `git pull` 與 Node（跑 `node tools/check.js`）。`tools/e2e.js` 需要 Playwright，用法見 `DESIGN.md` 第 10.2 節。
 - **資料來源已改成 `data/*.json`**（見下方 G）；`data/trip.js`、`data/places.js`、`data/routes*.js` 是產生檔，不要手改。
 - 雲端沙箱的限制（WebFetch 不能用、Google 地圖讀不到、部分網站 403）在本地不一定存在；本地若能直接讀 Google 地圖或官方頁，查證可以更快，**但仍要把「網址、頁面日期、逐字原文」補進 `RESEARCH-LOG.md`**，並照 `AGENTS.md` 的規則處理。
-- 發布方式：使用者確認的調整直接 commit 並 push 到 `main`（GitHub Pages）；本地環境沒有雲端的工作分支，直接在 `main` 上做即可，push 後用 `curl -s https://limhi.github.io/trip-2026/data/trip.js | grep "version:"` 確認版本。用編輯器的發布按鈕時，編輯器自己會 commit 並 push（流程見 `AGENTS.md`）。
+- 發布方式：使用者確認的調整直接 commit 並 push 到 `main`（GitHub Pages）；本地環境沒有雲端的工作分支，直接在 `main` 上做即可，push 後用 `curl -s https://limhi.github.io/trip-2026/data/trip.js | grep '"number"'` 確認版本。用編輯器的發布按鈕時，編輯器自己會 commit 並 push（流程見 `AGENTS.md`）。
 - 使用者的協作偏好：回報用**繁體中文**；有不清楚的先用**編號問題＋編號選項**確認；先給結論、誠實標示沒驗證到的部分；文字檔一律 UTF-8 無 BOM。使用者說「必要的就直接調，不確定的再找我討論」，也說過「建議晚點再討論」時就不要主動提案。
 
-### G. 行程編輯器與路線功能（2026-10-26 完成，已合進整合分支；使用者驗收前不要當成已上線）
+### G. 行程編輯器與路線功能（2026-10-26 完成，已合進 `main` 並上線；編輯器前端使用者已在瀏覽器驗收正常）
 
 做了什麼（設計見 `DESIGN.md` 第 14、15 節）：
 - 資料來源改為 `data/trip.json`、`data/places.json`、`data/routes.json`；`node tools/build-data.js` 產生 `data/*.js`（網頁載入的檔案）。`check.js` 會檢查兩邊同步。
@@ -62,10 +62,10 @@
 - 詞彙見 `GLOSSARY.md`，決策見 `docs/adr/0001`–`0004`。
 
 接手者要知道：
-- **`data/routes.json` 目前是空的**（`legs: {}`），`check.js` 會警告「23 段沒有路線快取」。公開頁面沒有快取時維持原本的灰色虛線，所以沒壞，但路線功能要等第一次算完才看得到。**要做的事（使用者做，或使用者同意後由 AI 協助）**：啟動編輯器 → 路線列按「全部重算」→ 看每段都是「已算」→ 存檔 → 發布。OSRM 逐段間隔 1 秒，23 段約半分鐘。
-- **所有編輯器前端（頁面互動、拖拉、預覽、發布視窗、路線標示）都還沒有人在真實瀏覽器驗收**：自動測試只覆蓋純邏輯與伺服器 API（`node --test`），AI 沒有開過瀏覽器操作；畫面以原型（分支 `prototype/editor-ui`，只在本機）為準，有差異或不順手的地方請使用者回報。
+- `data/routes.json` 已在 v2.2（2026-10-26）算好並發布，共 24 段 OSRM 快取。之後改了座標或景點順序，要請編輯器（或 `tools/routing`）重算新路段再發布。
+- 編輯器前端（頁面互動、拖拉、預覽、發布視窗、路線標示）使用者已在真實瀏覽器驗收，回報正常（2026-10-26）；但「真實發布」與公開頁面的道路路線外觀（手機、電腦）要等第一次發布路線快取後再看一次。畫面以原型（分支 `prototype/editor-ui`，只在本機）為準，有差異或不順手的地方請使用者回報。
 - **`tools/e2e.js` 的路線相關斷言（T3、T8–T10）從沒在有 Playwright 的環境跑過**（寫的時候沒有 Playwright），第一次有 Playwright 時先跑一遍。
-- 發布按鈕只在 `main` 分支可用；整合分支的程式要先合進 `main` 才能在編輯器發布。
+- 發布按鈕只在 `main` 分支可用（整合分支已合進 `main`）。
 - 車程是 OSRM「順暢路況」乘係數 1.25，不是 Google 實測，也沒有路況預測；出發前仍要用導航實測（見 E）。
 - Claude 改了地點座標或景點順序之後，要請編輯器（或 `tools/routing`）重算路線，否則新路段沒有快取（`AGENTS.md` 有寫作法）。
 

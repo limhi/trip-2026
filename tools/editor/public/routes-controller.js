@@ -17,6 +17,7 @@
         const failed = new Map();    // key → 錯誤文字
         const computing = new Set();
         let timer = null;
+        let unsaved = false;         // 伺服器草稿有還沒存檔的路線（存檔鈕要亮）
 
         async function call(path, method, body) {
             const r = await fetchFn(path, { method, headers: { 'content-type': 'application/json' }, body: body && JSON.stringify(body) });
@@ -48,6 +49,7 @@
             } finally {
                 for (const l of legs) computing.delete(l.key);
             }
+            if (gotNew) unsaved = true;
             onUpdate();
             if (gotNew) onComputed();
         }
@@ -78,10 +80,17 @@
 
         // 重新載入資料時：同步伺服器草稿裡已算的段落
         async function load() {
-            const { legs } = await call('/api/routes', 'GET');
+            const { legs, unsaved: serverUnsaved } = await call('/api/routes', 'GET');
             for (const k of Object.keys(known)) delete known[k];
             Object.assign(known, legs);
             failed.clear();
+            unsaved = !!serverUnsaved;
+            onUpdate();
+        }
+
+        // 存檔成功後呼叫：伺服器已把草稿寫進磁碟
+        function markSaved() {
+            unsaved = false;
             onUpdate();
         }
 
@@ -94,7 +103,8 @@
         }
 
         return {
-            known, schedule, pass, recompute, recomputeAll, load, status,
+            known, schedule, pass, recompute, recomputeAll, load, markSaved, status,
+            unsaved: () => unsaved,
             error: key => failed.get(key),
             summary: () => ({ computing: computing.size, failed: failed.size })
         };

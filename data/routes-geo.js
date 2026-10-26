@@ -1,2 +1,27 @@
 /* 本檔由 tools/build-data.js 從 *.json 產生，請勿手改 */
-window.TRIP_ROUTES_GEO = {};
+window.TRIP_ROUTES_GEO = {
+    "120.47475,22.76478>120.49450,22.77680": "oj}iC{di~UOs@gDcA?qBc@uBaAeBi@`BgD?lAwS]kEk`@ojAy@eHmHw@yA`@aIY",
+    "120.48071,22.67422>120.47475,22.76478": "iqkiC_lj~UcBqBaZx@qAam@}QaEuaAv@{[mcAiJkEee@~I_Any@kHbJmcDeEgt@lj@mRf\\}Hn@mgAcM{h@s@sG~QdBlIvDvB",
+    "120.48071,22.67422>120.48990,22.66993": "iqkiC_lj~UZWfAKpAc@p@EW{@tNmE~AeXvA{S",
+    "120.49450,22.77680>120.67360,24.14770": "_r_jCiam~U~uCnB}~BxuJygH`tAauHheJssG~rAchFm[azEvrEcrWen@yaJk~C{vGoRwmIg`Cq_GygHymEwuA{oJlc@gaBqkDsbIesF}hI|xAgeDawB_pDsTuoDggCe~Bu_F}yFou@kkEimDkzH|s@kjDymCyH}fNul@k{@}sCfh@mvBubAo~Dpf@}mFwu@_cMjbKixEeO}cGkmD{oCrgBeoNwdA",
+    "120.95888,22.50749>120.48071,22.67422": "_~jhCkwgaVrsGjkApa@dc@|^oPvbL|}DbhD~c@lmBzuAd{Gj^lZhnCbxFrsFpw@l~BngDttA_HvqBxoAtyDcp@nm@tc@dlHukIlzEosHtdAszFboEuxBtCqdAp~@i_GzxA{fFtgEs{EdkASpx@st@~VswFjk@qbDky@c}CzRa{GusAcyAzqAijC`uG",
+    "121.21260,23.09880>120.95888,22.50749": "sn~kCwiybV_c@zjAd_BjuCvhY|jHrlCggBbtBtw@xnBo@cMd~Fpy@pHp_@_lApuC|uAbgHfRj~@in@vUra@h`AeBxnAfm@dlArzEz_C}q@x|BhTnmB|wAfrAmj@ryFlbDb{GhlBxw@f|@|cA}IddC`gBz|IhyB",
+    "121.21515,23.12203>121.21260,23.09880": "g`clCeyybVqAuBlkBkb@nAi@`BmDhH|AfOdHrGbp@",
+    "121.44330,24.97220>121.82750,24.61790": "}klwCikfdVji@jbAti@pLm_@_y@w{@sq@oLizAghAcaB{G{l@z{@k{A`P_kB`fBe`B`Hqf@kmByvBGslBeTew@_e@sb@qbB_m@|Ta_BsV_sAog@ch@tHi`BdrAiWv_Aav@xXitA~`DkaBhr@yvBtxCsqB|lCqgDp~FquEl}CeDnbB~z@b_B}GnmBvY~wCv@lpH{iA`hC_IprB}^zrAcm@tiDkY|i@kRgGwl@~Zwv@",
+    "121.52726,23.90569>121.21515,23.12203": "ga|pCkxvdVn`CdXbf@l{@nsMzcIhuA_HhhH`hAj{ChhDliC|_Bx_AqD|oA}sAv}E`aAb{BrhBhxDxqAxsMxg@hrAsHjl@}mCxl@q\\hzClVdgC`iC~hG~vC|eMl}BroDpKpzAtdAhgAluBh}BpZnsD|cBv_EzlCnYhbA~{IlnBd_@|`B",
+    "121.52726,23.90569>121.60300,23.90110": "ga|pCkxvdVnByKO}KyEsB~IqVsQek@t[cMoFmQp@}@nv@i\\{m@a}AgvBqtBuQ{S_O}Hr[ir@uQo[GcEdC}Bxj@nAtb@|MfhAyALvBqCf@",
+    "121.52726,23.90569>121.60682,23.97976": "ga|pCkxvdVhByLokBo_@g`Byi@sEkEw]gc@{wB{rDkF_rAgYkWqv@atAeJtGs@iA",
+    "121.60300,23.90110>121.52726,23.90569": "wd{pC_reeVhC_@PaCxEc@spAdB{c@mNgj@o@uBpCN~DpQh[c[~r@dO|HbOvQfwBxtBhMrXz]r`Aj@|Cot@j[q@|@nFlQu[bMrQdk@iPhb@jL~BgBrL",
+    "121.60599,23.98245>121.14069,22.74306": "sakqC}dfeVdcAwm@jcHdpC~aF~pGhcLrcHtu@xnEttLx|A`bH`hGjuC{wAdsOn}FxsMxg@hrAsHdzAokDhzClVdqK`aHpvR~iCzbDb{DxqHn_CfzEdpE~{IlnB~lFrrIvhY|jHrlCggB|cFdv@cMd~Fpy@pHp_@_lArrCnuA`jHtRlnGgeHpzC_[",
+    "121.60682,23.97976>121.61302,23.98095": "}ojqCajfeVe@u@tDiCnDyCiOsWcA_A",
+    "121.61302,23.98095>121.60599,23.98245": "kxjqCoogeVbA~@tFtJyOfLyDhCdEbHsAdA",
+    "121.62717,24.03143>121.52726,23.90569": "wttqCidjeVhn@gSpeB|vA|G}O`gAeWhx@lGtTtQ`@`[fqAdvBfYjWjF~qAthCfhE`RbT`yAzf@btBvb@gBrL",
+    "121.63657,24.61181>121.77722,24.44876": "e_fuCi_leVon@dC_e@nm@_BnYqhBlnAku@_j@yNpUwXwHByVuTkK}h@_`GqAkkN}`@{iCv]oKrPkn@`jCqpAtx@_IvXkx@n~AyvAzKirA`f@oRvXsh@`i@gHdMy`Ar`@wS~hApRth@oG~x@ja@|iDjl@zeAfj@|dBi[nNyHeE}L|cAxFd}@pgAj_@f@xAfQ~TwMfUbRsQkA{G`Vz|@`rA`MhyAj^vu@jy@xO",
+    "121.71350,24.69010>121.63657,24.61181": "amuuCsb{eVtAfHf[wHtFh}Ah^nrAdZbyAaAzl@_G~XYzc@xcAdC~TpgCfDrw@pKrAbHvH[jVnYdIrJqFLwKvBgAvCnOlb@rKhNnLhR{OpQkA~Tu^pJsBtG}KhWqJ~AoYxGiJdJEfG_XvH_IzVyHrVrD",
+    "121.77722,24.44876>121.62717,24.03143": "wcftCirgfVo}@ySwV}cAt\\|eAd|Avf@drD}mAdbEpMlgFluBnbDnDxt@l`@kE`}@tgCwNxfA~i@fcBh|ChlEboBdlBfuB`b@tdB~{IjmBhHtZrgBxMbv@se@laCffExxFvQ~bE{qA",
+    "121.80400,24.67180>121.71350,24.69010": "esquCmylfVc@lGuIq@PvUhItUMbHcH`_AiLjt@zCjQqDpXdLzy@zTr_AjDtk@wFraDk~@G__AtUuAgH",
+    "121.82750,24.61790>121.83261,24.61340": "kdguCsmqfVxEvDbYgb@qBeBIz@",
+    "121.82917,24.61456>121.87143,24.58382": "gqfuCmxqfVbP}Wr@kZxULlMxCzVoBhQxHrDhDdDi@nDaETcUpCcS_CctAdGmH~XoGhRgUxG}AdFoDyDgn@|AkAlIbE",
+    "121.83261,24.61340>121.82917,24.61456": "igfuCmlrfVH{@pBdByLtQ",
+    "121.87143,24.58382>121.80400,24.67180": "mp`uCw~yfVmIcE}AjAjDnm@qNdHkS|U}WxFkGhIgv@x@c^pE}oBbmCyZlBqe@eBabAt[iaB|[uN~F_BtBo@tb@e]n_@B|m@tIp@b@mG"
+};

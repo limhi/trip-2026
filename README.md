@@ -32,14 +32,28 @@ tools/
 ## 怎麼改行程（建議用編輯器）
 
 ```bash
+cd trip-2026                         # 專案根目錄
 node tools/editor/server.js          # 預設 http://127.0.0.1:8780/ ，只綁本機
 ```
 
+啟動後終端機會印出 `編輯器：http://127.0.0.1:8780/`，用瀏覽器開那個網址；結束時在終端機按 Ctrl+C。
+
+- 前置條件：本機有 Node（LTS，`node -v` 能顯示版本）；編輯器零依賴，不用 `npm install`。編輯器頁面（Tailwind）與公開頁面的地圖（Leaflet）要連網。
+- 終端機出現 `EADDRINUSE`：port 被占用（多半已經開了另一個編輯器），關掉舊的，或換埠 `node tools/editor/server.js --port 8781`。
+- WSL 使用者：Windows 瀏覽器通常可直接開 `127.0.0.1:8780`；打不開再查 WSL 的 localhost 轉發。
 - 三個分頁：每日行程、地點庫、住宿區；右邊是即時預覽（真正的 `index.html`，反映還沒存檔的修改）。
 - 「存檔」把修改寫進 `data/*.json`（含路線快取）並重新產生 `data/*.js`，不 commit、不改版本號。「發布…」會檢查、commit、push 到 `main`，並把版本號小版 +1；只能在 `main` 分支發布。
+- 路線算完後要按「存檔」才會寫進磁碟（狀態列會顯示「路線計算結果未存檔」）；沒存檔就按發布會被擋（409）。
+- 「發布…」的 push 失敗（最常見是遠端有別人或 AI 剛推了新 commit，訊息含 `non-fast-forward`）：編輯器不會重試或強推，但**本機的發布 commit 已經建好**。**不要再按一次發布**（版本號會再 +1）。改在終端機執行：
+
+  ```bash
+  git pull --no-rebase origin main   # 先合併遠端新內容；有衝突就停下來處理
+  git push origin main
+  ```
+
+  推完用 `curl -s https://limhi.github.io/trip-2026/data/trip.js | grep '"number"'` 確認線上版本號。
 - 順序、地點或座標改變後，編輯器會自動向 OSRM 算新路段（約 0.6 秒後開始，每段間隔 1 秒）；結果存檔時才寫進 `data/routes.json`。
 - 不想開編輯器時，也可以直接改 `data/*.json`，然後執行 `node tools/build-data.js` 與 `node tools/check.js`。**不要改 `data/*.js`**，下次產生時會被覆蓋。
-- 本機需要 Node（LTS）；編輯器零依賴，不用 `npm install`。
 
 ## 給接手的人
 
