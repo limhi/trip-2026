@@ -26,7 +26,7 @@
 
 ```
             ┌──────────────┐     ┌──────────────┐
-            │ data/places.js│     │ data/trip.js │   ← 所有「內容」都在這兩個檔
+            │ data/places.js│     │ data/trip.js │   ← 產生檔；內容的來源是 data/*.json
             │ window.       │     │ window.TRIP  │     （地點事實 / 行程順序與文案）
             │ TRIP_PLACES   │     │              │
             └──────┬───────┘     └──────┬───────┘
@@ -52,8 +52,10 @@
 `leaflet` → `data/places.js` → `data/trip.js` → `js/model.js` → `js/blocks.js` → `js/modal.js` → `js/map.js` → `js/guides.js` → `js/render.js`。
 所有檔案都掛在 `window.Trip` 命名空間（`Trip.model`、`Trip.blocks`、`Trip.initModal`、`Trip.bindDayMap`、`Trip.mapPanelHtml`、`Trip.guides`、`Trip.mapUrl`、`Trip.MAP_TYPES`），`render.js` 最後執行。
 
-### 為什麼是「JS 資料檔 + 傳統 script」，不是 JSON／ES module
-使用者要能**雙擊 `index.html`（file://）也能開**，同時支援 http。瀏覽器在 file:// 會擋 `fetch` 本機 JSON 與 ES module，所以資料用 `window.X = {...}`、程式用傳統 `<script>`。副作用：資料檔裡可以寫註解、可以用變數（`PARTY`）。
+### 為什麼網頁載入的是「JS 資料檔 + 傳統 script」，不是 JSON／ES module
+使用者要能**雙擊 `index.html`（file://）也能開**，同時支援 http。瀏覽器在 file:// 會擋 `fetch` 本機 JSON 與 ES module，所以網頁載入的資料是 `window.X = {...}`、程式用傳統 `<script>`。
+
+資料來源是 `data/*.json`（方便工具讀寫），`tools/build-data.js` 產生 `data/*.js`：檔頭固定一行「請勿手改」註解，內容是 `window.TRIP = <JSON>;`／`window.TRIP_PLACES = <JSON>;`，縮排 4 空格、UTF-8 無 BOM、LF。JSON 不能寫註解與變數，所以原本的 `PARTY` 變數已展開成字串，欄位說明都在本節（第 4 節）。**改資料要改 JSON，再執行產生器，兩邊一起 commit。**
 
 ---
 
@@ -62,8 +64,10 @@
 | 檔案 | 角色 | 備註 |
 |---|---|---|
 | `index.html` | 頁面骨架、彈窗 HTML、script 載入 | 內容不寫在這裡；`data-text="a.b.c"` 填文字、`data-slot="名稱"` 填區塊 |
-| `data/trip.js` | 行程內容 | 檔頭有完整的欄位說明，改之前先讀 |
-| `data/places.js` | 地點資料庫 | 檔頭有欄位說明 |
+| `data/trip.json` | 行程內容的**資料來源** | 欄位說明在本文第 4.2 節 |
+| `data/places.json` | 地點資料庫的**資料來源** | 欄位說明在本文第 4.1 節 |
+| `data/trip.js`、`data/places.js` | 由 `tools/build-data.js` 從上面兩個 JSON 產生的**產生檔**（網頁載入的是它們） | 要 commit，不手改；`check.js` 檢查同步 |
+| `tools/build-data.js` | 產生器：`node tools/build-data.js` | 測試：`node --test tools/*.test.js` |
 | `js/model.js` | 資料處理與檢查 | 純函式，`tools/check.js` 會載入它 |
 | `js/blocks.js` | 各類區塊的 HTML 樣板與 Tailwind 顏色表 | 統一改顏色改最上方的表 |
 | `js/modal.js` | 聯絡／導航彈窗 | 事件委派：任何有 `data-place` 的元素都能開彈窗 |
@@ -87,8 +91,8 @@
 
 ## 4. 資料模型
 
-### 4.1 地點（`data/places.js` → `window.TRIP_PLACES`）
-以 id 為 key，**每個地點只維護一次**（行程、彈窗、地圖都引用同一份）。
+### 4.1 地點（`data/places.json` → `window.TRIP_PLACES`）
+以 id 為 key，**每個地點只維護一次**（行程、彈窗、地圖都引用同一份）。key 的順序就是顯示順序，要保留。除 `name` 外的欄位都可省略。
 
 | 欄位 | 說明 |
 |---|---|
@@ -109,7 +113,7 @@
 
 **慣例**：沒有官方資訊的內容要標「以現場為準」；來自部落格的內容在文字裡標「遊記」；不要把開發用語寫進會顯示的字串。
 
-### 4.2 行程（`data/trip.js` → `window.TRIP`）
+### 4.2 行程（`data/trip.json` → `window.TRIP`）
 `site`（品牌、版本號、導覽連結、頁尾）、`hero`、`highlights`、`itinerary`、`days[]`、`hotelsSection`、`hotels[]`。
 
 每一天：`{ day, date, title, stay|badge, theme?, closeLoop?, items[] }`。`items` 的 `type`：
@@ -122,7 +126,21 @@
 | `brief` | 琥珀淡底小框 | `time, title, place?, icon?, desc?` |
 | `waypoint` | 虛線小列（起訖點／休息點） | `place, text?, backup?, mapName?, numbered?` |
 
-共通：`place`（引用地點 id）、`map:false`（不放上地圖）、`numbered:false`（上地圖但不編號）。
+共通欄位：
+- `place`：引用地點 id。卡片標題預設用地點名稱（要改標題就寫 `title`）；該地點有 `infoType` 時，卡片可點開聯絡與導航彈窗；該項目會依出現順序自動成為當天地圖的標記。
+- `map:false`：有 `place` 但不放上地圖。
+- `numbered:false`：放上地圖但不編號（`waypoint` 不會在左邊出現，地圖上以小圖示呈現）。
+
+每天的選項：
+
+| 欄位 | 說明 |
+|---|---|
+| `stay` | `{place, note}`，標題列右側顯示「宿：住宿名稱（note）」 |
+| `badge` | `{icon, text}`，沒有住宿時標題列右側顯示的文字 |
+| `theme` | `'blue'`（預設）或 `'end'`（綠色，最後一天用） |
+| `closeLoop` | `true` 時地圖路線會連回起點 |
+
+編號：每天的地圖標記由上而下自動編號（1、2、3…），左邊對應的卡片／起訖點列顯示同一個編號。調整順序就是在 `items` 裡上下搬移那一項，卡片與地圖會一起更新。
 
 ### 4.3 地圖標記與編號是「推導」出來的
 `model.getMapPoints(day, places)` 依 `items` 的順序，把有 `place` 且該地點有座標的項目變成標記：
@@ -198,7 +216,7 @@
 
 - 使用者直接看**公開網頁**驗收；**已確認的調整一律直接 commit 並 push 到 `main`，不開分支 PR**（避免小調整散落在沒合併的分支）。在 Claude 指定的工作分支上時：`git push origin HEAD:main`，並一併 push 該分支（stop hook 會檢查工作分支是否有未推送的 commit）。
 - push 後用 `curl -s https://limhi.github.io/trip-2026/data/trip.js | grep "version:"` 確認線上版本已更新；Pages 通常 **約 45 秒–1 分鐘**。
-- **版本號**在 `data/trip.js` 的 `site.version`（`{number:'v1.5', date:'2026/10/17'}`）：改行程或地點資料就更新；純文件或確認清單狀態更新可以不改。
+- **版本號**在 `data/trip.json` 的 `site.version`（`{number:'v1.5', date:'2026/10/17'}`；改完要執行 `node tools/build-data.js` 同步到 `data/trip.js`）：改行程或地點資料就更新；純文件或確認清單狀態更新可以不改。
 - 版本歷史：v1.0 拆分單檔（PR #1）→ v1.1 版本號與左側編號對應地圖／住宿捷徑（PR #2，另一個工作階段）→ v1.2 `parking` 欄位與第一批資料（PR #3）→ v1.3 景點攻略接進彈窗 → v1.4 四項行程文字修正 → v1.5 加大查證（座標更正、確認清單）→ v1.6 更正遠雄停車說明（官網是「平假日」不是「平日」）→ v1.7 住宿調整（11/15 宜蘭、11/16–17 花蓮、11/18 未定、11/19 屏東；遠雄改排 11/17）→ v1.8–v1.9 往南走與冷泉拿掉 → v2.0 Day 1／Day 2 重排。
 
 ---
@@ -209,7 +227,7 @@
 ```bash
 node tools/check.js
 ```
-只需要 Node。檢查：資料能載入且 `validate()` 通過、座標在台灣範圍內、guides 的 id／來源編號／開發用語、`guides.md` 與 `guides.js` 同步、`verify.md` 的題號與狀態一致、所有文字檔 UTF-8 無 BOM／無 U+FFFD／無 CRLF、版本號格式。已用 7 種人為錯誤做過反向測試，確認抓得到。**它不能取代瀏覽器實測。**
+只需要 Node。檢查：`data/*.json` 與產生的 `data/*.js` 同步（改壞任一邊都會失敗）、資料能載入且 `validate()` 通過、座標在台灣範圍內、guides 的 id／來源編號／開發用語、`guides.md` 與 `guides.js` 同步、`verify.md` 的題號與狀態一致、所有文字檔 UTF-8 無 BOM／無 U+FFFD／無 CRLF、版本號格式。已用 7 種人為錯誤做過反向測試，確認抓得到。**它不能取代瀏覽器實測。**
 
 ### 10.2 瀏覽器端到端測試（`tools/e2e.js`）
 改到功能（`js/`、`index.html`、`verify.html`、`css/`）就要跑；只改資料文字可以只跑 `check.js`。
@@ -236,7 +254,7 @@ node tools/e2e.js
 | 資料／樣板／功能／樣式四層拆分 | 使用者行程常調整；改一處、多處更新 |
 | 地點用 id 引用 | 原本同一景點的資料散在 3 處，靠標題文字比對，打錯一字就無聲失效 |
 | 地圖標記由行程順序推導 | 取代手動維護的 `dailyMapData`，調順序不用改兩份 |
-| JS 資料檔而非 JSON | 要支援雙擊 file:// 開啟 |
+| 網頁載入 JS 資料檔，來源是 JSON | 網頁要支援雙擊 file:// 開啟（不能 fetch JSON）；來源用 JSON 是為了讓編輯器等工具能安全讀寫，再由 `build-data.js` 產生 JS（見 `docs/adr/0001`） |
 | 同類型區塊統一顏色 | 原本同類型區塊在不同天用不同顏色，是逐塊手寫的結果 |
 | 攻略延遲載入 | 185 KB 不該拖慢首頁（手機） |
 | 攻略用折疊區塊 | 每景點約 1,500 字，手機一次塞滿太長 |

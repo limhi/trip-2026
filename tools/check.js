@@ -4,6 +4,7 @@
  *   node tools/check.js
  *
  * 檢查項目
+ *   0. data/*.js 與 data/*.json 同步（tools/build-data.js 重新產生的結果要與檔案完全相同）
  *   1. data/places.js、data/trip.js 能載入，且 Trip.model.validate() 沒有問題
  *   2. 座標落在台灣範圍內、有地圖標記的地點都有座標
  *   3. reference/guides.js：每個景點 id 都在 places.js 裡；來源編號存在；顯示的文字沒有開發用語
@@ -23,6 +24,16 @@ const read = f => fs.readFileSync(path.join(root, f), 'utf8');
 const problems = [];
 const fail = msg => problems.push(msg);
 const info = [];
+
+// ───────── 0. 產生檔與資料來源同步 ─────────
+let generated = {};
+try { generated = require('./build-data').build(); }
+catch (e) { fail(`無法由 data/*.json 產生資料檔：${e.message}`); }
+for (const [f, expected] of Object.entries(generated)) {
+    let actual = null;
+    try { actual = read(f); } catch (e) { fail(`${f} 讀不到：${e.message}（請執行 node tools/build-data.js）`); continue; }
+    if (actual !== expected) fail(`${f} 與 JSON 資料來源不同步：請執行 node tools/build-data.js（不要手改產生檔）`);
+}
 
 // ───────── 1. 載入資料並執行頁面使用的同一套檢查 ─────────
 const ctx = { window: {}, console };
