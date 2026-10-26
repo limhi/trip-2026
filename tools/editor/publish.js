@@ -94,7 +94,8 @@ function plan(root, { now = () => new Date() } = {}) {
 }
 
 // body = { trip, places, message }：trip／places 是編輯器目前的內容，用來確認都已存檔
-function publish(root, body, { now = () => new Date() } = {}) {
+// opts.routes：編輯器記憶體中的路線快取草稿（有給才檢查是否已存檔）
+function publish(root, body, { now = () => new Date(), routes: routesDraft } = {}) {
     const steps = [];
     const fail = (status, name, output, message = output) => {
         steps.push({ name, ok: false, output });
@@ -120,6 +121,14 @@ function publish(root, body, { now = () => new Date() } = {}) {
     const disk = { trip: readJson(root, 'data/trip.json'), places: readJson(root, 'data/places.json') };
     if (!isDeepStrictEqual(disk.trip, body.trip) || !isDeepStrictEqual(disk.places, body.places)) {
         fail(409, '確認已存檔', '', '編輯器有未存檔的修改，請先存檔再發布');
+    }
+    if (routesDraft) {
+        const used = cache.usedKeys(disk.trip, disk.places);
+        let onDisk;
+        try { onDisk = cache.prune(readJson(root, 'data/routes.json'), used); } catch { onDisk = cache.empty(); }
+        if (cache.serialize(cache.prune(routesDraft, used)) !== cache.serialize(onDisk)) {
+            fail(409, '確認已存檔', '', '路線計算結果有未存檔的修改，請先存檔再發布');
+        }
     }
     pass('確認已存檔');
 

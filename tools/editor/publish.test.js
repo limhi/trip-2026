@@ -101,10 +101,10 @@ test('publish 成功：新增一筆 commit（訊息原樣、無 AI 署名）、�
     assert.ok(result.steps.some(s => /push/.test(s.name)));
 });
 
-function assertRejected(root, body, status, pattern) {
+function assertRejected(root, body, status, pattern, opts) {
     const before = commitCount(root);
     const head = git(root, 'rev-parse', 'HEAD');
-    assert.throws(() => publisher.publish(root, body, { now: NOW }), e => {
+    assert.throws(() => publisher.publish(root, body, { now: NOW, ...opts }), e => {
         assert.equal(e.status, status);
         if (pattern) assert.match(e.message, pattern);
         assert.ok(Array.isArray(e.steps));
@@ -127,6 +127,17 @@ test('publish 拒絕：記憶體內容與磁碟不同（有未存檔）', t => {
     const body = diskBody(root);
     body.trip.site.documentTitle = '還沒存檔';
     assertRejected(root, { ...body, message: 'x' }, 409, /未存檔/);
+});
+
+test('publish 拒絕：路線快取草稿與磁碟不同（算了還沒存檔）；相同則放行', t => {
+    const { root } = makePublishRepo(t);
+    const disk = readJson(root, 'data/routes.json');
+    const key = Object.keys(disk.legs)[0];
+    const draft = JSON.parse(JSON.stringify(disk));
+    draft.legs[key].distance += 1;
+    assertRejected(root, { ...diskBody(root), message: 'x' }, 409, /路線/, { routes: draft });
+    const same = publisher.publish(root, { ...diskBody(root), message: 'ok' }, { now: NOW, routes: JSON.parse(JSON.stringify(disk)) });
+    assert.equal(same.ok, true);
 });
 
 test('publish 拒絕：tools/check.js 失敗（產生檔與 JSON 不同步）', t => {

@@ -56,7 +56,16 @@ document.querySelectorAll('[data-width]').forEach(b => {
 });
 preview.start();
 
-const days = DaysTab.create($('pane-days'), { data: () => state.data, errors: () => state.errors, changed, toast, onDayOpen: n => preview.scrollToDay(n) });
+let routes = null;   // 路線功能（routes.js）；days 先建立，所以用延後綁定
+const days = DaysTab.create($('pane-days'), {
+    data: () => state.data, errors: () => state.errors, changed, toast, onDayOpen: n => preview.scrollToDay(n),
+    legHtml: (di, ii) => (routes ? routes.legHtml(di, ii) : ''),
+    dayHeadHtml: di => (routes ? routes.dayHeadHtml(di) : '')
+});
+routes = EditorRoutes.create({
+    pane: $('pane-days'), bar: $('routebar'), data: () => state.data, changed,
+    onComputed: () => preview.sendDraft({ trip: state.data.trip, places: state.data.places })
+});
 
 const places = PlacesTab.create($('pane-places'), { data: () => state.data, changed, toast });
 
@@ -71,6 +80,7 @@ async function load() {
         state.data = await api('GET');
         state.saved = snapshot();
         days.reset();
+        routes.reset();
         places.reset();
         changed();
         days.render();

@@ -2,6 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const buildData = require('../build-data');
+const cache = require('../routing/cache');
 
 const FILES = Object.fromEntries(buildData.TARGETS.map(t => [t.key, t.json]));
 
@@ -16,7 +17,8 @@ function load(root) {
     return { ...data, mtimes: currentMtimes(root) };
 }
 
-// body = { trip, places, mtimes }；opts.buildFrom 讓測試注入失敗
+// body = { trip, places, mtimes }；opts.buildFrom 讓測試注入失敗；opts.routes = 路線快取草稿（見 routes-service.js）
+// 回傳 { mtimes, routes }，routes 是實際寫入的（已修剪）快取，沒帶 opts.routes 時為 undefined
 function save(root, body, opts = {}) {
     const isObj = v => v && typeof v === 'object';
     if (!isObj(body) || !isObj(body.trip) || !isObj(body.places) || !isObj(body.mtimes) ||
@@ -31,8 +33,15 @@ function save(root, body, opts = {}) {
     const files = {};
     for (const key of Object.keys(FILES)) files[FILES[key]] = serialize(body[key]);
     Object.assign(files, (opts.buildFrom || buildData.buildFrom)({ trip: body.trip, places: body.places }));
+    // 有帶路線快取（草稿）就一併寫：只留目前行程用到的段落，再產生 routes*.js
+    let routes;
+    if (opts.routes) {
+        routes = cache.prune(opts.routes, cache.usedKeys(body.trip, body.places));
+        files[buildData.ROUTES_JSON] = cache.serialize(routes);
+        Object.assign(files, buildData.buildRoutes(routes));
+    }
     buildData.writeAtomic(root, files);
-    return { mtimes: currentMtimes(root) };
+    return { mtimes: currentMtimes(root), routes };
 }
 
 module.exports = { load, save, serialize, httpError };

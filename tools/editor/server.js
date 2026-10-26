@@ -9,6 +9,7 @@ const http = require('http');
 const store = require('./store');
 const { createPreview } = require('./preview');
 const publisher = require('./publish');
+const { createRoutesService } = require('./routes-service');
 
 const PUBLIC = path.join(__dirname, 'public');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
@@ -42,17 +43,27 @@ const parseJson = async req => {
     try { return JSON.parse(await readBody(req)); } catch (e) { if (e.status) throw e; throw store.httpError(400, '請求不是有效的 JSON'); }
 };
 
-function createServer({ root }) {
-    const preview = createPreview({ root });
+// provider：路線計算服務（預設是 OSRM；測試注入假的）
+function createServer({ root, provider = require('../routing/provider') }) {
+    let preview;
+    const routes = createRoutesService({ root, provider, onChange: () => preview.refresh() });
+    preview = createPreview({ root, getRoutes: routes.draft });
     return http.createServer(async (req, res) => {
         try {
             // 只接受本機位址的 Host，避免網頁透過 DNS rebinding 打到編輯器
             if (!/^(127\.0\.0\.1|localhost)(:\d+)?$/.test(req.headers.host || '')) return send(res, 403, { error: 'Host 不允許' });
             const { pathname } = new URL(req.url, 'http://localhost');
             if (pathname === '/api/data' && req.method === 'GET') return send(res, 200, store.load(root));
-            if (pathname === '/api/data' && req.method === 'PUT') return send(res, 200, store.save(root, await parseJson(req)));
+            if (pathname === '/api/data' && req.method === 'PUT') {
+                const saved = store.save(root, await parseJson(req), { routes: routes.draft() });
+                routes.set(saved.routes);   // 草稿跟著修剪成實際寫入的內容
+                return send(res, 200, { mtimes: saved.mtimes });
+            }
+            if (pathname === '/api/routes' && req.method === 'GET') return send(res, 200, routes.summary());
+            if (pathname === '/api/routes/compute' && req.method === 'POST') return send(res, 200, await routes.compute(await parseJson(req)));
+            if (pathname === '/api/routes/recompute-all' && req.method === 'POST') return send(res, 200, await routes.recomputeAll(await parseJson(req)));
             if (pathname === '/api/publish/plan' && req.method === 'GET') return send(res, 200, publisher.plan(root));
-            if (pathname === '/api/publish' && req.method === 'POST') return send(res, 200, publisher.publish(root, await parseJson(req)));
+            if (pathname === '/api/publish' && req.method === 'POST') return send(res, 200, publisher.publish(root, await parseJson(req), { routes: routes.draft() }));
             if (pathname === '/api/draft' && req.method === 'POST') {
                 preview.setDraft(await parseJson(req));
                 return send(res, 200, { ok: true });

@@ -13,15 +13,22 @@ const TYPES = {
 
 const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
 
-function createPreview({ root }) {
+// getRoutes()：目前的路線快取草稿（routes-service.js 的 draft）；有草稿時一併產生 routes.js、routes-geo.js
+function createPreview({ root, getRoutes }) {
     root = path.resolve(root);
+    let draftData = null; // { trip, places }
     let generated = null; // { 'data/trip.js': 內容, … }，由草稿產生
 
-    // draft 的其他欄位（例如日後的 routes）原樣交給產生器
+    const generate = () => { generated = buildData.buildFrom({ ...draftData, routes: getRoutes && getRoutes() }); };
+
     function setDraft(draft) {
         if (!isObj(draft) || !isObj(draft.trip) || !isObj(draft.places)) throw httpError(400, '草稿需要 trip 與 places 物件');
-        generated = buildData.buildFrom(draft);
+        draftData = { trip: draft.trip, places: draft.places };
+        generate();
     }
+
+    // 路線快取草稿變了：用最近一次的草稿重新產生（還沒有草稿就維持磁碟版）
+    function refresh() { if (draftData) generate(); }
 
     // 回傳 { type, body }；找不到或不允許回 null
     function resolve(pathname) {
@@ -38,7 +45,7 @@ function createPreview({ root }) {
         return { type, body: fs.readFileSync(file) };
     }
 
-    return { setDraft, resolve };
+    return { setDraft, refresh, resolve };
 }
 
 module.exports = { createPreview };
