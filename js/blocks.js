@@ -50,19 +50,32 @@
     }
 
     // ───────── 行程區塊 ─────────
-    function driveRow(item) {
-        const duration = item.duration ? ` <span class="text-amber-600 font-extrabold block sm:inline">(${esc(item.duration)})</span>` : '';
+    // auto：路線快取算出的 { text, note }（綁定的交通列沒有手寫 duration 時才會傳入）
+    const autoNote = auto => `<span class="auto-leg-note block text-[10px] font-medium text-slate-500">${esc(auto.note)}</span>`;
+
+    function driveRow(item, auto) {
+        const duration = item.duration ? ` <span class="text-amber-600 font-extrabold block sm:inline">(${esc(item.duration)})</span>`
+            : auto ? ` <span class="auto-leg-duration text-amber-600 font-extrabold block sm:inline">(${esc(auto.text)})</span>${autoNote(auto)}` : '';
         return `<div class="flex items-center gap-3 p-3 rounded-xl bg-slate-100/80 border border-slate-200 text-xs md:text-sm">
     <span class="font-extrabold text-slate-600 w-28 shrink-0"><i class="fa-solid fa-car text-amber-500 mr-1"></i> ${esc(item.time)}</span>
     <div class="font-bold text-slate-800">${esc(item.text)}${duration}</div>
 </div>`;
     }
 
-    function moveRow(item) {
-        const duration = item.duration ? ` <span class="text-amber-600 font-bold">(${esc(item.duration)})</span>` : '';
+    function moveRow(item, auto) {
+        const duration = item.duration ? ` <span class="text-amber-600 font-bold">(${esc(item.duration)})</span>`
+            : auto ? ` <span class="auto-leg-duration text-amber-600 font-bold">(${esc(auto.text)})</span>${autoNote(auto)}` : '';
         return `<div class="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 text-xs md:text-sm border border-slate-200">
     <span class="font-bold text-slate-500 w-28 shrink-0"><i class="fa-solid fa-route mr-1"></i> ${esc(item.time)}</span>
     <div class="text-slate-700">${esc(item.text)}${duration}</div>
+</div>`;
+    }
+
+    // 兩個地圖標記之間沒有交通列時補的唯讀連接列（只在有路線快取時出現）
+    function autoLegRow(auto) {
+        return `<div class="auto-leg-row flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 text-xs md:text-sm border border-dashed border-slate-300">
+    <i class="fa-solid fa-car text-amber-500 w-4 shrink-0 text-center"></i>
+    <div class="text-slate-700"><span class="font-bold">車程${esc(auto.text)}（自動）</span>${autoNote(auto)}</div>
 </div>`;
     }
 
@@ -114,9 +127,10 @@
     }
 
     // point：該項目對應的地圖標記（沒有就是 undefined），用來顯示編號
-    function renderItem(item, ctx, point) {
-        if (item.type === 'drive') return driveRow(item);
-        if (item.type === 'move') return moveRow(item);
+    // auto：綁定到這個交通列的路線計算結果（沒有快取就是 undefined）
+    function renderItem(item, ctx, point, auto) {
+        if (item.type === 'drive') return driveRow(item, auto);
+        if (item.type === 'move') return moveRow(item, auto);
         if (item.type === 'brief') return brief(item, ctx, point);
         if (item.type === 'waypoint') return waypointRow(item, ctx, point);
         if (CARD_STYLES[item.type]) return card(item, ctx, point);
@@ -128,6 +142,19 @@
         const theme = DAY_THEMES[day.theme] || DAY_THEMES.blue;
         const pointByItem = {};
         Trip.model.getMapPoints(day, ctx.places).forEach(point => { pointByItem[point.itemIndex] = point; });
+        // 路線快取：綁定的交通列顯示計算時間；沒有交通列的相鄰標記之間補連接列。沒有快取時兩者都是空的，畫面與沒有這個功能時相同
+        const routeInfo = Trip.routeView ? Trip.routeView.dayRoutes(day, ctx.places, ctx.routes, ctx.site) : null;
+        const autoByRow = {}, autoAfter = {};
+        if (routeInfo) routeInfo.legs.forEach(l => {
+            if (!l.cached) return;
+            const auto = { text: l.text, note: routeInfo.factorNote };
+            if (l.leg.rowIndex != null) autoByRow[l.leg.rowIndex] = auto;
+            else if (l.leg.needsRow) autoAfter[l.leg.fromItemIndex] = auto;
+        });
+        const summary = routeInfo && routeInfo.summary
+            ? `<p class="day-drive-summary text-xs font-bold text-white/90"><i class="fa-solid fa-car mr-1"></i>${esc(routeInfo.summaryText)}<span class="block text-[10px] font-medium text-white/70">${esc(routeInfo.factorNote)}</span></p>`
+            : '';
+        const titleHtml = `<h3 class="font-extrabold text-base md:text-xl">${esc(day.date)}${esc(day.title)}</h3>`;
         const stayPlace = day.stay && ctx.places[day.stay.place];
         let badge;
         if (day.stay) {
@@ -150,14 +177,14 @@
     <div class="${theme.header} text-white p-4 md:p-5 flex flex-wrap justify-between items-center gap-2">
         <div class="flex items-center gap-3">
             <span class="bg-amber-400 text-slate-950 font-black px-3 py-1 rounded-lg text-base md:text-lg shadow-sm">DAY ${day.day}</span>
-            <h3 class="font-extrabold text-base md:text-xl">${esc(day.date)}${esc(day.title)}</h3>
+            ${summary ? `<div>${titleHtml}${summary}</div>` : titleHtml}
         </div>
         ${stayBadge}
         <button type="button" class="map-toggle-button" aria-controls="day-map-panel-${day.day}" aria-expanded="false"><i class="fa-solid fa-map-location-dot"></i><span>展開地圖</span></button>
     </div>
     <div class="day-body-grid">
         <div class="p-4 md:p-6 space-y-3.5">
-${day.items.map((item, index) => renderItem(item, ctx, pointByItem[index])).filter(Boolean).join('\n')}
+${day.items.map((item, index) => [renderItem(item, ctx, pointByItem[index], autoByRow[index]), autoAfter[index] ? autoLegRow(autoAfter[index]) : '']).flat().filter(Boolean).join('\n')}
         </div>
         ${mapPanelHtml}
     </div>
