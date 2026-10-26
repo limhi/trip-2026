@@ -132,9 +132,9 @@ test('publish 拒絕：記憶體內容與磁碟不同（有未存檔）', t => {
 test('publish 拒絕：路線快取草稿與磁碟不同（算了還沒存檔）；相同則放行', t => {
     const { root } = makePublishRepo(t);
     const disk = readJson(root, 'data/routes.json');
-    const key = Object.keys(disk.legs)[0];
+    const key = [...require('../routing/cache').usedKeys(readJson(root, 'data/trip.json'), readJson(root, 'data/places.json'))][0];
     const draft = JSON.parse(JSON.stringify(disk));
-    draft.legs[key].distance += 1;
+    draft.legs[key] = { distance: 1000, duration: 60, geometry: 'abc' }; // 算好了，但還沒存檔
     assertRejected(root, { ...diskBody(root), message: 'x' }, 409, /路線/, { routes: draft });
     const same = publisher.publish(root, { ...diskBody(root), message: 'ok' }, { now: NOW, routes: JSON.parse(JSON.stringify(disk)) });
     assert.equal(same.ok, true);
