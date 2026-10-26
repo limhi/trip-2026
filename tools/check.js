@@ -12,6 +12,8 @@
  *   5. verify.md：題號連續、總覽表與題目一致、狀態統計正確、每題都有選項
  *   6. 所有受版控檔案：UTF-8、無 BOM、無 U+FFFD、無 CRLF
  *   7. 版本號格式
+ *   8. 路線快取：data/routes.js、routes-geo.js 與 routes.json 同步（併入第 0 項）、routes.json 結構正確；
+ *      行程有路段沒快取、快取有沒被使用的舊筆只會警告，不失敗
  * 有任何問題會列出並以非 0 結束。這不能取代瀏覽器實測（見 docs/DESIGN.md 的「驗證方法」）。
  */
 const fs = require('fs');
@@ -34,6 +36,14 @@ for (const [f, expected] of Object.entries(generated)) {
     try { actual = read(f); } catch (e) { fail(`${f} 讀不到：${e.message}（請執行 node tools/build-data.js）`); continue; }
     if (actual !== expected) fail(`${f} 與 JSON 資料來源不同步：請執行 node tools/build-data.js（不要手改產生檔）`);
 }
+
+// 路線快取 data/routes.json：結構檢查（兩個產生檔的同步已在上面檢查）
+const cache = require('./routing/cache');
+let routes = null;
+try { routes = JSON.parse(read('data/routes.json')); }
+catch (e) { fail(`data/routes.json 無法載入：${e.message}`); }
+if (routes) cache.checkStructure(routes).forEach(fail);
+const warnings = [];
 
 // ───────── 1. 載入資料並執行頁面使用的同一套檢查 ─────────
 const ctx = { window: {}, console };
@@ -58,6 +68,14 @@ if (TRIP && PLACES && model) {
     const v = TRIP.site && TRIP.site.version;
     if (!v || !/^v\d+\.\d+$/.test(v.number) || !/^\d{4}\/\d{2}\/\d{2}$/.test(v.date)) fail('site.version 格式應為 { number: "v1.5", date: "2026/10/17" }');
     else info.push(`版本 ${v.number} · ${v.date}`);
+
+    // 路線：缺少的路段、沒被使用的舊筆只警告，不失敗
+    if (routes && routes.legs && typeof routes.legs === 'object') {
+        const missing = cache.missingKeys(TRIP, PLACES, routes), unused = cache.unusedKeys(TRIP, PLACES, routes);
+        info.push(`路線快取 ${Object.keys(routes.legs).length} 段`);
+        if (missing.length) warnings.push(`行程中有 ${missing.length} 段沒有路線快取（用編輯器計算後存檔）`);
+        if (unused.length) warnings.push(`路線快取有 ${unused.length} 筆舊筆沒被目前行程使用（編輯器存檔時會移除）`);
+    }
 }
 
 // ───────── 3. guides.js ─────────
@@ -136,6 +154,7 @@ info.push(`編碼檢查 ${files.filter(f => TEXT.test(f)).length} 個檔案`);
 
 // ───────── 結果 ─────────
 info.forEach(l => console.log('·', l));
+warnings.forEach(w => console.log('警告：', w));
 if (problems.length) {
     console.log(`\n✗ 發現 ${problems.length} 個問題：`);
     problems.forEach(p => console.log('  -', p));
