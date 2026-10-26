@@ -236,7 +236,7 @@
 
 - 兩種發布方式：（a）使用者在編輯器按「發布…」，確認視窗同意即視為使用者確認，編輯器自己 commit 並 push（第 14.5 節）；（b）Claude 直接改 JSON，執行 `node tools/build-data.js`、`node tools/check.js`，再 commit／push（見 `AGENTS.md`）。
 - 使用者直接看**公開網頁**驗收；**已確認的調整一律直接 commit 並 push 到 `main`，不開分支 PR**（避免小調整散落在沒合併的分支）。在 Claude 指定的工作分支上時：`git push origin HEAD:main`，並一併 push 該分支（stop hook 會檢查工作分支是否有未推送的 commit）。
-- push 後用 `curl -s https://limhi.github.io/trip-2026/data/trip.js | grep "version:"` 確認線上版本已更新；Pages 通常 **約 45 秒–1 分鐘**。
+- push 後用 `curl -s https://limhi.github.io/trip-2026/data/trip.js | grep '"number"'` 確認線上版本已更新；Pages 通常 **約 45 秒–1 分鐘**。
 - **版本號**在 `data/trip.json` 的 `site.version`（`{number:'v1.5', date:'2026/10/17'}`；改完要執行 `node tools/build-data.js` 同步到 `data/trip.js`）：改行程或地點資料就更新；純文件或確認清單狀態更新可以不改。編輯器發布時小版自動 +1、日期用發布當天；大版號只能手動改；存檔不動版本號。
 - 版本歷史：v1.0 拆分單檔（PR #1）→ v1.1 版本號與左側編號對應地圖／住宿捷徑（PR #2，另一個工作階段）→ v1.2 `parking` 欄位與第一批資料（PR #3）→ v1.3 景點攻略接進彈窗 → v1.4 四項行程文字修正 → v1.5 加大查證（座標更正、確認清單）→ v1.6 更正遠雄停車說明（官網是「平假日」不是「平日」）→ v1.7 住宿調整（11/15 宜蘭、11/16–17 花蓮、11/18 未定、11/19 屏東；遠雄改排 11/17）→ v1.8–v1.9 往南走與冷泉拿掉 → v2.0 Day 1／Day 2 重排。
 

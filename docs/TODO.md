@@ -50,7 +50,7 @@
 - 程式與資料都在 repo；本地只需要 `git pull` 與 Node（跑 `node tools/check.js`）。`tools/e2e.js` 需要 Playwright，用法見 `DESIGN.md` 第 10.2 節。
 - **資料來源已改成 `data/*.json`**（見下方 G）；`data/trip.js`、`data/places.js`、`data/routes*.js` 是產生檔，不要手改。
 - 雲端沙箱的限制（WebFetch 不能用、Google 地圖讀不到、部分網站 403）在本地不一定存在；本地若能直接讀 Google 地圖或官方頁，查證可以更快，**但仍要把「網址、頁面日期、逐字原文」補進 `RESEARCH-LOG.md`**，並照 `AGENTS.md` 的規則處理。
-- 發布方式：使用者確認的調整直接 commit 並 push 到 `main`（GitHub Pages）；本地環境沒有雲端的工作分支，直接在 `main` 上做即可，push 後用 `curl -s https://limhi.github.io/trip-2026/data/trip.js | grep "version:"` 確認版本。用編輯器的發布按鈕時，編輯器自己會 commit 並 push（流程見 `AGENTS.md`）。
+- 發布方式：使用者確認的調整直接 commit 並 push 到 `main`（GitHub Pages）；本地環境沒有雲端的工作分支，直接在 `main` 上做即可，push 後用 `curl -s https://limhi.github.io/trip-2026/data/trip.js | grep '"number"'` 確認版本。用編輯器的發布按鈕時，編輯器自己會 commit 並 push（流程見 `AGENTS.md`）。
 - 使用者的協作偏好：回報用**繁體中文**；有不清楚的先用**編號問題＋編號選項**確認；先給結論、誠實標示沒驗證到的部分；文字檔一律 UTF-8 無 BOM。使用者說「必要的就直接調，不確定的再找我討論」，也說過「建議晚點再討論」時就不要主動提案。
 
 ### G. 行程編輯器與路線功能（2026-10-26 完成，已合進整合分支；使用者驗收前不要當成已上線）
