@@ -7,6 +7,7 @@
 - 使用者直接用**公開網頁**（GitHub Pages，發布 `main`：https://limhi.github.io/trip-2026/）檢視修改效果。
 - **使用者已確認的調整，一律直接 commit 並 push 到 `main`**，讓 Pages 儘快生效；**不要另開分支 PR**，避免小調整散落在沒合併的分支。若目前在 Claude 指定的工作分支上，commit 後執行 `git push origin HEAD:main`，並一併 push 該分支。
 - push 後用 `curl -s https://limhi.github.io/trip-2026/data/trip.js | grep "version:"` 確認線上版本號已更新（Pages 通常需 1–2 分鐘）。
+- 行程編輯器的發布按鈕：在確認視窗按下「確認發布」＝使用者確認，編輯器會自行 commit 並 push 到 `main`。
 - 這項授權只涵蓋「使用者已確認」的調整，以及下面「查證與確認清單」中**有官方原文佐證**的更新；其餘沒有使用者決定的項目仍不要自行套用。
 
 ## 查證與確認清單

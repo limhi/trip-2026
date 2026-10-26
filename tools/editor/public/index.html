@@ -22,6 +22,7 @@
     <span class="flex-1"></span>
     <button id="reload" class="rounded border border-slate-500 px-3 py-1.5 hover:bg-slate-800">重新載入</button>
     <button id="save" disabled class="rounded bg-blue-600 px-3 py-1.5 font-bold hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40">存檔</button>
+    <button id="publish" class="rounded bg-emerald-600 px-3 py-1.5 font-bold hover:bg-emerald-500">發布…</button>
 </header>
 <div id="notice" role="alert" class="hidden border-b bg-rose-100 px-4 py-2 text-rose-800"></div>
 
@@ -53,6 +54,10 @@
     </section>
 </main>
 
+<div id="modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/60 p-4">
+    <div class="max-h-full w-full max-w-xl overflow-y-auto rounded-xl bg-white p-5 shadow-xl" id="modal-body"></div>
+</div>
+
 <div id="toast" class="pointer-events-none fixed bottom-4 left-1/2 hidden -translate-x-1/2 rounded bg-slate-900 px-4 py-2 text-white shadow"></div>
 
 <script src="/lib/model.js"></script>
@@ -66,6 +71,7 @@
 <script src="hotels-logic.js"></script>
 <script src="hotels.js"></script>
 <script src="preview.js"></script>
+<script src="publish.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
