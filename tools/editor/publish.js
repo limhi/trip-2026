@@ -206,4 +206,4 @@ function publish(root, body, { now = () => new Date(), routes: routesDraft } = {
     return { ok: true, version: next, commit: sha, steps };
 }
 
-module.exports = { plan, publish, summarize, ADD_FILES };
+module.exports = { plan, publish, summarize, headData, ADD_FILES };

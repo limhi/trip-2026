@@ -319,7 +319,7 @@ node tools/e2e.js
 - **子代理的環境和主環境相同**：WebFetch DNS 失敗、curl 可用、同樣讀不到 Facebook／Google 地圖。子代理的報告有過：把同一頁不連續的句子合併成一句引句、把出處標錯（登記證號與地址的出處、愛貝客與 curly 的地址）、做出沒有佐證的推論。所以才有 `RESEARCH-LOG.md` 的逐句比對；**子代理說的話一律當成「待核對」**。
 - **寫檔時 `\uFFFD` 這類跳脫序列要小心**：如果寫成真正的字元，`check.js` 會把自己抓出來（發生過）。commit 訊息也一樣，別放真正的替換字元。
 - **不要手改 `data/*.js`**：它們是產生檔，下次產生或編輯器存檔就被覆蓋；`check.js` 也會因為與 JSON 不同步而失敗。改完 JSON 一定要 `node tools/build-data.js`。
-- 編輯器開著時，如果有別的程式（包含 Claude）改了 `data/trip.json` 或 `data/places.json`，編輯器存檔回 409 並拒絕覆蓋；按「重新載入」會丟掉編輯器裡未存檔的修改。路線快取草稿放在**伺服器記憶體**，按「重新載入」不會清掉，要重啟編輯器伺服器才回到磁碟版。
+- 編輯器開著時，如果有別的程式（包含 Claude）改了 `data/trip.json` 或 `data/places.json`，編輯器存檔回 409 並拒絕覆蓋；請從編輯器右上角「還原」選單選「放棄未存檔的修改」重新載入：會丟掉編輯器裡未存檔的修改，也會清掉伺服器記憶體裡未存檔的路線草稿（`POST /api/routes/reset`）。
 - 路線服務是 OSRM 公開 demo：逐段呼叫、間隔至少 1 秒、不要平行、不要寫迴圈自動重試（見第 15.4 節）。
 - **不要用 `cmd | tail && git commit`**：管線的結束碼是 `tail` 的，檢查失敗會被吃掉（發生過，有問題的版本被推上去）。要寫成 `cmd; rc=$?; [ $rc -eq 0 ] || exit 1`。
 
@@ -328,7 +328,7 @@ node tools/e2e.js
 
 ## 14. 行程編輯器（`tools/editor/`）
 
-給規劃者本人在本機用的介面：改 `data/*.json`、看預覽、存檔、發布。決策原因見 `docs/adr/0001`–`0003`，詞彙見 `GLOSSARY.md`。
+給規劃者本人在本機用的介面：改 `data/*.json`、看預覽、存檔、發布。決策原因見 `docs/adr/0001`–`0005`，詞彙見 `GLOSSARY.md`。
 
 ### 14.1 程序與安全
 - `node tools/editor/server.js [--port 8780]`，只綁 `127.0.0.1`，啟動時印出網址。零依賴（只用 Node 內建模組）。
@@ -345,6 +345,9 @@ node tools/e2e.js
 | `GET /api/routes` | 路線快取草稿：`{ legs: { key: { distance, duration } }, unsaved }`（沒有 geometry；`unsaved` = 草稿與磁碟上的 `routes.json` 不同，前端用它決定存檔鈕要不要亮） |
 | `POST /api/routes/compute` | body `{ legs: [{ key, from: {lat,lng}, to: {lat,lng} }] }`（最多 200 段；`key` 必須等於 `model.legKey(from, to)`，否則 400）。快取命中的不重算。回 `{ results: { key: { status: 'ok'｜'cached'｜'failed', distance?, duration?, error? } } }` |
 | `POST /api/routes/recompute-all` | 同上，但忽略快取，全部重算 |
+| `POST /api/routes/reset` | 丟掉記憶體裡算好但沒存檔的路線草稿，回到磁碟上的 `routes.json`，回 `GET /api/routes` 同樣的內容。**需要標頭 `X-Requested-With: trip-editor`**，否則 403 |
+| `GET /api/discard/plan` | `{ branch, hasChanges, files, changes, keep }`：資料檔與 `HEAD` 不同的檔案與異動摘要（格式同 publish plan 的 `changes`；JSON 壞掉時 `changes` 為 `null`，仍可還原） |
+| `POST /api/discard` | 還原到上次發布，見第 14.9 節。**需要標頭 `X-Requested-With: trip-editor`**，否則 403；沒有異動 409；成功回 `{ ok, restored, backup, recoverable, applyCommand }` |
 | `POST /api/draft` | body `{ trip, places }`，放記憶體草稿給預覽用（不寫磁碟） |
 | `GET /preview/*` | repo 靜態檔；有草稿時 `data/trip.js`、`data/places.js`、`data/routes.js`、`data/routes-geo.js` 由草稿產生。`.` 開頭的檔案與 `node_modules` 一律 404 |
 | `GET /api/publish/plan` | `{ branch, onMain, version: { current, next }, changes, hasChanges, message, missingRoutes, files }`：與 `HEAD` 的異動摘要、預設 commit 訊息、下一個版本號、缺少快取的路段 |
@@ -388,16 +391,33 @@ node tools/e2e.js
 - **地點庫**：搜尋、新增（含 id 建議）、改 id **同步更新引用**（`days[].stay.place`、`days[].items[].place`、`hotels[].place`）、被引用的地點不能刪（列出引用位置）、顯示引用次數與無座標標示。id 限 `^[a-z0-9-]+$` 且不得重複。
 - **住宿區**：新增、刪除、上下排序、`features` 一行一項；`hotelsSection` 的標題文字不在介面編輯（手改 `trip.json`）。
 - **驗證**：每次草稿變動即時跑 `Trip.model.validate`，有錯可存檔，發布被擋。
-- **存檔**：明確存檔（沒有自動存檔）；預覽反映未存檔草稿；沒有 undo，靠 git；有未存檔修改時離開頁面會提示。路線算出新結果（草稿與磁碟不同）也算未存檔：存檔鈕會亮、狀態列顯示「路線計算結果未存檔」，重新整理頁面後由 `GET /api/routes` 的 `unsaved` 還原。
+- **存檔**：明確存檔（沒有自動存檔）；預覽反映未存檔草稿；沒有逐步 undo，已存檔但沒發布的修改用「還原到上次發布」整批退回（第 14.9 節）；有未存檔修改時離開頁面會提示。路線算出新結果（草稿與磁碟不同）也算未存檔：存檔鈕會亮、狀態列顯示「路線計算結果未存檔」，重新整理頁面後由 `GET /api/routes` 的 `unsaved` 還原。
 
 ### 14.7 不在範圍內
-攻略（`reference/guides.js`）、`verify.md`、`hero` 文案、新增或刪除天數、編輯器內 undo／redo、多人編輯。
+攻略（`reference/guides.js`）、`verify.md`、`hero` 文案、新增或刪除天數、編輯器內逐步 undo／redo（整批退回 `HEAD` 見第 14.9 節）、多人編輯、只還原某幾個檔案或某一天（資料檔是成套的，單檔還原會讓 `check.js` 回報不同步）。
 
 ### 14.8 已知限制
 - 編輯器前端沒有在真實瀏覽器驗收過（自動測試只覆蓋純邏輯與伺服器 API）。
-- 路線快取草稿與預覽草稿都在伺服器記憶體：重啟伺服器就回到磁碟版；「重新載入」只重讀行程資料，不清路線草稿。
+- 路線快取草稿與預覽草稿都在伺服器記憶體：重啟伺服器就回到磁碟版；「放棄未存檔的修改」會一併清掉路線草稿。
+- **只有 `/api/discard` 與 `/api/routes/reset` 要求自訂標頭**（其他網頁的表單或 no-cors 請求送不出）。`PUT /api/data`、`POST /api/publish` 目前沒有這層保護：理論上，編輯器開著時，使用者造訪的惡意網頁可以對 `127.0.0.1:8780` 送出簡單請求（發布端點要求 body 與磁碟內容一致，所以最多是把已存檔的內容發布出去）。要補的話，把 `requireEditorHeader` 套到所有會寫入的端點，前端的 `fetch` 一併加標頭。
 - 發布時若路線草稿與磁碟不同回 409，所以重算路線後必須先存檔才能發布。
 - 發布只能在 `main`；整合分支上的編輯器程式要先合進 `main` 才能真的發布。
+
+### 14.9 還原到上次發布（`discard.js`＋前端 `public/discard.js`；全部同步執行）
+用途：存檔後（還沒發布）不要了，整批退回目前分支的 `HEAD`。入口是編輯器右上角「還原」選單：「放棄未存檔的修改」（重新載入磁碟內容並清掉路線草稿，不改任何檔案）與「還原到上次發布…」（本節）。決策原因見 `docs/adr/0005`。
+
+- **範圍**：只動發布清單（`publish.ADD_FILES`）內 `HEAD` 已有的資料檔——`trip.json`、`places.json`、`routes.json` 與三個產生檔，**成套還原**（工作目錄與暫存區一起）；`verify.md` 等其他檔案不碰。
+- `GET /api/discard/plan` 只讀不寫；沒有任何異動時前端選單項目是灰的。
+- `POST /api/discard` 依序執行，任一步失敗就停下並回 `{ error }`：
+  1. 沒有異動 → **409**，不建立備份。
+  2. 先把 `git diff HEAD` 存成備份 patch：`.git/editor-backups/discard-YYYYMMDD-HHMMSS.patch`（路徑由 `git rev-parse --git-path` 決定，放在 `.git` 內，不需要 `.gitignore`、不會被 commit）。**備份寫不進去就不還原**（500，修改還在）。
+  3. `git restore --source=HEAD --staged --worktree -- <資料檔>`。
+  4. 只保留最近 20 份備份（依檔名時間排序刪最舊）。
+  5. 用 `git apply --check` 確認備份能套回來，`recoverable` 回報結果。
+  6. 伺服器把記憶體的路線草稿重設成磁碟版、預覽重新產生。
+- **任何分支都允許**（還原成目前分支的 `HEAD`）；不像發布限制在 `main`，因為沒有 push 之類的外部動作。
+- 前端確認視窗列出會被丟掉的內容（與發布視窗同一個 `changeLines`）、檔案清單、「無法在編輯器內復原」警告；編輯器有未存檔修改時另外提醒會一併丟掉。成功後顯示備份路徑與套回指令（`git apply "<備份>"`），並自動重新載入。
+- 套回備份：`git apply ".git/editor-backups/<檔名>.patch"`（要在 repo 根目錄；之後再開編輯器按「放棄未存檔的修改」重新載入）。
 
 ---
 

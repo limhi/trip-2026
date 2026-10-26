@@ -19,6 +19,7 @@ function createRoutesService({ root, provider, onChange = () => {} }) {
 
     const draft = () => routes || (routes = cache.read(root));
     const set = r => { routes = r; };
+    const reset = () => { routes = null; };   // 丟掉記憶體草稿，下次用到時重讀磁碟上的 routes.json
 
     // 草稿與磁碟上的 routes.json 不同（算了還沒存檔）；前端用它決定存檔鈕要不要亮
     function unsaved() {
@@ -82,7 +83,7 @@ function createRoutesService({ root, provider, onChange = () => {} }) {
     }
 
     return {
-        draft, set, summary,
+        draft, set, reset, summary,
         compute: body => run(body, false),
         recomputeAll: body => run(body, true)
     };

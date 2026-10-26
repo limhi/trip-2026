@@ -132,3 +132,21 @@ test('provider 失敗：回 failed 與錯誤，草稿不變，存檔仍成功', 
     assert.equal(JSON.parse(read(root, 'data/trip.json')).site.documentTitle, '失敗後仍可存檔');
     assert.deepEqual(cache.read(root).legs, {});
 });
+
+test('POST /api/routes/reset：丟掉記憶體裡算好但沒存檔的路線，回到磁碟版；沒有 X-Requested-With 標頭回 403', async t => {
+    const { base } = await withServer(t);
+    const { legs } = await twoLegs(base);
+    const post = headers => fetch(base + '/api/routes/reset', { method: 'POST', headers: { 'content-type': 'application/json', ...headers } })
+        .then(async r => ({ status: r.status, body: await r.json() }));
+    await json(base, '/api/routes/compute', 'POST', { legs });
+    assert.equal((await json(base, '/api/routes', 'GET')).body.unsaved, true);
+
+    assert.equal((await post({})).status, 403);
+    assert.equal((await json(base, '/api/routes', 'GET')).body.unsaved, true);   // 沒標頭＝沒動
+
+    const res = await post({ 'x-requested-with': 'trip-editor' });
+    assert.equal(res.status, 200);
+    const after = (await json(base, '/api/routes', 'GET')).body;
+    assert.equal(after.unsaved, false);
+    assert.deepEqual(after.legs, {});   // 測試用複本的磁碟快取是空殼
+});

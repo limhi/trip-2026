@@ -77,6 +77,22 @@ const hotels = HotelsTab.create($('pane-hotels'), { data: () => state.data, chan
 const publishDialog = PublishDialog.create({ modal: $('modal'), body: $('modal-body'), state: () => state, dirty, reload: load });
 $('publish').onclick = () => publishDialog.show();
 
+// 還原選單：「放棄未存檔的修改」＝重新載入；「還原到上次發布」＝資料檔退回 HEAD（先備份）
+const restoreMenu = $('restoreMenu');
+const closeMenu = () => { restoreMenu.open = false; };
+document.addEventListener('click', e => { if (!restoreMenu.contains(e.target)) closeMenu(); });
+const discardDialog = DiscardDialog.create({ modal: $('modal'), body: $('modal-body'), dirty, reload: load });
+$('discard').onclick = () => { closeMenu(); discardDialog.show(); };
+
+// 資料檔與 HEAD 有差異時，「還原到上次發布」才能按
+async function refreshDiscard() {
+    try {
+        const plan = await (await fetch('/api/discard/plan')).json();
+        $('discard').disabled = !plan.hasChanges;
+        $('discardHint').textContent = plan.hasChanges ? `${plan.files.length} 個檔案和上次發布不同，會先備份再丟掉` : '目前和上次發布相同，沒有可還原的內容';
+    } catch { /* 取不到就維持原狀 */ }
+}
+
 async function load() {
     showNotice('');
     try {
@@ -89,6 +105,7 @@ async function load() {
         days.render();
         places.render();
         hotels.render();
+        refreshDiscard();
     } catch (e) {
         showNotice(`載入失敗：${e.message}`);
     }
@@ -103,8 +120,9 @@ async function save() {
         showNotice('');
         renderChrome();
         toast('已存檔');
+        refreshDiscard();
     } catch (e) {
-        showNotice(e.status === 409 ? `存檔被拒絕：${e.message}。你的修改沒有寫入，請按「重新載入」（會丟掉未存檔的修改）。` : `存檔失敗：${e.message}`);
+        showNotice(e.status === 409 ? `存檔被拒絕：${e.message}。你的修改沒有寫入，請從右上角「還原」選單選「放棄未存檔的修改」（會丟掉未存檔的修改）。` : `存檔失敗：${e.message}`);
     }
 }
 
@@ -122,8 +140,9 @@ $('errbar').addEventListener('click', e => {
     if (e.target.closest('[data-act="errtoggle"]')) { state.errOpen = !state.errOpen; renderChrome(); }
 });
 $('reload').onclick = () => {
-    if (dirty() && !confirm('有未存檔的修改，重新載入會全部丟掉。確定嗎？')) return;
-    load();
+    closeMenu();
+    if (dirty() && !confirm('有未存檔的修改，會全部丟掉。確定嗎？')) return;
+    fetch('/api/routes/reset', { method: 'POST', headers: { 'x-requested-with': 'trip-editor' } }).catch(() => {}).then(load);
 };
 $('save').onclick = save;
 window.addEventListener('beforeunload', e => { if (dirty()) { e.preventDefault(); e.returnValue = ''; } });

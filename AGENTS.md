@@ -10,7 +10,7 @@
 
 1. **使用者在編輯器改**：`node tools/editor/server.js`（`http://127.0.0.1:8780/`，只在本機）。存檔寫入 `data/*.json` 並產生 `data/*.js`；按「發布…」，在確認視窗按下「確認發布」＝使用者確認，編輯器自己跑檢查、把版本號小版 +1、commit、push 到 `main`（只能在 `main` 分支）。這時 Claude 不用另外 commit／push。
 2. **Claude 直接改 JSON**：改 `data/*.json` → 改 `data/trip.json` 的 `site.version`（版本與日期）→ `node tools/build-data.js` → `node tools/check.js` → commit／push：這次調整若還不是使用者確認過的，**先問使用者**；已確認的照下面的發布規則直接 push。
-   - 編輯器開著時，Claude 直接改了 JSON，編輯器存檔會因磁碟檔較新回 409 拒存（不會覆蓋）；請使用者按「重新載入」。
+   - 編輯器開著時，Claude 直接改了 JSON，編輯器存檔會因磁碟檔較新回 409 拒存（不會覆蓋）；請使用者從編輯器右上角「還原」選單選「放棄未存檔的修改」。
    - **改了地點座標、或改了某天項目的順序／地點之後，路線快取要重算**，否則新路段沒有快取（`check.js` 只會警告「N 段沒有路線快取」，不會失敗）。重算方式：請使用者在編輯器路線列按「全部重算」再存檔；或 Claude 用 `tools/routing/provider.js` 的 `route(from, to)` 逐段呼叫（間隔至少 1 秒、不要平行、不要自動重試），再用 `tools/routing/cache.js` 的 `write` 寫回 `data/routes.json` 並產生 `data/routes*.js`。路段規則與快取格式見 `docs/DESIGN.md` 第 15 節。
 
 發布規則：

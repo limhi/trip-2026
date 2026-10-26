@@ -9,6 +9,8 @@ const http = require('http');
 const store = require('./store');
 const { createPreview } = require('./preview');
 const publisher = require('./publish');
+const discard = require('./discard');
+const cache = require('../routing/cache');
 const { createRoutesService } = require('./routes-service');
 
 const PUBLIC = path.join(__dirname, 'public');
@@ -39,6 +41,11 @@ function serveStatic(res, pathname) {
     send(res, 200, fs.readFileSync(file), TYPES[path.extname(file)] || 'application/octet-stream');
 }
 
+// 會丟東西的動作要求自訂標頭：其他網頁的表單或 no-cors 請求送不出這個標頭（要先 preflight，本伺服器不回應）
+const requireEditorHeader = req => {
+    if (req.headers['x-requested-with'] !== 'trip-editor') throw store.httpError(403, '缺少 X-Requested-With 標頭');
+};
+
 const parseJson = async req => {
     try { return JSON.parse(await readBody(req)); } catch (e) { if (e.status) throw e; throw store.httpError(400, '請求不是有效的 JSON'); }
 };
@@ -60,10 +67,25 @@ function createServer({ root, provider = require('../routing/provider') }) {
                 return send(res, 200, { mtimes: saved.mtimes });
             }
             if (pathname === '/api/routes' && req.method === 'GET') return send(res, 200, routes.summary());
+            if (pathname === '/api/routes/reset' && req.method === 'POST') {
+                // 丟掉算好但沒存檔的路線：同樣要求自訂標頭，理由同 /api/discard
+                requireEditorHeader(req);
+                routes.reset();
+                preview.refresh();
+                return send(res, 200, routes.summary());
+            }
             if (pathname === '/api/routes/compute' && req.method === 'POST') return send(res, 200, await routes.compute(await parseJson(req)));
             if (pathname === '/api/routes/recompute-all' && req.method === 'POST') return send(res, 200, await routes.recomputeAll(await parseJson(req)));
             if (pathname === '/api/publish/plan' && req.method === 'GET') return send(res, 200, publisher.plan(root));
             if (pathname === '/api/publish' && req.method === 'POST') return send(res, 200, publisher.publish(root, await parseJson(req), { routes: routes.draft() }));
+            if (pathname === '/api/discard/plan' && req.method === 'GET') return send(res, 200, discard.plan(root));
+            if (pathname === '/api/discard' && req.method === 'POST') {
+                requireEditorHeader(req);   // 會丟掉已存檔的修改
+                const result = discard.run(root);
+                try { routes.set(cache.read(root)); } catch { routes.set(cache.empty()); }   // 路線草稿回到 HEAD 的快取
+                preview.refresh();
+                return send(res, 200, result);
+            }
             if (pathname === '/api/draft' && req.method === 'POST') {
                 preview.setDraft(await parseJson(req));
                 return send(res, 200, { ok: true });
