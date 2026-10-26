@@ -342,7 +342,7 @@ node tools/e2e.js
 |---|---|
 | `GET /api/data` | `{ trip, places, mtimes: { trip, places, routes } }`，讀磁碟上的 JSON |
 | `PUT /api/data` | body `{ trip, places, mtimes }`（`mtimes` 要有 `trip`、`places`、`routes` 三個數字）。缺欄位 400；磁碟上任一個檔（`trip.json`、`places.json`、`routes.json`）的 mtime 比 `mtimes` 新 → **409**，不寫入。成功時寫兩個 JSON、產生 `data/*.js`，**並把記憶體中的路線快取草稿（修剪後）一併寫入** `data/routes.json`、`data/routes*.js`；回新的 `{ mtimes }` |
-| `GET /api/routes` | 路線快取草稿：`{ legs: { key: { distance, duration } } }`（沒有 geometry） |
+| `GET /api/routes` | 路線快取草稿：`{ legs: { key: { distance, duration } }, unsaved }`（沒有 geometry；`unsaved` = 草稿與磁碟上的 `routes.json` 不同，前端用它決定存檔鈕要不要亮） |
 | `POST /api/routes/compute` | body `{ legs: [{ key, from: {lat,lng}, to: {lat,lng} }] }`（最多 200 段；`key` 必須等於 `model.legKey(from, to)`，否則 400）。快取命中的不重算。回 `{ results: { key: { status: 'ok'｜'cached'｜'failed', distance?, duration?, error? } } }` |
 | `POST /api/routes/recompute-all` | 同上，但忽略快取，全部重算 |
 | `POST /api/draft` | body `{ trip, places }`，放記憶體草稿給預覽用（不寫磁碟） |
@@ -388,7 +388,7 @@ node tools/e2e.js
 - **地點庫**：搜尋、新增（含 id 建議）、改 id **同步更新引用**（`days[].stay.place`、`days[].items[].place`、`hotels[].place`）、被引用的地點不能刪（列出引用位置）、顯示引用次數與無座標標示。id 限 `^[a-z0-9-]+$` 且不得重複。
 - **住宿區**：新增、刪除、上下排序、`features` 一行一項；`hotelsSection` 的標題文字不在介面編輯（手改 `trip.json`）。
 - **驗證**：每次草稿變動即時跑 `Trip.model.validate`，有錯可存檔，發布被擋。
-- **存檔**：明確存檔（沒有自動存檔）；預覽反映未存檔草稿；沒有 undo，靠 git；有未存檔修改時離開頁面會提示。
+- **存檔**：明確存檔（沒有自動存檔）；預覽反映未存檔草稿；沒有 undo，靠 git；有未存檔修改時離開頁面會提示。路線算出新結果（草稿與磁碟不同）也算未存檔：存檔鈕會亮、狀態列顯示「路線計算結果未存檔」，重新整理頁面後由 `GET /api/routes` 的 `unsaved` 還原。
 
 ### 14.7 不在範圍內
 攻略（`reference/guides.js`）、`verify.md`、`hero` 文案、新增或刪除天數、編輯器內 undo／redo、多人編輯。
