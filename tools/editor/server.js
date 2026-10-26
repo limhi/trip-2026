@@ -58,6 +58,7 @@ function createServer({ root }) {
                 const file = preview.resolve(pathname.slice('/preview'.length));
                 return file ? send(res, 200, file.body, file.type) : send(res, 404, { error: '找不到' });
             }
+            if (pathname === '/lib/model.js' && req.method === 'GET') return send(res, 200, fs.readFileSync(path.join(root, 'js', 'model.js')), TYPES['.js']);
             if (req.method === 'GET' && !pathname.startsWith('/api/')) return serveStatic(res, pathname);
             send(res, 404, { error: '找不到' });
         } catch (e) {
