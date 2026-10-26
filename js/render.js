@@ -7,7 +7,8 @@
     const Trip = window.Trip;
     const trip = window.TRIP;
     const places = window.TRIP_PLACES;
-    const ctx = { places };
+    // routes：路線快取（data/routes.js，沒有或是空殼時整個路線功能不顯示）
+    const ctx = { places, routes: window.TRIP_ROUTES, site: trip.site };
     const B = Trip.blocks;
     const errors = Trip.model.validate(trip, places);
 
@@ -23,7 +24,7 @@
         'nav-links': () => trip.site.navLinks.map(B.navLink).join(''),
         'hero-chips': () => trip.hero.chips.map(B.heroChip).join(''),
         'highlights': () => trip.highlights.map(B.highlight).join(''),
-        'days': () => trip.days.map(day => B.dayCard(day, ctx, Trip.mapPanelHtml(day, places))).join('\n'),
+        'days': () => trip.days.map(day => B.dayCard(day, ctx, Trip.mapPanelHtml(day, places, ctx))).join('\n'),
         'hotels': () => trip.hotels.map(hotel => B.hotelCard(hotel, ctx)).join('\n')
     };
 
@@ -43,7 +44,7 @@
     // 地圖按鈕
     trip.days.forEach(day => {
         const dayEl = document.getElementById(`day-${day.day}`);
-        if (dayEl) Trip.bindDayMap(dayEl, day, places);
+        if (dayEl) Trip.bindDayMap(dayEl, day, places, ctx);
     });
 
     Trip.initModal(places);

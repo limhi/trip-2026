@@ -36,7 +36,7 @@
                    │
         ┌──────────┼───────────────┬───────────────┐
         ▼          ▼               ▼               ▼
-   js/blocks.js  js/map.js      js/modal.js    js/guides.js
+   js/route-view.js  js/blocks.js  js/map.js      js/modal.js    js/guides.js
    區塊樣板與顏色  每日地圖        聯絡/導航彈窗   彈窗內的景點攻略
         └──────────┴───────┬───────┴───────────────┘
                            ▼
@@ -49,7 +49,7 @@
 ```
 
 ### 載入順序（`index.html` 底部，**不可調換**）
-`leaflet` → `data/places.js` → `data/trip.js` → `js/model.js` → `js/blocks.js` → `js/modal.js` → `js/map.js` → `js/guides.js` → `js/render.js`。
+`leaflet` → `data/places.js` → `data/trip.js` → `data/routes.js` → `js/model.js` → `js/route-view.js` → `js/blocks.js` → `js/modal.js` → `js/map.js` → `js/guides.js` → `js/render.js`。
 所有檔案都掛在 `window.Trip` 命名空間（`Trip.model`、`Trip.blocks`、`Trip.initModal`、`Trip.bindDayMap`、`Trip.mapPanelHtml`、`Trip.guides`、`Trip.mapUrl`、`Trip.MAP_TYPES`），`render.js` 最後執行。
 
 ### 為什麼網頁載入的是「JS 資料檔 + 傳統 script」，不是 JSON／ES module
@@ -69,13 +69,14 @@
 | `data/trip.js`、`data/places.js` | 由 `tools/build-data.js` 從上面兩個 JSON 產生的**產生檔**（網頁載入的是它們） | 要 commit，不手改；`check.js` 檢查同步 |
 | `tools/build-data.js` | 產生器：`node tools/build-data.js` | 測試：`node --test`（含 `tools/**`） |
 | `data/routes.json` | 路線快取（**資料來源**，由編輯器寫入；目前是空殼）：`{profile, legs:{ "經度,緯度>經度,緯度": {distance 公尺, duration 秒, geometry, provider, computedAt} }}`，值是原始值（不含係數） | 格式由 `tools/routing/cache.js` 固定（legs 依 key 排序） |
-| `data/routes.js`、`data/routes-geo.js` | 由 `routes.json` 產生：`window.TRIP_ROUTES`（距離／時間，小）、`window.TRIP_ROUTES_GEO`（polyline，大，之後展開地圖才載入） | 同上，不手改；`check.js` 檢查同步 |
+| `data/routes.js`、`data/routes-geo.js` | 由 `routes.json` 產生：`window.TRIP_ROUTES`（距離／時間，小）、`window.TRIP_ROUTES_GEO`（polyline，大，第一次展開有快取的地圖時由 `js/map.js` 動態載入） | 同上，不手改；`check.js` 檢查同步 |
 | `tools/routing/` | `provider.js`（`route(from, to)`，OSRM 實作，只有編輯器呼叫）、`cache.js`（讀寫、`prune`、`usedKeys`／`missingKeys`、`checkStructure`） | 路線規則見 `.scratch/editor/spec.md` 第 7 節；`js/model.js` 有 `getLegs`、`legKey`、`displayMinutes`、`formatLeg`、`getTimeWarnings` |
 | `tools/editor/` | 行程編輯器（本機，綁 `127.0.0.1`）：`node tools/editor/server.js [--port 8780]`；`store.js` 負責讀取、固定格式存檔、mtime 衝突檢查 | 開發中（ticket 02 完成讀取／存檔／衝突）；完整說明待 ticket 08 補 |
 | `js/model.js` | 資料處理與檢查 | 純函式，`tools/check.js` 會載入它 |
-| `js/blocks.js` | 各類區塊的 HTML 樣板與 Tailwind 顏色表 | 統一改顏色改最上方的表 |
+| `js/route-view.js` | 路線快取套到某一天的路段（顯示分鐘、是否超過門檻、當天總車程）、polyline 解碼、中點 | 純函式；`blocks.js` 與 `map.js` 共用，路段規則仍在 `model.getLegs`。測試：`tools/route-view.test.js` |
+| `js/blocks.js` | 各類區塊的 HTML 樣板與 Tailwind 顏色表 | 統一改顏色改最上方的表。有路線快取時：綁定的 `drive`／`move` 列沒有 `duration` 就顯示計算時間；相鄰標記間沒有交通列就補唯讀連接列；標題列顯示總車程。沒有快取時畫面與沒有這個功能時相同。測試：`tools/public-blocks.test.js` |
 | `js/modal.js` | 聯絡／導航彈窗 | 事件委派：任何有 `data-place` 的元素都能開彈窗 |
-| `js/map.js` | 每日地圖（Leaflet + OpenStreetMap 圖磚） | `MAP_TYPES` 是標記顏色／圖示／圖例 |
+| `js/map.js` | 每日地圖（Leaflet + OpenStreetMap 圖磚） | `MAP_TYPES` 是標記顏色／圖示／圖例。有路線快取時：道路路線（沒有 geo 的段落退回虛線）、路段中點「時間・距離」標示、超過 `maxLegMinutes` 紅色；載入 `routes-geo.js` 失敗就維持虛線。沒有快取時維持單一灰色虛線。測試：`tools/public-map.test.js`（假 Leaflet） |
 | `js/guides.js` | 彈窗內的景點攻略（折疊區塊） | `SECTIONS` 設定順序與預設展開 |
 | `js/render.js` | 組裝頁面 | 最後執行，並在 `load` 後 1.5 秒預載攻略 |
 | `css/style.css` | Tailwind 做不到的樣式 | 彈窗、地圖、編號圓點、攻略折疊箭頭 |
@@ -248,7 +249,8 @@ TAILWIND_CSS=<本機編譯的 Tailwind CSS> \
 node tools/e2e.js
 ```
 - `MARKED_JS`、`TAILWIND_CSS` 可省略：沒有 `MARKED_JS` 只測 `verify.html` 的轉換失敗備援；沒有 `TAILWIND_CSS` 只測行為、不測版面（導覽列寬度）。取得方式：在**暫存資料夾**（不要在 repo 裡）`npm install marked@12.0.2 tailwindcss@3.4.17`；Tailwind 用 `content: ['<repo>/index.html','<repo>/js/*.js']` 編譯成 CSS。
-- 測試內容（最小模式 15 項、完整模式 19 項）：首頁無錯誤與版本號、每個有彈窗的地點（標題、停車區塊、攻略、`hidden` 項目不顯示、無開發用語、導航按鈕、訂房區塊、Esc 關閉）、每天地圖（標記數、路線連線、展開／收合）、打錯 id 的紅色提示列、file:// 開啟與攻略動態載入、`verify.html`（題號錨點、撥號連結、新分頁連結、備援）、導覽列 360／375／414／768／1280px 不溢出。
+- 路線相關（T3、T8–T10）：T8 用手造的假快取（e2e 內產生，攔截 `data/routes.js`／`routes-geo.js`，不是 repo 的檔案、不呼叫真實路線服務）檢查自動連接列、算出的交通列時間、總車程、道路路線／虛線／紅色段落／中點標示、首頁不請求 `routes-geo.js`；T9 geo 載入失敗退回虛線；T10 file:// 下動態載入（複製到暫存資料夾）。假的 `window.L` 有 `layerGroup`，並記錄路線與標示。**這些斷言在撰寫時沒有 Playwright 可跑**（只用 vm 驗證過期望式與實作一致、`node --test` 的假 DOM 測試覆蓋同樣的行為）；第一次有 Playwright 的環境請先跑一遍，必要時用植入破壞的方式確認會失敗。
+- 測試內容（最小模式 15 項、完整模式 19 項，不含上述路線相關項目）：首頁無錯誤與版本號、每個有彈窗的地點（標題、停車區塊、攻略、`hidden` 項目不顯示、無開發用語、導航按鈕、訂房區塊、Esc 關閉）、每天地圖（標記數、路線連線、展開／收合）、打錯 id 的紅色提示列、file:// 開啟與攻略動態載入、`verify.html`（題號錨點、撥號連結、新分頁連結、備援）、導覽列 360／375／414／768／1280px 不溢出。
 - 做法：自己起 Node 靜態伺服器（**不用 python／pkill**）、放行本機請求並 `abort` 外部請求，沙箱連不到 Tailwind／Leaflet／Font Awesome CDN。地圖用 `addInitScript` 在頁面載入前放假的 `window.L`；**不要改成 route 回傳假的 leaflet.js**——頁面有 SRI `integrity`，內容不符會被擋，結果地圖按鈕被程式整個移除，測試會以為地圖壞了。
 - 每個測試區塊獨立執行，出例外只記成一項失敗，不會擋住其他結果。結束碼：0 全過、1 有失敗、2 測試本身無法執行。
 - **已做過反向測試**：在複本裡植入 6 種功能破壞（停車區塊永遠隱藏、攻略路徑壞掉、路線不連回起點、頁尾連結不開新分頁、題號錨點消失、不顯示紅色提示列），全部被抓到；過程中也抓到並修掉兩個測試本身的缺陷（一個永遠為真的斷言、一個例外會中斷全部結果的寫法）。**改測試時請維持這個標準：新增斷言就要想辦法證明它會失敗。**

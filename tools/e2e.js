@@ -52,18 +52,31 @@ const server = http.createServer((req, res) => {
     fs.createReadStream(file).pipe(res);
 });
 
-// 假的 Leaflet：記錄標記數與路線點數，供測試檢查
+// 假的 Leaflet：記錄標記數、路線點數，以及最近一張地圖的路線圖層（layerGroup）內容，供測試檢查。
+// 路段中點的「時間・距離」標示是 className 為 map-leg-label-icon 的標記，不算進 markers。
 const LEAFLET_STUB = () => {
     const chain = { addTo() { return this; }, bindPopup() { return this; } };
-    window.__map = { markers: 0, poly: null };
+    window.__map = { markers: 0, poly: null, group: null };
+    const layer = (kind, a, o) => {
+        const l = { kind, a, o, bindPopup() { return l; }, addTo(target) { if (target && target.layers) target.layers.push(l); return l; } };
+        return l;
+    };
     Object.defineProperty(window, 'L', {
         configurable: true, set() {},
         get() {
             return {
                 map() { return { fitBounds() {}, invalidateSize() {} }; },
                 tileLayer() { return chain; }, divIcon(o) { return o; },
-                marker() { window.__map.markers++; return chain; },
-                polyline(pts) { window.__map.poly = pts; return chain; },
+                marker(latlng, o) {
+                    const isLabel = !!(o && o.icon && o.icon.className === 'map-leg-label-icon');
+                    if (!isLabel) window.__map.markers++;
+                    return layer(isLabel ? 'label' : 'marker', latlng, o);
+                },
+                polyline(pts, o) { window.__map.poly = pts; return layer('polyline', pts, o); },
+                layerGroup() {
+                    const g = { layers: [], addTo() { window.__map.group = g; return g; }, clearLayers() { g.layers.length = 0; } };
+                    return g;
+                },
                 control: { scale() { return chain; } }
             };
         }
@@ -169,6 +182,8 @@ async function guard(label, fn) {
     // ───────── T3 每天地圖 ─────────
     await guard('T3', async () => {
         const p = await newPage();
+        const geoRequests = [];
+        p.on('request', r => { if (/\/data\/routes-geo\.js/.test(r.url())) geoRequests.push(r.url()); });
         await openIndex(p);
         let bad = [];
         for (const day of TRIP.days) {
@@ -191,8 +206,150 @@ async function guard(label, fn) {
             if (!closed) bad.push(`DAY ${day.day}：再按一次沒有收合`);
         }
         check(`T3 ${TRIP.days.length} 天地圖：標記數、路線連線、展開／收合`, bad.length === 0, bad.join('；'));
+        const extra = await p.evaluate(() => ({ auto: document.querySelectorAll('.auto-leg-row, .auto-leg-duration, .day-drive-summary').length, labels: window.__map.group ? window.__map.group.layers.filter(l => l.kind === 'label').length : 0 }));
+        check('T3 路線快取是空殼時：沒有自動連接列、總車程、時間標示，也不載入 routes-geo.js（與沒有這個功能時相同）', extra.auto === 0 && extra.labels === 0 && geoRequests.length === 0, `元素 ${extra.auto}、標示 ${extra.labels}、geo 請求 ${geoRequests.length}`);
         check('T3 地圖操作無 JS 錯誤', p.errors.length === 0, p.errors.join(' | '));
         await p.close();
+    });
+
+    // ───────── T8 路線快取（假資料）：道路路線、時間標示、自動連接列、總車程 ─────────
+    // 用手造的假快取（不是 repo 的 data/routes*.js，也不呼叫真實路線服務）：
+    // 每個路段一筆；第一天的第一段 150 分原始時間（×1.25 後超過門檻）；有 2 段以上的第一天缺最後一段；
+    // 路線座標是起點、偏移的中間點、終點。
+    const FACTOR = day => day.trafficFactor || (TRIP.site.routing && TRIP.site.routing.trafficFactor) || 1.25;
+    const MAX_MIN = (TRIP.site.routing && TRIP.site.routing.maxLegMinutes) || 180;
+    const dayLegs = TRIP.days.map(d => model.getLegs(d, PLACES));
+    const fakeLegs = {}, fakeGeo = {};
+    const encodeLine = pts => {
+        let pl = 0, pg = 0, out = '';
+        const enc = n => { let v = n < 0 ? ~(n << 1) : n << 1, t = ''; while (v >= 0x20) { t += String.fromCharCode((0x20 | (v & 0x1f)) + 63); v >>= 5; } return t + String.fromCharCode(v + 63); };
+        for (const [la, ln] of pts) { const a = Math.round(la * 1e5), b = Math.round(ln * 1e5); out += enc(a - pl) + enc(b - pg); pl = a; pg = b; }
+        return out;
+    };
+    let seq = 0, partialDay = -1;
+    dayLegs.forEach((legs, di) => {
+        legs.forEach((leg, li) => {
+            if (partialDay < 0 && legs.length >= 2 && li === legs.length - 1) { partialDay = di; return; }
+            fakeLegs[leg.key] = { distance: 20000 + 1500 * seq, duration: di === 0 && li === 0 ? 9000 : 1800 + 300 * (seq % 4) };
+            fakeGeo[leg.key] = encodeLine([[leg.from.lat, leg.from.lng], [(leg.from.lat + leg.to.lat) / 2 + 0.01, (leg.from.lng + leg.to.lng) / 2], [leg.to.lat, leg.to.lng]]);
+            seq++;
+        });
+    });
+    const ROUTES_JS = 'window.TRIP_ROUTES = ' + JSON.stringify({ legs: fakeLegs }) + ';';
+    const GEO_JS = 'window.TRIP_ROUTES_GEO = ' + JSON.stringify(fakeGeo) + ';';
+    // 獨立算法（不用 model 的格式函式）
+    const mins = (d, leg) => Math.round(fakeLegs[leg.key].duration / 60 * FACTOR(d));
+    const hm = m => (m >= 60 ? Math.floor(m / 60) + ' 小時' + (m % 60 ? ' ' + (m % 60) + ' 分' : '') : m + ' 分');
+    async function routesPage(opts = {}) {
+        const p = await newPage(opts);
+        p.geoRequests = [];
+        p.on('request', r => { if (/\/data\/routes-geo\.js/.test(r.url())) p.geoRequests.push(r.url()); });
+        await p.route('**/data/routes.js', r => r.fulfill({ contentType: 'text/javascript', body: ROUTES_JS }));
+        if (opts.geoFail) await p.route('**/data/routes-geo.js', r => r.abort());
+        else await p.route('**/data/routes-geo.js', r => r.fulfill({ contentType: 'text/javascript', body: GEO_JS }));
+        return p;
+    }
+    const mapLayers = p => p.evaluate(() => window.__map.group.layers.map(l => ({
+        kind: l.kind, n: l.kind === 'polyline' ? l.a.length : 0, dashed: !!(l.o && l.o.dashArray), color: l.o && l.o.color,
+        html: l.kind === 'label' ? l.o.icon.html : ''
+    })));
+    const waitSolid = p => p.waitForFunction(() => window.__map.group && window.__map.group.layers.some(l => l.kind === 'polyline' && !(l.o && l.o.dashArray)), null, { timeout: 4000 }).catch(() => {});
+
+    await guard('T8', async () => {
+        check('T8 假快取有效：有一段超過門檻、有一天缺一段、有需要補連接列的路段',
+            dayLegs.some((ls, i) => ls.some(l => fakeLegs[l.key] && mins(TRIP.days[i], l) > MAX_MIN)) && partialDay >= 0 && dayLegs.some(ls => ls.some(l => l.needsRow && fakeLegs[l.key])), `partialDay=${partialDay}`);
+        const p = await routesPage();
+        await openIndex(p);
+        check('T8 首頁載入時沒有請求 routes-geo.js', p.geoRequests.length === 0, `請求 ${p.geoRequests.length}`);
+        const bad = [];
+        for (let di = 0; di < TRIP.days.length; di++) {
+            const day = TRIP.days[di], legs = dayLegs[di];
+            const cached = legs.filter(l => fakeLegs[l.key]);
+            const dom = await p.evaluate(s => {
+                const el = document.querySelector(s);
+                const sum = el.querySelector('.day-drive-summary');
+                return { summary: sum ? sum.textContent : null, autoRows: el.querySelectorAll('.auto-leg-row').length, autoDur: el.querySelectorAll('.auto-leg-duration').length,
+                    autoRowText: [...el.querySelectorAll('.auto-leg-row')].map(r => r.textContent) };
+            }, `#day-${day.day}`);
+            const wantAuto = cached.filter(l => l.needsRow).length;
+            const wantDur = cached.filter(l => l.rowIndex != null && !day.items[l.rowIndex].duration).length;
+            if (dom.autoRows !== wantAuto) bad.push(`DAY ${day.day}：自動連接列 ${dom.autoRows}，應為 ${wantAuto}`);
+            if (dom.autoDur !== wantDur) bad.push(`DAY ${day.day}：算出的交通列時間 ${dom.autoDur}，應為 ${wantDur}`);
+            if (cached.length === 0) { if (dom.summary !== null) bad.push(`DAY ${day.day}：沒有快取卻有總車程`); continue; }
+            const totalMin = cached.reduce((s, l) => s + mins(day, l), 0), totalKm = (cached.reduce((s, l) => s + fakeLegs[l.key].distance, 0) / 1000).toFixed(1);
+            const partial = cached.length < legs.length;
+            if (!dom.summary || !dom.summary.includes(`總車程 約 ${hm(totalMin)}・總里程 ${totalKm} km`)) bad.push(`DAY ${day.day}：總車程文字不對「${dom.summary}」，應含 ${hm(totalMin)}・${totalKm} km`);
+            if (dom.summary && dom.summary.includes('部分路段未計算') !== partial) bad.push(`DAY ${day.day}：「部分路段未計算」應為 ${partial}`);
+            const firstAuto = cached.find(l => l.needsRow);
+            if (firstAuto && !dom.autoRowText.some(t => t.includes(`車程約 ${hm(mins(day, firstAuto))}・`) && t.includes('（自動）'))) bad.push(`DAY ${day.day}：連接列文字不對`);
+        }
+        check('T8 每天：自動連接列數、算出的交通列時間、總車程與里程、「部分路段未計算」', bad.length === 0, bad.slice(0, 5).join('；'));
+
+        const bad2 = [];
+        let firstExpand = true;
+        for (let di = 0; di < TRIP.days.length; di++) {
+            const day = TRIP.days[di], legs = dayLegs[di];
+            const cached = legs.filter(l => fakeLegs[l.key]);
+            await p.locator(`#day-${day.day} .map-toggle-button`).click();
+            if (cached.length) {
+                await waitSolid(p);
+                if (firstExpand) { firstExpand = false; check('T8 第一次展開地圖後才請求 routes-geo.js（只請求一次）', p.geoRequests.length === 1, `請求 ${p.geoRequests.length}`); }
+            }
+            const layers = await mapLayers(p);
+            const lines = layers.filter(l => l.kind === 'polyline'), labels = layers.filter(l => l.kind === 'label');
+            if (!cached.length) {
+                if (labels.length) bad2.push(`DAY ${day.day}：沒有快取卻有時間標示`);
+                continue;
+            }
+            const solid = lines.filter(l => !l.dashed), dashed = lines.filter(l => l.dashed);
+            if (lines.length !== legs.length) bad2.push(`DAY ${day.day}：路線 ${lines.length} 條，應為 ${legs.length}`);
+            if (solid.length !== cached.length || solid.some(l => l.n !== 3)) bad2.push(`DAY ${day.day}：道路路線 ${solid.length} 條（點數 ${solid.map(l => l.n)}），應為 ${cached.length} 條各 3 點`);
+            if (dashed.length !== legs.length - cached.length) bad2.push(`DAY ${day.day}：虛線 ${dashed.length} 條，應為 ${legs.length - cached.length}`);
+            if (labels.length !== cached.length) bad2.push(`DAY ${day.day}：時間標示 ${labels.length} 個，應為 ${cached.length}`);
+            const wantRed = cached.filter(l => mins(day, l) > MAX_MIN).length;
+            if (solid.filter(l => l.color === '#dc2626').length !== wantRed || labels.filter(l => /map-leg-label-over/.test(l.html)).length !== wantRed) bad2.push(`DAY ${day.day}：紅色段落應為 ${wantRed} 段`);
+            cached.forEach(l => { if (!labels.some(x => x.html.includes(`約 ${hm(mins(day, l))}・${(fakeLegs[l.key].distance / 1000).toFixed(1)} km`))) bad2.push(`DAY ${day.day}：找不到標示「${hm(mins(day, l))}」`); });
+            const note = await p.evaluate(d => document.querySelector(`#day-map-panel-${d} p:last-child`).textContent, day.day);
+            if (!note.includes('實際請以導航為準') || !note.includes('×' + FACTOR(day))) bad2.push(`DAY ${day.day}：地圖說明文字沒有更新「${note.slice(0, 40)}」`);
+        }
+        check('T8 每天地圖：道路路線取代虛線、缺段仍畫虛線、中點時間距離標示、超過門檻紅色、說明文字', bad2.length === 0, bad2.slice(0, 5).join('；'));
+        const banner = await p.evaluate(() => !!document.querySelector('body > div.bg-rose-600'));
+        check('T8 有快取時沒有 JS 錯誤、沒有紅色提示列', p.errors.length === 0 && !banner, p.errors.join(' | '));
+        await p.close();
+    });
+
+    // ───────── T9 routes-geo.js 載入失敗：靜默退回虛線，時間標示仍在 ─────────
+    await guard('T9', async () => {
+        const p = await routesPage({ geoFail: true });
+        await openIndex(p);
+        const di = dayLegs.findIndex(ls => ls.some(l => fakeLegs[l.key]));
+        const day = TRIP.days[di], cached = dayLegs[di].filter(l => fakeLegs[l.key]);
+        await p.locator(`#day-${day.day} .map-toggle-button`).click();
+        await p.waitForTimeout(500);
+        const layers = await mapLayers(p);
+        const lines = layers.filter(l => l.kind === 'polyline'), labels = layers.filter(l => l.kind === 'label');
+        const banner = await p.evaluate(() => !!document.querySelector('body > div.bg-rose-600'));
+        check('T9 geo 載入失敗：全部退回虛線、時間標示仍在、沒有錯誤也沒有紅色提示列', lines.length > 0 && lines.every(l => l.dashed) && labels.length === cached.length && p.errors.length === 0 && !banner,
+            `虛線 ${lines.filter(l => l.dashed).length}/${lines.length}、標示 ${labels.length}、錯誤 ${p.errors.join(' | ')}`);
+        await p.close();
+    });
+
+    // ───────── T10 file:// 開啟有快取的頁面：routes-geo.js 也能動態載入 ─────────
+    await guard('T10', async () => {
+        const tmp = fs.mkdtempSync(path.join(require('os').tmpdir(), 'trip-e2e-'));
+        try {
+            for (const f of ['index.html', 'css', 'js', 'data', 'reference']) fs.cpSync(path.join(root, f), path.join(tmp, f), { recursive: true });
+            fs.writeFileSync(path.join(tmp, 'data/routes.js'), ROUTES_JS);
+            fs.writeFileSync(path.join(tmp, 'data/routes-geo.js'), GEO_JS);
+            const p = await newPage();
+            await openIndex(p, 'file://' + path.join(tmp, 'index.html'));
+            const di = dayLegs.findIndex(ls => ls.some(l => fakeLegs[l.key]));
+            await p.locator(`#day-${TRIP.days[di].day} .map-toggle-button`).click();
+            await waitSolid(p);
+            const layers = await mapLayers(p);
+            check('T10 file:// 下 routes-geo.js 也能動態載入並畫出道路路線，且無 JS 錯誤', layers.some(l => l.kind === 'polyline' && !l.dashed) && p.errors.length === 0, p.errors.join(' | '));
+            await p.close();
+        } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
     });
 
     // ───────── T4 打錯地點 id 要出現紅色提示列 ─────────
