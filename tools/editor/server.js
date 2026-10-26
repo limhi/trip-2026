@@ -1,0 +1,65 @@
+#!/usr/bin/env node
+/*
+ * 行程編輯器（只在本機跑，綁 127.0.0.1）：
+ *   node tools/editor/server.js [--port 8780]
+ */
+const fs = require('fs');
+const path = require('path');
+const http = require('http');
+const store = require('./store');
+
+const PUBLIC = path.join(__dirname, 'public');
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
+const MAX_BODY = 5 * 1024 * 1024;
+
+function parseArgs(argv) {
+    const i = argv.indexOf('--port');
+    return { port: i >= 0 ? Number(argv[i + 1]) : 8780 };
+}
+
+const send = (res, status, body, type = 'application/json; charset=utf-8') => {
+    res.writeHead(status, { 'content-type': type, 'cache-control': 'no-store' });
+    res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body));
+};
+
+const readBody = req => new Promise((resolve, reject) => {
+    const chunks = []; let size = 0;
+    req.on('data', c => { size += c.length; if (size > MAX_BODY) { reject(store.httpError(413, '請求太大')); req.destroy(); } else chunks.push(c); });
+    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    req.on('error', reject);
+});
+
+function serveStatic(res, pathname) {
+    const rel = decodeURIComponent(pathname === '/' ? '/index.html' : pathname);
+    const file = path.join(PUBLIC, rel);
+    if (!file.startsWith(PUBLIC + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) return send(res, 404, { error: '找不到' });
+    send(res, 200, fs.readFileSync(file), TYPES[path.extname(file)] || 'application/octet-stream');
+}
+
+function createServer({ root }) {
+    return http.createServer(async (req, res) => {
+        try {
+            // 只接受本機位址的 Host，避免網頁透過 DNS rebinding 打到編輯器
+            if (!/^(127\.0\.0\.1|localhost)(:\d+)?$/.test(req.headers.host || '')) return send(res, 403, { error: 'Host 不允許' });
+            const { pathname } = new URL(req.url, 'http://localhost');
+            if (pathname === '/api/data' && req.method === 'GET') return send(res, 200, store.load(root));
+            if (pathname === '/api/data' && req.method === 'PUT') {
+                let body;
+                try { body = JSON.parse(await readBody(req)); } catch (e) { if (e.status) throw e; throw store.httpError(400, '請求不是有效的 JSON'); }
+                return send(res, 200, store.save(root, body));
+            }
+            if (req.method === 'GET' && !pathname.startsWith('/api/')) return serveStatic(res, pathname);
+            send(res, 404, { error: '找不到' });
+        } catch (e) {
+            send(res, e.status || 500, { error: e.message });
+        }
+    });
+}
+
+module.exports = { createServer, parseArgs };
+
+if (require.main === module) {
+    const { port } = parseArgs(process.argv.slice(2));
+    const root = path.resolve(__dirname, '..', '..');
+    createServer({ root }).listen(port, '127.0.0.1', () => console.log(`編輯器：http://127.0.0.1:${port}/`));
+}

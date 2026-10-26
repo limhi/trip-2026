@@ -67,7 +67,8 @@
 | `data/trip.json` | 行程內容的**資料來源** | 欄位說明在本文第 4.2 節 |
 | `data/places.json` | 地點資料庫的**資料來源** | 欄位說明在本文第 4.1 節 |
 | `data/trip.js`、`data/places.js` | 由 `tools/build-data.js` 從上面兩個 JSON 產生的**產生檔**（網頁載入的是它們） | 要 commit，不手改；`check.js` 檢查同步 |
-| `tools/build-data.js` | 產生器：`node tools/build-data.js` | 測試：`node --test tools/*.test.js` |
+| `tools/build-data.js` | 產生器：`node tools/build-data.js` | 測試：`node --test tools/*.test.js tools/editor/*.test.js` |
+| `tools/editor/` | 行程編輯器（本機，綁 `127.0.0.1`）：`node tools/editor/server.js [--port 8780]`；`store.js` 負責讀取、固定格式存檔、mtime 衝突檢查 | 開發中（ticket 02 完成讀取／存檔／衝突）；完整說明待 ticket 08 補 |
 | `js/model.js` | 資料處理與檢查 | 純函式，`tools/check.js` 會載入它 |
 | `js/blocks.js` | 各類區塊的 HTML 樣板與 Tailwind 顏色表 | 統一改顏色改最上方的表 |
 | `js/modal.js` | 聯絡／導航彈窗 | 事件委派：任何有 `data-place` 的元素都能開彈窗 |

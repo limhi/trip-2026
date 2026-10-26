@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>行程編輯器</title>
+<style>
+    body { font: 15px/1.5 system-ui, "Noto Sans TC", sans-serif; margin: 0; background: #f6f5f1; color: #222; }
+    header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: #fff; border-bottom: 1px solid #ddd; }
+    h1 { font-size: 17px; margin: 0; }
+    #status { flex: 1; color: #555; }
+    button { font: inherit; padding: 5px 14px; border: 1px solid #999; border-radius: 6px; background: #fff; cursor: pointer; }
+    button:disabled { opacity: .5; cursor: default; }
+    #notice { display: none; margin: 12px 16px; padding: 10px 14px; border-radius: 6px; background: #fee2e2; color: #991b1b; }
+    #notice.show { display: block; }
+    main { padding: 16px; }
+</style>
+</head>
+<body>
+<header>
+    <h1>行程編輯器</h1>
+    <span id="status">載入中…</span>
+    <button id="reload">重新載入</button>
+    <button id="save" disabled>存檔</button>
+</header>
+<div id="notice" role="alert"></div>
+<main id="main"></main>
+<script src="app.js"></script>
+</body>
+</html>
