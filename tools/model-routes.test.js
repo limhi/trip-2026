@@ -88,7 +88,7 @@ test('真實資料：6 天的路段與交通列綁定', () => {
             [8, 10, 'qixingtan', 'tongle-bnb', 9, false]],
         3: [[0, 2, 'tongle-bnb', 'farglory-oceanpark', 1, false], [2, 0, 'farglory-oceanpark', 'tongle-bnb', null, false]],
         4: [[0, 2, 'tongle-bnb', 'hz52-diner', null, true], [2, 3, 'hz52-diner', 'general-mansion', null, true],
-            [3, 4, 'general-mansion', 'egg-pancake-cart', null, true]],
+            [3, 4, 'general-mansion', 'egg-pancake-cart', null, true], [4, 5, 'egg-pancake-cart', 'greener-bnb', null, true]],
         5: [[0, 3, 'tongle-bnb', 'chishang-bento', 2, false], [3, 4, 'chishang-bento', 'brown-boulevard', null, true],
             [4, 6, 'brown-boulevard', 'duoliang-rest', null, true], [6, 7, 'duoliang-rest', 'pingtung-farmhouse', null, true],
             [7, 8, 'pingtung-farmhouse', 'pingtung-night-market', null, true]],
