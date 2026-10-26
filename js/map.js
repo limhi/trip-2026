@@ -15,9 +15,40 @@
     };
     Trip.MAP_TYPES = MAP_TYPES;   // 左邊卡片的編號圓點也用同一組顏色
 
+    // 道路路線（有路線快取時）的顏色
+    const ROAD_COLOR = '#334155';
+    const OVER_COLOR = '#dc2626';
+
+    // 路線快取：routeCtx = { routes: window.TRIP_ROUTES, site }。沒有快取時回傳 null，地圖維持灰色虛線
+    function dayRouteInfo(day, places, routeCtx) {
+        if (!routeCtx) return null;
+        const info = Trip.routeView.dayRoutes(day, places, routeCtx.routes, routeCtx.site);
+        return info.hasCache ? info : null;
+    }
+
+    // 路線座標（routes-geo.js）較大，第一次展開有快取的地圖時才動態載入（方式同 js/guides.js）
+    const GEO_SRC = 'data/routes-geo.js';
+    let geoLoading = null;
+    function loadGeo() {
+        if (!geoLoading) {
+            geoLoading = new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = GEO_SRC;
+                script.onload = () => (root.TRIP_ROUTES_GEO ? resolve(root.TRIP_ROUTES_GEO) : reject(new Error('TRIP_ROUTES_GEO missing')));
+                script.onerror = () => { geoLoading = null; reject(new Error('routes-geo load failed')); };
+                document.head.appendChild(script);
+            });
+        }
+        return geoLoading;
+    }
+
     // 每天卡片裡的地圖面板（預設收合）
-    Trip.mapPanelHtml = function (day, places) {
+    Trip.mapPanelHtml = function (day, places, routeCtx) {
         const esc = Trip.blocks.esc;
+        const info = dayRouteInfo(day, places, routeCtx);
+        const note = info
+            ? `標記數字與左邊行程的編號相同（無數字的圓點為不列入行程的起點）；實線為道路預估路線，虛線為尚未計算的順序示意。路段中間標示預估時間與距離，紅色表示單段超過 ${Trip.model.formatDuration(info.max).replace('約 ', '')}。${esc(info.factorNote)}，實際請以導航為準，可點標記開啟導航。`
+            : '標記數字與左邊行程的編號相同（無數字的圓點為不列入行程的起點）；連線僅為順序示意，實際道路請點標記後開啟導航。';
         const stayPlace = day.stay && places[day.stay.place];
         const stayButton = stayPlace && stayPlace.infoType
             ? `<button type="button" class="map-stay-button" data-place="${esc(day.stay.place)}" aria-label="查看${esc(stayPlace.name)}的住宿資訊與導航"><i class="fa-solid fa-bed"></i><span>今日住宿：${esc(stayPlace.name)}</span><i class="fa-solid fa-chevron-right"></i></button>`
@@ -35,7 +66,7 @@
         ${Object.values(MAP_TYPES).map(item => `<span><i style="background:${item.color}"></i>${item.label}</span>`).join('')}
     </div>
     <div id="day-map-${day.day}" class="day-map" aria-label="第 ${day.day} 天互動行程地圖"></div>
-    <p class="mt-2 text-[10px] leading-relaxed text-slate-500">標記數字與左邊行程的編號相同（無數字的圓點為不列入行程的起點）；連線僅為順序示意，實際道路請點標記後開啟導航。</p>
+    <p class="mt-2 text-[10px] leading-relaxed text-slate-500">${note}</p>
 </aside>`;
     };
 
@@ -51,7 +82,42 @@
         });
     }
 
-    function renderDayMap(mapElement, day, points) {
+    // 路段中間的「時間・距離」標示（不攔截點擊，標記仍可點）
+    // 時間一律標示「預估」與係數（短形式可見，完整說明放 title）
+    function createLegLabel(text, over, info) {
+        const esc = Trip.blocks.esc;
+        return L.divIcon({
+            className: 'map-leg-label-icon',
+            html: `<div class="map-leg-label${over ? ' map-leg-label-over' : ''}" title="${esc(info.factorNote)}">${esc(text)} <span class="map-leg-factor">預估 ×${esc(info.factor)}</span></div>`,
+            iconSize: [0, 0]
+        });
+    }
+
+    // 畫路線：有快取的段落畫道路路線（geo 還沒載入或沒有該段時退回虛線），並在中點標示時間距離；
+    // 完全沒有快取時維持原本的單一灰色虛線。可重複呼叫（geo 載入完成後重畫）。
+    function drawRoutes(group, day, points, info, geo) {
+        group.clearLayers();
+        const dashed = { color: '#475569', weight: 3, opacity: .65, dashArray: '7 7' };
+        if (!info) {
+            const routePoints = points.filter(point => !point.excludeFromRoute).map(point => [point.lat, point.lng]);
+            if (day.closeLoop && routePoints.length > 1) routePoints.push(routePoints[0]);
+            L.polyline(routePoints, dashed).addTo(group);
+            return;
+        }
+        info.legs.forEach(item => {
+            const { leg } = item;
+            const line = item.cached && geo && geo[leg.key] ? Trip.routeView.decodePolyline(geo[leg.key]) : [];
+            const color = item.over ? OVER_COLOR : ROAD_COLOR;
+            if (line.length > 1) L.polyline(line, { color, weight: 4, opacity: .85 }).addTo(group);
+            else L.polyline([[leg.from.lat, leg.from.lng], [leg.to.lat, leg.to.lng]], item.over ? { ...dashed, color: OVER_COLOR, opacity: .85 } : dashed).addTo(group);
+            if (item.cached) {
+                const at = Trip.routeView.midpoint(line, leg.from, leg.to);
+                L.marker(at, { icon: createLegLabel(item.text, item.over, info), interactive: false, keyboard: false, zIndexOffset: -500 }).addTo(group);
+            }
+        });
+    }
+
+    function renderDayMap(mapElement, day, points, info) {
         const esc = Trip.blocks.esc;
         const map = L.map(mapElement, { scrollWheelZoom: false, tap: true });
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -72,9 +138,10 @@
                 .bindPopup(`<div class="map-popup-name">${numberPrefix}${esc(point.name)}</div>${addressLine}${navLink}`);
         });
 
-        const routePoints = points.filter(point => !point.excludeFromRoute).map(point => [point.lat, point.lng]);
-        if (day.closeLoop && routePoints.length > 1) routePoints.push(routePoints[0]);
-        L.polyline(routePoints, { color: '#475569', weight: 3, opacity: .65, dashArray: '7 7' }).addTo(map);
+        const routeLayer = L.layerGroup().addTo(map);
+        drawRoutes(routeLayer, day, points, info, root.TRIP_ROUTES_GEO);
+        // 載入失敗就維持現狀（虛線與中點標示），不顯示任何錯誤
+        if (info && !root.TRIP_ROUTES_GEO) loadGeo().then(geo => drawRoutes(routeLayer, day, points, info, geo)).catch(() => {});
         map.fitBounds(bounds, { padding: [28, 28], maxZoom: 13 });
         L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
         setTimeout(() => map.invalidateSize(), 0);
@@ -82,7 +149,7 @@
     }
 
     // 綁定某一天的「展開地圖」按鈕
-    Trip.bindDayMap = function (dayEl, day, places) {
+    Trip.bindDayMap = function (dayEl, day, places, routeCtx) {
         const toggleButton = dayEl.querySelector('.map-toggle-button');
         const mapPanel = dayEl.querySelector('.day-map-panel');
         const layout = dayEl.querySelector('.day-body-grid');
@@ -107,7 +174,7 @@
             if (willExpand) {
                 requestAnimationFrame(() => {
                     if (!leafletMap) {
-                        leafletMap = renderDayMap(mapElement, day, points);
+                        leafletMap = renderDayMap(mapElement, day, points, dayRouteInfo(day, places, routeCtx));
                     } else {
                         leafletMap.invalidateSize();
                     }

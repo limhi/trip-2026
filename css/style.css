@@ -173,6 +173,33 @@ body.modal-open { overflow: hidden; }
     font-weight: 800;
     text-decoration: none;
 }
+.map-leg-label-icon {
+    width: 0;
+    height: 0;
+    overflow: visible;
+    pointer-events: none;
+}
+.map-leg-label {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    padding: .1rem .4rem;
+    border: 1px solid #94a3b8;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .92);
+    color: #334155;
+    font: 800 10px/1.4 'Noto Sans TC', sans-serif;
+    white-space: nowrap;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, .25);
+}
+.map-leg-factor {
+    font-weight: 500;
+    color: #64748b;
+}
+.map-leg-label-over {
+    border-color: #dc2626;
+    background: #fef2f2;
+    color: #b91c1c;
+}
 @media (min-width: 1024px) {
     .day-body-grid.map-expanded {
         grid-template-columns: minmax(0, 3fr) minmax(340px, 2fr);

@@ -5,7 +5,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 
 const repoRoot = path.resolve(__dirname, '..', '..');
-const SKIP = new Set(['.git', '.scratch', 'node_modules']);
+const SKIP = new Set(['.git', '.scratch', '.claude', 'node_modules']);
 
 function makeRepoCopy() {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'trip-editor-'));

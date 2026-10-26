@@ -16,17 +16,39 @@ const TARGETS = [
 
 const render = (name, data) => `${HEADER}window.${name} = ${JSON.stringify(data, null, 4)};\n`;
 
-// 由記憶體中的資料 { trip, places } 產生 { 'data/trip.js': 內容, … }（不寫檔）
+// 路線快取 data/routes.json（結構見 docs/DESIGN.md 第 15.2 節）。
+// 它不在 TARGETS 裡：編輯器的 trip／places 存檔與 mtime 檢查不涉及它。
+const ROUTES_JSON = 'data/routes.json';
+
+// 由路線快取 { profile, legs: { key: { distance, duration, geometry, … } } } 產生兩個檔（不寫檔）：
+//   data/routes.js     window.TRIP_ROUTES = { legs: { key: { distance, duration } } }（小，首頁載入）
+//   data/routes-geo.js window.TRIP_ROUTES_GEO = { key: geometry }（大，第一次展開地圖才載入）
+function buildRoutes(routes) {
+    const keys = Object.keys(routes.legs).sort();
+    const legs = {}, geo = {};
+    for (const k of keys) {
+        legs[k] = { distance: routes.legs[k].distance, duration: routes.legs[k].duration };
+        geo[k] = routes.legs[k].geometry;
+    }
+    return {
+        'data/routes.js': render('TRIP_ROUTES', { legs }),
+        'data/routes-geo.js': render('TRIP_ROUTES_GEO', geo)
+    };
+}
+
+// 由記憶體中的資料 { trip, places[, routes] } 產生 { 'data/trip.js': 內容, … }（不寫檔）；有給 routes 才產生路線檔
 function buildFrom(data) {
     const out = {};
     for (const t of TARGETS) out[t.js] = render(t.name, data[t.key]);
+    if (data.routes) Object.assign(out, buildRoutes(data.routes));
     return out;
 }
 
-// 由 root 底下的 JSON 產生（不寫檔）
+// 由 root 底下的 JSON 產生（不寫檔），含 data/routes.json
 function build(root = defaultRoot) {
     const data = {};
     for (const t of TARGETS) data[t.key] = JSON.parse(fs.readFileSync(path.join(root, t.json), 'utf8'));
+    data.routes = JSON.parse(fs.readFileSync(path.join(root, ROUTES_JSON), 'utf8'));
     return buildFrom(data);
 }
 
@@ -52,6 +74,6 @@ function write(root = defaultRoot) {
     return Object.keys(out);
 }
 
-module.exports = { render, build, buildFrom, writeAtomic, HEADER, TARGETS };
+module.exports = { render, build, buildFrom, buildRoutes, writeAtomic, HEADER, TARGETS, ROUTES_JSON };
 
 if (require.main === module) write().forEach(f => console.log('產生', f));
