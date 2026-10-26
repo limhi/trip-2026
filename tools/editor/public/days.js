@@ -46,6 +46,7 @@
                 ${f('住宿備註', 'stay.note')}${f('沒有住宿時：圖示', 'badge.icon')}${f('沒有住宿時：文字', 'badge.text')}
                 <label class="block"><span class="text-xs text-slate-500">主題</span><select data-df="theme" class="mt-0.5 w-full rounded border p-1.5"><option value="">藍（預設）</option><option value="end" ${day.theme === 'end' ? 'selected' : ''}>綠（最後一天）</option></select></label>
                 <label class="flex items-end gap-2 pb-1.5"><input type="checkbox" data-df="closeLoop" ${day.closeLoop ? 'checked' : ''}> 地圖路線連回起點</label>
+                <label class="block"><span class="text-xs text-slate-500">路況係數（空白＝用預設 ×${esc(M.getTrafficFactor({}, draft().trip.site))}）</span><input data-df="trafficFactor" inputmode="decimal" value="${esc(day.trafficFactor)}" class="mt-0.5 w-full rounded border p-1.5"></label>
             </div>`;
         }
 
@@ -82,6 +83,7 @@
                             ${meta.fields.map(f => fieldHtml(f, it)).join('')}
                             ${bad ? `<ul class="col-span-2 list-disc pl-5 text-xs text-rose-600">${errs.map(e => `<li>${esc(e)}</li>`).join('')}</ul>` : ''}
                         </div>` : ''}
+                        ${ctx.legHtml ? `<div data-legslot data-di="${di}" data-ii="${ii}">${ctx.legHtml(di, ii)}</div>` : ''}
                     </div>`;
                 }).join('') : '';
                 return `<section class="border-b-4 border-slate-200" data-day="${di}">
@@ -92,6 +94,7 @@
                             <span class="min-w-0 truncate">${esc(day.title)}</span>
                             <span class="shrink-0 rounded bg-white px-1.5 text-xs text-slate-500">${day.items.length} 項</span>
                             ${dayErrs.length ? `<span class="shrink-0 rounded bg-rose-100 px-1.5 text-xs text-rose-700">⚠ ${dayErrs.length}</span>` : ''}
+                            ${ctx.dayHeadHtml ? `<span data-dayroute data-di="${di}" class="contents">${ctx.dayHeadHtml(di)}</span>` : ''}
                         </button>
                         <button data-act="daycfg" class="rounded border bg-white px-2 py-0.5 text-xs">日設定</button>
                     </div>
@@ -185,7 +188,11 @@
             const dayCfg = el.closest('[data-di]');
             if (el.dataset.df && dayCfg) {
                 const day = days[+dayCfg.dataset.di];
-                const value = el.type === 'checkbox' ? (el.checked ? true : '') : el.value;
+                let value = el.type === 'checkbox' ? (el.checked ? true : '') : el.value;
+                if (el.dataset.df === 'trafficFactor') {   // 數字欄位：空白＝刪除；打到一半不是數字就先忽略
+                    value = value.trim() === '' ? '' : Number(value);
+                    if (Number.isNaN(value)) return;
+                }
                 L.setPath(day, el.dataset.df, value);
                 return committed ? rerender() : ctx.changed();
             }
