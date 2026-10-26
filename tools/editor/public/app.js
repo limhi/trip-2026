@@ -67,6 +67,10 @@ routes = EditorRoutes.create({
     onComputed: () => preview.sendDraft({ trip: state.data.trip, places: state.data.places })
 });
 
+const places = PlacesTab.create($('pane-places'), { data: () => state.data, changed, toast });
+
+const hotels = HotelsTab.create($('pane-hotels'), { data: () => state.data, changed, toast });
+
 async function load() {
     showNotice('');
     try {
@@ -74,8 +78,11 @@ async function load() {
         state.saved = snapshot();
         days.reset();
         routes.reset();
+        places.reset();
         changed();
         days.render();
+        places.render();
+        hotels.render();
     } catch (e) {
         showNotice(`載入失敗：${e.message}`);
     }
@@ -96,7 +103,13 @@ async function save() {
 
 $('tabs').addEventListener('click', e => {
     const b = e.target.closest('[data-tab]');
-    if (b) { state.tab = b.dataset.tab; renderChrome(); }
+    if (b) {
+        state.tab = b.dataset.tab; renderChrome();
+        // 另一個分頁可能改了地點（名稱、id），切過去時重畫
+        if (state.data && state.tab === 'days') days.render();
+        if (state.data && state.tab === 'places') places.render();
+        if (state.data && state.tab === 'hotels') hotels.render();
+    }
 });
 $('errbar').addEventListener('click', e => {
     if (e.target.closest('[data-act="errtoggle"]')) { state.errOpen = !state.errOpen; renderChrome(); }
