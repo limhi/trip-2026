@@ -48,6 +48,7 @@ function createServer({ root }) {
                 try { body = JSON.parse(await readBody(req)); } catch (e) { if (e.status) throw e; throw store.httpError(400, '請求不是有效的 JSON'); }
                 return send(res, 200, store.save(root, body));
             }
+            if (pathname === '/lib/model.js' && req.method === 'GET') return send(res, 200, fs.readFileSync(path.join(root, 'js', 'model.js')), TYPES['.js']);
             if (req.method === 'GET' && !pathname.startsWith('/api/')) return serveStatic(res, pathname);
             send(res, 404, { error: '找不到' });
         } catch (e) {

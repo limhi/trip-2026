@@ -1,12 +1,19 @@
-// 編輯器前端（最小版）：載入、存檔、衝突提示
+// 編輯器前端：載入、存檔、衝突提示、分頁、驗證錯誤列。
+// 草稿 = state.data.trip / state.data.places（就地修改）；saved 是最近一次載入或存檔的快照，用來判斷有沒有未存檔修改。
+// 每次草稿變動會在 document 發出 'draftchange' 事件（detail = { trip, places }），給預覽等功能使用。
 const $ = id => document.getElementById(id);
-const state = { data: null };
+const M = window.Trip.model;
+const state = { data: null, saved: '', errors: [], tab: 'days', errOpen: false };
 
-const setStatus = text => {
-    $('status').textContent = text;
-    $('save').disabled = !state.data;
-};
-const showNotice = msg => { $('notice').textContent = msg || ''; $('notice').classList.toggle('show', !!msg); };
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const snapshot = () => JSON.stringify({ trip: state.data.trip, places: state.data.places });
+const dirty = () => !!state.data && snapshot() !== state.saved;
+
+function toast(msg) {
+    const t = $('toast'); t.textContent = msg; t.classList.remove('hidden');
+    clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.add('hidden'), 2600);
+}
+const showNotice = msg => { $('notice').textContent = msg || ''; $('notice').classList.toggle('hidden', !msg); };
 
 async function api(method, body) {
     const r = await fetch('/api/data', { method, headers: { 'content-type': 'application/json' }, body: body && JSON.stringify(body) });
@@ -15,15 +22,40 @@ async function api(method, body) {
     return json;
 }
 
+function renderChrome() {
+    const status = $('status');
+    if (!state.data) { status.textContent = '載入中…'; status.className = 'text-xs'; }
+    else if (dirty()) { status.textContent = '● 有未存檔的修改'; status.className = 'text-xs font-bold text-amber-300'; }
+    else { status.textContent = '已存檔（與磁碟相同）'; status.className = 'text-xs text-emerald-300'; }
+    $('save').disabled = !dirty();
+    document.querySelectorAll('#tabs button').forEach(b => {
+        b.className = 'px-4 py-2 ' + (b.dataset.tab === state.tab ? 'border-b-2 border-blue-600 bg-white text-blue-700' : 'text-slate-500');
+    });
+    ['days', 'places', 'hotels'].forEach(t => $('pane-' + t).classList.toggle('hidden', t !== state.tab));
+    const bar = $('errbar'), errors = state.errors;
+    if (!state.data) bar.innerHTML = '';
+    else if (!errors.length) bar.innerHTML = '<div class="border-b bg-emerald-50 px-3 py-1 text-xs text-emerald-700">✓ 資料驗證通過（與公開頁面的紅色提示列同一套 validate）</div>';
+    else bar.innerHTML = `<div class="border-b bg-rose-50 px-3 py-1 text-xs text-rose-700"><button data-act="errtoggle" class="font-bold">⚠ ${errors.length} 個問題（發布會被擋下，仍可存檔）${state.errOpen ? '▲' : '▼'}</button>${state.errOpen ? '<ul class="mt-1 list-disc pl-5">' + errors.map(e => `<li>${esc(e)}</li>`).join('') + '</ul>' : ''}</div>`;
+}
+
+// 草稿有變動：重新驗證、更新外框、通知預覽
+function changed() {
+    state.errors = M.validate(state.data.trip, state.data.places);
+    renderChrome();
+    document.dispatchEvent(new CustomEvent('draftchange', { detail: { trip: state.data.trip, places: state.data.places } }));
+}
+
+const days = DaysTab.create($('pane-days'), { data: () => state.data, errors: () => state.errors, changed, toast });
+
 async function load() {
     showNotice('');
     try {
         state.data = await api('GET');
-        const { trip, places } = state.data;
-        $('main').textContent = `${trip.days.length} 天、${Object.keys(places).length} 個地點（版本 ${trip.site.version.number}）`;
-        setStatus('已載入');
+        state.saved = snapshot();
+        days.reset();
+        changed();
+        days.render();
     } catch (e) {
-        setStatus('載入失敗');
         showNotice(`載入失敗：${e.message}`);
     }
 }
@@ -32,13 +64,27 @@ async function save() {
     try {
         const res = await api('PUT', state.data);
         state.data.mtimes = res.mtimes;
+        state.saved = snapshot();
         showNotice('');
-        setStatus('已存檔');
+        renderChrome();
+        toast('已存檔');
     } catch (e) {
-        showNotice(e.status === 409 ? `存檔被拒絕：${e.message}。你的修改沒有寫入，請按「重新載入」。` : `存檔失敗：${e.message}`);
+        showNotice(e.status === 409 ? `存檔被拒絕：${e.message}。你的修改沒有寫入，請按「重新載入」（會丟掉未存檔的修改）。` : `存檔失敗：${e.message}`);
     }
 }
 
-$('reload').onclick = load;
+$('tabs').addEventListener('click', e => {
+    const b = e.target.closest('[data-tab]');
+    if (b) { state.tab = b.dataset.tab; renderChrome(); }
+});
+$('errbar').addEventListener('click', e => {
+    if (e.target.closest('[data-act="errtoggle"]')) { state.errOpen = !state.errOpen; renderChrome(); }
+});
+$('reload').onclick = () => {
+    if (dirty() && !confirm('有未存檔的修改，重新載入會全部丟掉。確定嗎？')) return;
+    load();
+};
 $('save').onclick = save;
+window.addEventListener('beforeunload', e => { if (dirty()) { e.preventDefault(); e.returnValue = ''; } });
+renderChrome();
 load();
