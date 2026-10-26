@@ -56,7 +56,20 @@ document.querySelectorAll('[data-width]').forEach(b => {
 });
 preview.start();
 
-const days = DaysTab.create($('pane-days'), { data: () => state.data, errors: () => state.errors, changed, toast, onDayOpen: n => preview.scrollToDay(n) });
+let routes = null;   // 路線功能（routes.js）；days 先建立，所以用延後綁定
+const days = DaysTab.create($('pane-days'), {
+    data: () => state.data, errors: () => state.errors, changed, toast, onDayOpen: n => preview.scrollToDay(n),
+    legHtml: (di, ii) => (routes ? routes.legHtml(di, ii) : ''),
+    dayHeadHtml: di => (routes ? routes.dayHeadHtml(di) : '')
+});
+routes = EditorRoutes.create({
+    pane: $('pane-days'), bar: $('routebar'), data: () => state.data, changed,
+    onComputed: () => preview.sendDraft({ trip: state.data.trip, places: state.data.places })
+});
+
+const places = PlacesTab.create($('pane-places'), { data: () => state.data, changed, toast });
+
+const hotels = HotelsTab.create($('pane-hotels'), { data: () => state.data, changed, toast });
 
 async function load() {
     showNotice('');
@@ -64,8 +77,12 @@ async function load() {
         state.data = await api('GET');
         state.saved = snapshot();
         days.reset();
+        routes.reset();
+        places.reset();
         changed();
         days.render();
+        places.render();
+        hotels.render();
     } catch (e) {
         showNotice(`載入失敗：${e.message}`);
     }
@@ -86,7 +103,13 @@ async function save() {
 
 $('tabs').addEventListener('click', e => {
     const b = e.target.closest('[data-tab]');
-    if (b) { state.tab = b.dataset.tab; renderChrome(); }
+    if (b) {
+        state.tab = b.dataset.tab; renderChrome();
+        // 另一個分頁可能改了地點（名稱、id），切過去時重畫
+        if (state.data && state.tab === 'days') days.render();
+        if (state.data && state.tab === 'places') places.render();
+        if (state.data && state.tab === 'hotels') hotels.render();
+    }
 });
 $('errbar').addEventListener('click', e => {
     if (e.target.closest('[data-act="errtoggle"]')) { state.errOpen = !state.errOpen; renderChrome(); }
