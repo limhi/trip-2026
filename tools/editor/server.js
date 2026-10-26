@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const store = require('./store');
+const { createPreview } = require('./preview');
 
 const PUBLIC = path.join(__dirname, 'public');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
@@ -36,18 +37,28 @@ function serveStatic(res, pathname) {
     send(res, 200, fs.readFileSync(file), TYPES[path.extname(file)] || 'application/octet-stream');
 }
 
+const parseJson = async req => {
+    try { return JSON.parse(await readBody(req)); } catch (e) { if (e.status) throw e; throw store.httpError(400, '請求不是有效的 JSON'); }
+};
+
 function createServer({ root }) {
+    const preview = createPreview({ root });
     return http.createServer(async (req, res) => {
         try {
             // 只接受本機位址的 Host，避免網頁透過 DNS rebinding 打到編輯器
             if (!/^(127\.0\.0\.1|localhost)(:\d+)?$/.test(req.headers.host || '')) return send(res, 403, { error: 'Host 不允許' });
             const { pathname } = new URL(req.url, 'http://localhost');
             if (pathname === '/api/data' && req.method === 'GET') return send(res, 200, store.load(root));
-            if (pathname === '/api/data' && req.method === 'PUT') {
-                let body;
-                try { body = JSON.parse(await readBody(req)); } catch (e) { if (e.status) throw e; throw store.httpError(400, '請求不是有效的 JSON'); }
-                return send(res, 200, store.save(root, body));
+            if (pathname === '/api/data' && req.method === 'PUT') return send(res, 200, store.save(root, await parseJson(req)));
+            if (pathname === '/api/draft' && req.method === 'POST') {
+                preview.setDraft(await parseJson(req));
+                return send(res, 200, { ok: true });
             }
+            if (pathname.startsWith('/preview/') && req.method === 'GET') {
+                const file = preview.resolve(pathname.slice('/preview'.length));
+                return file ? send(res, 200, file.body, file.type) : send(res, 404, { error: '找不到' });
+            }
+            if (pathname === '/lib/model.js' && req.method === 'GET') return send(res, 200, fs.readFileSync(path.join(root, 'js', 'model.js')), TYPES['.js']);
             if (req.method === 'GET' && !pathname.startsWith('/api/')) return serveStatic(res, pathname);
             send(res, 404, { error: '找不到' });
         } catch (e) {
