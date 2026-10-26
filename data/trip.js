@@ -19,7 +19,11 @@ window.TRIP = {
                 "tone": "emerald"
             }
         ],
-        "footer": "© 2026 親子順時針環島行程規劃 | 祝您與家人旅途愉快！"
+        "footer": "© 2026 親子順時針環島行程規劃 | 祝您與家人旅途愉快！",
+        "routing": {
+            "trafficFactor": 1.25,
+            "maxLegMinutes": 180
+        }
     },
     "hero": {
         "dateBadge": "2026/11/15(日) – 11/20(五) 6天5夜",
