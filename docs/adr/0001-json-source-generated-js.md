@@ -1,6 +1,6 @@
 # 0001 資料來源改為 JSON，並產生 `data/*.js`
 
-日期：2026-10-26｜狀態：已決定（尚未實作）
+日期：2026-10-26｜狀態：已決定，已實作（2026-10-26）
 
 ## 背景
 
@@ -12,8 +12,8 @@
 
 - 資料來源是 `data/trip.json`、`data/places.json`，介面與 Claude 都改這兩個檔。
 - `tools/build-data.js` 由 JSON 產生 `data/trip.js`、`data/places.js`，產生檔要 commit。
-- 公開頁面程式（`js/`、`index.html`）除資料載入外不動，仍是零建置，仍可雙擊開啟。
-- `tools/check.js` 檢查產生檔與 JSON 同步。
+- 公開頁面程式（`js/`、`index.html`）除資料載入外不動，仍是零建置，仍可雙擊開啟。路線功能是例外（見 0004）：另有 `data/routes.json` 產生 `data/routes.js`、`data/routes-geo.js`，`js/` 也為此做了修改。
+- `tools/check.js` 檢查產生檔與 JSON 同步（含路線檔）。
 
 ## 後果
 
