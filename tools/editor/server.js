@@ -8,6 +8,7 @@ const path = require('path');
 const http = require('http');
 const store = require('./store');
 const { createPreview } = require('./preview');
+const publisher = require('./publish');
 
 const PUBLIC = path.join(__dirname, 'public');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
@@ -50,6 +51,8 @@ function createServer({ root }) {
             const { pathname } = new URL(req.url, 'http://localhost');
             if (pathname === '/api/data' && req.method === 'GET') return send(res, 200, store.load(root));
             if (pathname === '/api/data' && req.method === 'PUT') return send(res, 200, store.save(root, await parseJson(req)));
+            if (pathname === '/api/publish/plan' && req.method === 'GET') return send(res, 200, publisher.plan(root));
+            if (pathname === '/api/publish' && req.method === 'POST') return send(res, 200, publisher.publish(root, await parseJson(req)));
             if (pathname === '/api/draft' && req.method === 'POST') {
                 preview.setDraft(await parseJson(req));
                 return send(res, 200, { ok: true });
@@ -62,7 +65,7 @@ function createServer({ root }) {
             if (req.method === 'GET' && !pathname.startsWith('/api/')) return serveStatic(res, pathname);
             send(res, 404, { error: '找不到' });
         } catch (e) {
-            send(res, e.status || 500, { error: e.message });
+            send(res, e.status || 500, { error: e.message, ...(e.steps && { steps: e.steps }) });
         }
     });
 }

@@ -62,6 +62,9 @@ const places = PlacesTab.create($('pane-places'), { data: () => state.data, chan
 
 const hotels = HotelsTab.create($('pane-hotels'), { data: () => state.data, changed, toast });
 
+const publishDialog = PublishDialog.create({ modal: $('modal'), body: $('modal-body'), state: () => state, dirty, reload: load });
+$('publish').onclick = () => publishDialog.show();
+
 async function load() {
     showNotice('');
     try {
