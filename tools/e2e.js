@@ -253,7 +253,7 @@ async function guard(label, fn) {
         kind: l.kind, n: l.kind === 'polyline' ? l.a.length : 0, dashed: !!(l.o && l.o.dashArray), color: l.o && l.o.color,
         html: l.kind === 'label' ? l.o.icon.html : ''
     })));
-    const waitSolid = p => p.waitForFunction(() => window.__map.group && window.__map.group.layers.some(l => l.kind === 'polyline' && !(l.o && l.o.dashArray)), null, { timeout: 4000 }).catch(() => {});
+    const waitSolid = p => p.waitForFunction(() => window.__map.group && window.__map.group !== window.__prevGroup && window.__map.group.layers.some(l => l.kind === 'polyline' && !(l.o && l.o.dashArray)), null, { timeout: 4000 }).catch(() => {});
 
     await guard('T8', async () => {
         check('T8 假快取有效：有一段超過門檻、有一天缺一段、有需要補連接列的路段',
@@ -290,6 +290,7 @@ async function guard(label, fn) {
         for (let di = 0; di < TRIP.days.length; di++) {
             const day = TRIP.days[di], legs = dayLegs[di];
             const cached = legs.filter(l => fakeLegs[l.key]);
+            await p.evaluate(() => { window.__prevGroup = window.__map.group; });
             await p.locator(`#day-${day.day} .map-toggle-button`).click();
             if (cached.length) {
                 await waitSolid(p);
@@ -357,7 +358,7 @@ async function guard(label, fn) {
         const p = await newPage();
         await p.route('**/data/trip.js', async route => {
             const res = await route.fetch();
-            await route.fulfill({ response: res, body: (await res.text()).replace("place: 'qixingtan'", "place: 'qixingtann'") });
+            await route.fulfill({ response: res, body: (await res.text()).replace(/(["']?place["']?\s*:\s*["'])qixingtan(["'])/, '$1qixingtann$2') });
         });
         await openIndex(p);
         const banner = await p.evaluate(() => { const b = document.querySelector('body > div.bg-rose-600'); return b ? b.textContent : ''; });
