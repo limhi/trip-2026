@@ -78,25 +78,28 @@ test('legKey：相同座標得到相同 key，只取 5 位小數', () => {
     assert.notEqual(model.legKey({ lat: 24.6718, lng: 121.804 }, { lat: 24.9722, lng: 121.4433 }), a);
 });
 
-test('真實資料：6 天的路段與交通列綁定', () => {
-    const expected = {
-        1: [[0, 2, 'tucheng-start', 'crayon-castle', 1, false], [2, 3, 'crayon-castle', 'mackerel-factory', null, true],
-            [3, 4, 'mackerel-factory', 'yilan-cake-museum', null, true], [4, 5, 'yilan-cake-museum', 'tofu-cape', null, true],
-            [5, 6, 'tofu-cape', 'tianxin-bnb', null, true]],
-        2: [[0, 2, 'tianxin-bnb', 'zhangmei-farm', 1, false], [2, 4, 'zhangmei-farm', 'qingshui-geothermal', 3, false],
-            [4, 6, 'qingshui-geothermal', 'nanao-rest', 5, false], [6, 8, 'nanao-rest', 'qixingtan', 7, false],
-            [8, 10, 'qixingtan', 'tongle-bnb', 9, false]],
-        3: [[0, 2, 'tongle-bnb', 'farglory-oceanpark', 1, false], [2, 0, 'farglory-oceanpark', 'tongle-bnb', null, false]],
-        4: [[0, 2, 'tongle-bnb', 'hz52-diner', null, true], [2, 3, 'hz52-diner', 'general-mansion', null, true],
-            [3, 4, 'general-mansion', 'egg-pancake-cart', null, true], [4, 5, 'egg-pancake-cart', 'greener-bnb', null, true]],
-        5: [[0, 3, 'tongle-bnb', 'chishang-bento', 2, false], [3, 4, 'chishang-bento', 'brown-boulevard', null, true],
-            [4, 6, 'brown-boulevard', 'duoliang-rest', null, true], [6, 7, 'duoliang-rest', 'pingtung-farmhouse', null, true],
-            [7, 8, 'pingtung-farmhouse', 'pingtung-night-market', null, true]],
-        6: [[0, 1, 'pingtung-farmhouse', 'ligang-cemetery', null, true], [1, 2, 'ligang-cemetery', 'wenfu-pork', null, true],
-            [2, 4, 'wenfu-pork', 'taichung-end', 3, false]]
+// 固定的測試行程：形狀仿照真實行程（起點加交通列、沒有交通列的相鄰景點、closeLoop 加 map:false 的返程住宿、
+// 備案、多個交通列），但不讀 data/，所以改行程不會讓它壞掉
+test('固定行程：各種形狀的路段與交通列綁定', () => {
+    const places = { ...P, d: { lat: 24.4, lng: 121.4 }, e: { lat: 24.5, lng: 121.5 }, h: { lat: 24.6, lng: 121.6 }, k: { lat: 24.7, lng: 121.7 } };
+    const wp = (id, extra) => ({ type: 'waypoint', place: id, ...extra });
+    const days = {
+        // 起點的交通列綁定第一段；之後相鄰景點之間沒有交通列
+        A: { items: [wp('a'), { type: 'drive' }, place('b'), { type: 'meal', place: 'c' }, place('d'), { type: 'stay', place: 'h' }] },
+        // closeLoop：返程住宿 map:false 不算標記，回程段不綁定任何列
+        B: { closeLoop: true, items: [wp('h'), { type: 'drive' }, place('b'), { type: 'move' }, { type: 'stay', place: 'h', map: false }] },
+        // 提醒卡片不算交通列；備案不算標記；兩個交通列之間不綁定
+        C: { items: [wp('h'), { type: 'notice', title: 'n' }, place('b'), wp('k', { backup: true }), { type: 'drive' }, { type: 'drive' }, { type: 'brief', place: 'e' }] },
+        // 只有一個有座標的標記
+        D: { items: [place('a'), place('nocoord')] }
     };
-    assert.equal(TRIP.days.length, 6);
-    for (const day of TRIP.days) assert.deepEqual(summary(model.getLegs(day, PLACES)), expected[day.day], `DAY ${day.day}`);
+    const expected = {
+        A: [[0, 2, 'a', 'b', 1, false], [2, 3, 'b', 'c', null, true], [3, 4, 'c', 'd', null, true], [4, 5, 'd', 'h', null, true]],
+        B: [[0, 2, 'h', 'b', 1, false], [2, 0, 'b', 'h', null, false]],
+        C: [[0, 2, 'h', 'b', null, true], [2, 6, 'b', 'e', null, false]],
+        D: []
+    };
+    for (const [name, day] of Object.entries(days)) assert.deepEqual(summary(model.getLegs(day, places)), expected[name], `行程 ${name}`);
 });
 
 // ───────── 顯示時間與格式 ─────────
@@ -238,7 +241,8 @@ test('forEachPlaceRef：沒有 hotels 也不出錯', () => {
 // ───────── validate：路線設定 ─────────
 
 test('validate：真實資料（含 site.routing）沒有問題', () => {
-    assert.deepEqual(TRIP.site.routing, { trafficFactor: 1.25, maxLegMinutes: 180 });
+    const { trafficFactor, maxLegMinutes } = TRIP.site.routing;   // 只檢查型別，不寫死目前的設定值
+    assert.ok(trafficFactor > 0 && maxLegMinutes > 0);
     assert.deepEqual(model.validate(TRIP, PLACES), []);
 });
 
