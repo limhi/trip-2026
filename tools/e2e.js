@@ -357,7 +357,7 @@ async function guard(label, fn) {
         const p = await newPage();
         await p.route('**/data/trip.js', async route => {
             const res = await route.fetch();
-            await route.fulfill({ response: res, body: (await res.text()).replace("place: 'qixingtan'", "place: 'qixingtann'") });
+            await route.fulfill({ response: res, body: (await res.text()).replace(/(["']?place["']?\s*:\s*["'])qixingtan(["'])/, '$1qixingtann$2') });
         });
         await openIndex(p);
         const banner = await p.evaluate(() => { const b = document.querySelector('body > div.bg-rose-600'); return b ? b.textContent : ''; });
