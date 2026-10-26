@@ -1,5 +1,5 @@
 /*
- * 聯絡與導航彈窗：點擊有 data-place 的卡片時開啟，內容來自 data/places.js。
+ * 聯絡與導航彈窗：點擊有 data-place 的卡片時開啟，內容來自 data/places.json（網頁載入產生檔 places.js）。
  * 彈窗的 HTML 骨架在 index.html（#contact-modal）。
  */
 (function (root) {

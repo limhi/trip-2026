@@ -1,18 +1,30 @@
 # AGENTS.md
 
-2026/11/15–11/20 親子順時針環島行程網頁（純靜態，無建置步驟）。結構與常見調整方式見 `README.md`。
+2026/11/15–11/20 親子順時針環島行程網頁（純靜態網頁，沒有建置步驟；只有「由 JSON 產生資料檔」這一步，見下節）。結構與常見調整方式見 `README.md`，詞彙見 `GLOSSARY.md`，決策見 `docs/adr/`。
 
-## 發布流程（重要）
+## 怎麼改行程、怎麼發布（先讀這節）
+
+**資料來源是 `data/*.json`（`trip.json`、`places.json`、`routes.json`）。`data/trip.js`、`data/places.js`、`data/routes.js`、`data/routes-geo.js` 是 `tools/build-data.js` 產生的檔案，不要手改**（下次產生會被覆蓋，`check.js` 也會因為不同步而失敗）。
+
+兩種改法，結果相同：
+
+1. **使用者在編輯器改**：`node tools/editor/server.js`（`http://127.0.0.1:8780/`，只在本機）。存檔寫入 `data/*.json` 並產生 `data/*.js`；按「發布…」，在確認視窗按下「確認發布」＝使用者確認，編輯器自己跑檢查、把版本號小版 +1、commit、push 到 `main`（只能在 `main` 分支）。這時 Claude 不用另外 commit／push。
+2. **Claude 直接改 JSON**：改 `data/*.json` → 改 `data/trip.json` 的 `site.version`（版本與日期）→ `node tools/build-data.js` → `node tools/check.js` → commit／push：這次調整若還不是使用者確認過的，**先問使用者**；已確認的照下面的發布規則直接 push。
+   - 編輯器開著時，Claude 直接改了 JSON，編輯器存檔會因磁碟檔較新回 409 拒存（不會覆蓋）；請使用者按「重新載入」。
+   - **改了地點座標、或改了某天項目的順序／地點之後，路線快取要重算**，否則新路段沒有快取（`check.js` 只會警告「N 段沒有路線快取」，不會失敗）。重算方式：請使用者在編輯器路線列按「全部重算」再存檔；或 Claude 用 `tools/routing/provider.js` 的 `route(from, to)` 逐段呼叫（間隔至少 1 秒、不要平行、不要自動重試），再用 `tools/routing/cache.js` 的 `write` 寫回 `data/routes.json` 並產生 `data/routes*.js`。路段規則與快取格式見 `docs/DESIGN.md` 第 15 節。
+
+發布規則：
 
 - 使用者直接用**公開網頁**（GitHub Pages，發布 `main`：https://limhi.github.io/trip-2026/）檢視修改效果。
 - **使用者已確認的調整，一律直接 commit 並 push 到 `main`**，讓 Pages 儘快生效；**不要另開分支 PR**，避免小調整散落在沒合併的分支。若目前在 Claude 指定的工作分支上，commit 後執行 `git push origin HEAD:main`，並一併 push 該分支。
 - push 後用 `curl -s https://limhi.github.io/trip-2026/data/trip.js | grep "version:"` 確認線上版本號已更新（Pages 通常需 1–2 分鐘）。
-- 這項授權只涵蓋「使用者已確認」的調整，以及下面「查證與確認清單」中**有官方原文佐證**的更新；其餘沒有使用者決定的項目仍不要自行套用。
+- 行程編輯器的發布按鈕：在確認視窗按下「確認發布」＝使用者確認，編輯器會自行 commit 並 push 到 `main`。
+- 這項授權只涵蓋「使用者已確認」的調整、編輯器的發布按鈕，以及下面「查證與確認清單」中**有官方原文佐證**的更新；其餘沒有使用者決定的項目仍不要自行套用。
 
 ## 查證與確認清單
 
 - **公開確認清單**：`verify.md`（閱讀頁 `verify.html`，首頁頁尾有連結，開新分頁）。使用者會請人實際確認每一題，再用題號回覆（例如 `Q6-2`、`Q9-1 營業時間 11:00–14:30`）。
-- 收到題號回覆後：依答案更新 `data/places.js`／`data/trip.js` → 在 `verify.md` 把該題標成 ✅（記下答案與日期，或移到「已確認」區）→ 更新版本號 → 直接 push 到 `main` 並確認線上生效。
+- 收到題號回覆後：依答案更新 `data/places.json`／`data/trip.json`（再 `node tools/build-data.js`）→ 在 `verify.md` 把該題標成 ✅（記下答案與日期，或移到「已確認」區）→ 更新版本號 → 直接 push 到 `main` 並確認線上生效。
 - `verify.md` 由腳本一次產生，之後直接改 `verify.md` 即可；題號不要重編，新題接在最後。
 - **使用者授權加大查證**：對不確定的資訊，可主動查官方網頁（政府、營運單位、內政部國土測繪中心座標查詢等）。查到**明確、有官方原文**的結果就自行更新並發布，並列入 `verify.md` 的「已由 Claude 查證並更新」；仍不確定的才列成確認題目。只有部落格的資訊要標「遊記」並列入確認題目。
 - 套用官方更新時，把「網址、頁面日期、逐字原文」補進 `docs/RESEARCH-LOG.md`；引句要逐字，轉寫數字與條件要對照原文。
@@ -36,23 +48,28 @@
 
 | 想改的內容 | 檔案 |
 |---|---|
-| 每天行程順序、時間、說明、頁首、住宿區文案、版本號 | `data/trip.js` |
-| 地點的電話、LINE、官網、地址、座標、導航連結、交通與停車（`parking`） | `data/places.js` |
+| 每天行程順序、時間、說明、頁首、住宿區文案、版本號、路況係數與門檻（`site.routing`、`days[].trafficFactor`） | `data/trip.json`（或用編輯器） |
+| 地點的電話、LINE、官網、地址、座標、導航連結、交通與停車（`parking`） | `data/places.json`（或用編輯器） |
+| 路線快取（每段車程的原始距離、時間、路線座標） | `data/routes.json`；由編輯器寫入，不手改 |
+| 產生檔（網頁實際載入的資料） | `data/trip.js`、`data/places.js`、`data/routes.js`、`data/routes-geo.js`：**不手改**，`node tools/build-data.js` 產生 |
+| 行程編輯器（本機） | `tools/editor/`（`node tools/editor/server.js`）；設計見 `docs/DESIGN.md` 第 14 節 |
+| 路線計算服務與快取讀寫 | `tools/routing/`（`provider.js` 是 OSRM，要換服務只改它；`cache.js`）；規則見 `docs/DESIGN.md` 第 15 節 |
 | 區塊顏色與樣板 | `js/blocks.js` |
 | 公開確認清單（請人實際確認的題目） | `verify.md`（顯示頁 `verify.html`） |
 | 設計文件與待辦事項（接手用） | `docs/DESIGN.md`、`docs/TODO.md`（有重大變動或完成待辦就更新） |
 | 一鍵檢查 | `node tools/check.js`（只需 Node） |
+| 單元與編輯器 API 測試 | `node --test`（只需 Node） |
 | 瀏覽器端到端測試 | `node tools/e2e.js`（需要 Playwright，用法見 `docs/DESIGN.md` 第 10.2 節） |
 | 查證用：HTML 轉純文字 | `python3 -I tools/h2t.py in.html out.txt` |
 | 官方更新的逐字證據（新增更新時要補） | `docs/RESEARCH-LOG.md` |
 | 彈窗的景點攻略（區塊順序、預設展開） | `js/guides.js` 最上方的 `SECTIONS`；內容在 `reference/guides.js` |
-| 其餘功能 | `js/model.js`、`js/modal.js`、`js/map.js`、`js/render.js` |
+| 公開頁面其餘功能 | `js/model.js`（資料處理、路段與顯示時間）、`js/route-view.js`、`js/modal.js`、`js/map.js`、`js/render.js` |
 
 ## 工作規則
 
 - 所有文字檔使用 UTF-8（無 BOM）。修改含中文的檔案後，確認沒有 U+FFFD 與亂碼；不要因為終端機顯示亂碼就覆寫檔案。
-- 每次改動行程或地點資料，更新 `data/trip.js` 的 `site.version`（版本與日期）。
-- 修改後驗證：先跑 `node tools/check.js`（資料能載入且 `Trip.model.validate` 沒問題、攻略與確認清單一致、編碼正確）；動到功能（`js/`、`index.html`、`verify.html`、`css/`）再跑 `tools/e2e.js` 確認頁面沒有紅色提示列與 JS 錯誤（作法見 `docs/DESIGN.md` 第 10 節）。**commit 前要看檢查的結束碼，不要用 `cmd | tail && git commit`（會吃掉失敗狀態）。**
+- 每次改動行程或地點資料，更新 `data/trip.json` 的 `site.version`（版本與日期），再執行 `node tools/build-data.js`。用編輯器發布時版本號小版會自動 +1，不用手改。
+- 修改後驗證：先跑 `node tools/check.js`（`data/*.json` 與產生檔同步、資料能載入且 `Trip.model.validate` 沒問題、路線快取結構、攻略與確認清單一致、編碼正確）；改到 `js/`、`tools/` 再跑 `node --test`；動到功能（`js/`、`index.html`、`verify.html`、`css/`）再跑 `tools/e2e.js` 確認頁面沒有紅色提示列與 JS 錯誤（作法見 `docs/DESIGN.md` 第 10 節）。**commit 前要看檢查的結束碼，不要用 `cmd | tail && git commit`（會吃掉失敗狀態）。**
 - 完成 `docs/TODO.md` 裡的項目、或做了影響設計的改動，要同步更新那兩份文件，讓下一個接手的人看到的是現況。
 - 有不清楚的地方，先用編號條列跟使用者確認，選項也要編號。
 - 回報摘要預設使用繁體中文。

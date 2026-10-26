@@ -13,8 +13,8 @@
 <body class="bg-slate-100 text-slate-800 antialiased">
     <!--
         這個檔案只負責「頁面骨架」。內容都不寫在這裡：
-          行程、住宿、頁首文字 → data/trip.js
-          地點電話、地址、座標  → data/places.js
+          行程、住宿、頁首文字 → data/trip.json（網頁載入產生檔 trip.js）
+          地點電話、地址、座標  → data/places.json（網頁載入產生檔 places.js）
           區塊長相與顏色        → js/blocks.js
           自訂樣式              → css/style.css
         data-text / data-slot 的元素會由 js/render.js 填入內容。
@@ -123,8 +123,10 @@
     <!-- 資料（改行程只動這兩個） -->
     <script src="data/places.js"></script>
     <script src="data/trip.js"></script>
+    <script src="data/routes.js"></script>
     <!-- 功能（順序不可調換） -->
     <script src="js/model.js"></script>
+    <script src="js/route-view.js"></script>
     <script src="js/blocks.js"></script>
     <script src="js/modal.js"></script>
     <script src="js/map.js"></script>

@@ -1,0 +1,119 @@
+// node --test tools/route-view.test.js：公開頁面的路線顯示邏輯（js/route-view.js，純函式）
+const test = require('node:test');
+const assert = require('node:assert/strict');
+require('../js/model.js');
+const routeView = require('../js/route-view.js');
+
+const P = {
+    a: { name: 'A', lat: 24.1, lng: 121.1 },
+    b: { name: 'B', lat: 24.2, lng: 121.2 },
+    c: { name: 'C', lat: 24.3, lng: 121.3 }
+};
+const spot = id => ({ type: 'spot', place: id });
+const KEY_AB = '121.10000,24.10000>121.20000,24.20000';
+const KEY_BC = '121.20000,24.20000>121.30000,24.30000';
+const SITE = { routing: { trafficFactor: 1.25, maxLegMinutes: 180 } };
+const routes = legs => ({ legs });
+
+// ───────── decodePolyline ─────────
+
+test('decodePolyline：Google 官方範例（精度 5）還原成 [lat, lng]', () => {
+    const pts = routeView.decodePolyline('_p~iF~ps|U_ulLnnqC_mqNvxq`@');
+    assert.deepEqual(pts, [[38.5, -120.2], [40.7, -120.95], [43.252, -126.453]]);
+});
+
+test('decodePolyline：空字串或不是字串回空陣列', () => {
+    assert.deepEqual(routeView.decodePolyline(''), []);
+    assert.deepEqual(routeView.decodePolyline(undefined), []);
+});
+
+// ───────── dayRoutes ─────────
+
+test('dayRoutes：沒有快取（含 routes 為 undefined）時每段 cached 為 null，hasCache 為 false', () => {
+    const day = { items: [spot('a'), spot('b')] };
+    for (const r of [undefined, null, {}, routes({})]) {
+        const info = routeView.dayRoutes(day, P, r, SITE);
+        assert.equal(info.hasCache, false);
+        assert.equal(info.legs.length, 1);
+        assert.equal(info.legs[0].cached, null);
+        assert.equal(info.summary, null);
+    }
+});
+
+test('dayRoutes：有快取的段落算出顯示分鐘、文字、是否超過門檻', () => {
+    const day = { items: [spot('a'), spot('b'), spot('c')] };
+    const info = routeView.dayRoutes(day, P, routes({
+        [KEY_AB]: { distance: 75323, duration: 3900 },      // 65 分 × 1.25 = 81.25 → 81 分
+        [KEY_BC]: { distance: 200000, duration: 9000 }      // 150 分 × 1.25 = 187.5 → 188 分 > 180
+    }), SITE);
+    assert.equal(info.factor, 1.25);
+    assert.equal(info.hasCache, true);
+    assert.deepEqual(info.legs.map(l => [l.minutes, l.over]), [[81, false], [188, true]]);
+    assert.equal(info.legs[0].text, '約 1 小時 21 分・75.3 km');
+    assert.equal(info.factorNote, '預估・含路況緩衝 ×1.25');
+});
+
+test('dayRoutes：autoByRow（綁定的交通列）與 autoAfter（沒有交通列時補在前一項後面），只含有快取的路段', () => {
+    const day = { items: [spot('a'), { type: 'drive', time: '08:00 - 09:00', text: '開車' }, spot('b'), spot('c')] };
+    const info = routeView.dayRoutes(day, P, routes({
+        [KEY_AB]: { distance: 75323, duration: 3900 },
+        [KEY_BC]: { distance: 20000, duration: 1200 }
+    }), SITE);
+    assert.deepEqual(info.autoByRow, { 1: { text: '約 1 小時 21 分・75.3 km', note: '預估・含路況緩衝 ×1.25' } });
+    assert.deepEqual(info.autoAfter, { 2: { text: '約 25 分・20.0 km', note: '預估・含路況緩衝 ×1.25' } });
+    const none = routeView.dayRoutes(day, P, routes({}), SITE);
+    assert.deepEqual([none.autoByRow, none.autoAfter], [{}, {}]);
+});
+
+test('dayRoutes：剛好等於門檻不算超過', () => {
+    const day = { items: [spot('a'), spot('b')] };
+    // 144 分 × 1.25 = 180 分
+    const info = routeView.dayRoutes(day, P, routes({ [KEY_AB]: { distance: 1000, duration: 8640 } }), SITE);
+    assert.equal(info.legs[0].minutes, 180);
+    assert.equal(info.legs[0].over, false);
+});
+
+test('dayRoutes：day.trafficFactor 覆寫全域係數，site 沒設定時用預設值', () => {
+    const day = { items: [spot('a'), spot('b')], trafficFactor: 2 };
+    const cache = routes({ [KEY_AB]: { distance: 1000, duration: 6000 } });   // 100 分
+    assert.equal(routeView.dayRoutes(day, P, cache, SITE).legs[0].minutes, 200);
+    assert.equal(routeView.dayRoutes({ items: day.items }, P, cache, {}).legs[0].minutes, 125);
+    assert.equal(routeView.dayRoutes({ items: day.items }, P, cache, {}).max, 180);
+});
+
+test('dayRoutes：壞掉的快取項目（缺 duration 或不是數字）視為沒有快取', () => {
+    const day = { items: [spot('a'), spot('b')] };
+    const info = routeView.dayRoutes(day, P, routes({ [KEY_AB]: { distance: 'x' } }), SITE);
+    assert.equal(info.legs[0].cached, null);
+    assert.equal(info.hasCache, false);
+});
+
+test('dayRoutes：summary 加總有快取路段的顯示分鐘與里程；缺段時 missing > 0', () => {
+    const day = { items: [spot('a'), spot('b'), spot('c')] };
+    const full = routeView.dayRoutes(day, P, routes({
+        [KEY_AB]: { distance: 10000, duration: 3900 },
+        [KEY_BC]: { distance: 20000, duration: 3900 }
+    }), SITE);
+    assert.deepEqual(full.summary, { minutes: 162, meters: 30000, missing: 0 });
+    assert.equal(full.summaryText, '總車程 約 2 小時 42 分・總里程 30.0 km');
+    const partial = routeView.dayRoutes(day, P, routes({ [KEY_AB]: { distance: 10000, duration: 3900 } }), SITE);
+    assert.deepEqual(partial.summary, { minutes: 81, meters: 10000, missing: 1 });
+    assert.equal(partial.summaryText, '總車程 約 1 小時 21 分・總里程 10.0 km（部分路段未計算）');
+});
+
+test('dayRoutes：leg 帶有 rowIndex／needsRow／closeLoop，供綁定交通列與補連接列', () => {
+    const day = { closeLoop: true, items: [spot('a'), { type: 'drive', time: '1', text: 't' }, spot('b'), spot('c')] };
+    const info = routeView.dayRoutes(day, P, routes({}), SITE);
+    assert.deepEqual(info.legs.map(l => [l.leg.rowIndex, l.leg.needsRow, l.leg.closeLoop]),
+        [[1, false, false], [null, true, false], [null, false, true]]);
+});
+
+// ───────── midpoint ─────────
+
+test('midpoint：沒有路線座標時取起終點中點；有座標時取沿路線一半長度處', () => {
+    assert.deepEqual(routeView.midpoint(null, { lat: 24, lng: 121 }, { lat: 26, lng: 123 }), [25, 122]);
+    // L 形：先往東 3 度再往北 1 度，總長 4、一半長度落在東段 2 度處
+    const line = [[0, 0], [0, 3], [1, 3]];
+    const m = routeView.midpoint(line, { lat: 0, lng: 0 }, { lat: 1, lng: 3 });
+    assert.ok(Math.abs(m[0] - 0) < 1e-9 && Math.abs(m[1] - 2) < 1e-9, JSON.stringify(m));
+});
