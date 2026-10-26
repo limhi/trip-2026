@@ -144,3 +144,28 @@ test('load：從伺服器草稿同步已算的段落，清掉舊的失敗標記'
     await ctl.load();
     assert.deepEqual(ctl.known, { [ab]: { distance: 5, duration: 6 } });
 });
+
+test('unsaved：算出新路線後為 true（存檔鈕要亮），markSaved 後回 false', async () => {
+    const { ctl, timers, updates } = setup({ handler: okAll });
+    assert.equal(ctl.unsaved(), false);
+    ctl.schedule();
+    await timers.fire();
+    assert.equal(ctl.unsaved(), true);
+    const before = updates.length;
+    ctl.markSaved();
+    assert.equal(ctl.unsaved(), false);
+    assert.ok(updates.length > before, '狀態變了要通知畫面重畫');
+});
+
+test('unsaved：全部命中快取（沒有新結果）不算未存檔', async () => {
+    const { ctl, timers } = setup({ handler: (_p, body) => ({ results: Object.fromEntries(body.legs.map(l => [l.key, { status: 'cached', distance: 1, duration: 2 }])) }) });
+    ctl.schedule();
+    await timers.fire();
+    assert.equal(ctl.unsaved(), false);
+});
+
+test('load：伺服器回報草稿有未存檔的路線時 unsaved 為 true（重新整理頁面後仍能存檔）', async () => {
+    const { ctl } = setup({ handler: () => ({ legs: { [ab]: { distance: 5, duration: 6 } }, unsaved: true }) });
+    await ctl.load();
+    assert.equal(ctl.unsaved(), true);
+});
