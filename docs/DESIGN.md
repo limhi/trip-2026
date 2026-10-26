@@ -67,7 +67,10 @@
 | `data/trip.json` | 行程內容的**資料來源** | 欄位說明在本文第 4.2 節 |
 | `data/places.json` | 地點資料庫的**資料來源** | 欄位說明在本文第 4.1 節 |
 | `data/trip.js`、`data/places.js` | 由 `tools/build-data.js` 從上面兩個 JSON 產生的**產生檔**（網頁載入的是它們） | 要 commit，不手改；`check.js` 檢查同步 |
-| `tools/build-data.js` | 產生器：`node tools/build-data.js` | 測試：`node --test tools/*.test.js tools/editor/*.test.js` |
+| `tools/build-data.js` | 產生器：`node tools/build-data.js` | 測試：`node --test`（含 `tools/**`） |
+| `data/routes.json` | 路線快取（**資料來源**，由編輯器寫入；目前是空殼）：`{profile, legs:{ "經度,緯度>經度,緯度": {distance 公尺, duration 秒, geometry, provider, computedAt} }}`，值是原始值（不含係數） | 格式由 `tools/routing/cache.js` 固定（legs 依 key 排序） |
+| `data/routes.js`、`data/routes-geo.js` | 由 `routes.json` 產生：`window.TRIP_ROUTES`（距離／時間，小）、`window.TRIP_ROUTES_GEO`（polyline，大，之後展開地圖才載入） | 同上，不手改；`check.js` 檢查同步 |
+| `tools/routing/` | `provider.js`（`route(from, to)`，OSRM 實作，只有編輯器呼叫）、`cache.js`（讀寫、`prune`、`usedKeys`／`missingKeys`、`checkStructure`） | 路線規則見 `.scratch/editor/spec.md` 第 7 節；`js/model.js` 有 `getLegs`、`legKey`、`displayMinutes`、`formatLeg`、`getTimeWarnings` |
 | `tools/editor/` | 行程編輯器（本機，綁 `127.0.0.1`）：`node tools/editor/server.js [--port 8780]`；`store.js` 負責讀取、固定格式存檔、mtime 衝突檢查 | 開發中（ticket 02 完成讀取／存檔／衝突）；完整說明待 ticket 08 補 |
 | `js/model.js` | 資料處理與檢查 | 純函式，`tools/check.js` 會載入它 |
 | `js/blocks.js` | 各類區塊的 HTML 樣板與 Tailwind 顏色表 | 統一改顏色改最上方的表 |
@@ -140,6 +143,9 @@
 | `badge` | `{icon, text}`，沒有住宿時標題列右側顯示的文字 |
 | `theme` | `'blue'`（預設）或 `'end'`（綠色，最後一天用） |
 | `closeLoop` | `true` 時地圖路線會連回起點 |
+| `trafficFactor` | （選填）正數，覆寫當天的路況係數；沒有就用 `site.routing.trafficFactor` |
+
+`site.routing`（選填）：`{trafficFactor: 1.25, maxLegMinutes: 180}`，路況係數預設值與「路段過長」門檻（顯示分鐘），都必須是正數。
 
 編號：每天的地圖標記由上而下自動編號（1、2、3…），左邊對應的卡片／起訖點列顯示同一個編號。調整順序就是在 `items` 裡上下搬移那一項，卡片與地圖會一起更新。
 
