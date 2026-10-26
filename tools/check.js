@@ -5,9 +5,9 @@
  *
  * 檢查項目
  *   0. data/*.js 與 data/*.json 同步（tools/build-data.js 重新產生的結果要與檔案完全相同）
- *   1. data/places.js、data/trip.js 能載入，且 Trip.model.validate() 沒有問題
+ *   1. 產生檔 data/places.js、data/trip.js 能載入，且 Trip.model.validate() 沒有問題
  *   2. 座標落在台灣範圍內、有地圖標記的地點都有座標
- *   3. reference/guides.js：每個景點 id 都在 places.js 裡；來源編號存在；顯示的文字沒有開發用語
+ *   3. reference/guides.js：每個景點 id 都在 data/places.json 裡；來源編號存在；顯示的文字沒有開發用語
  *   4. reference/guides.md 與 guides.js 的文字沒有偏離（guides.js 的每一句都要出現在 guides.md）
  *   5. verify.md：題號連續、總覽表與題目一致、狀態統計正確、每題都有選項
  *   6. 所有受版控檔案：UTF-8、無 BOM、無 U+FFFD、無 CRLF
@@ -91,7 +91,7 @@ const JARGON = /places\.js|trip\.js|data\/places|專案資料|專案座標|專�
 if (guides && PLACES) {
     info.push(`攻略 ${Object.keys(guides).length} 個景點`);
     for (const [id, g] of Object.entries(guides)) {
-        if (!PLACES[id]) fail(`guides.js：「${id}」不在 data/places.js`);
+        if (!PLACES[id]) fail(`guides.js：「${id}」不在 data/places.json`);
         const srcNums = new Set((g.sources || []).map(s => s.n));
         for (const k of SECTION_KEYS) {
             for (const item of g[k] || []) {

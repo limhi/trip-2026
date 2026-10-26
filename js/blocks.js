@@ -143,15 +143,9 @@
         const pointByItem = {};
         Trip.model.getMapPoints(day, ctx.places).forEach(point => { pointByItem[point.itemIndex] = point; });
         // 路線快取：綁定的交通列顯示計算時間；沒有交通列的相鄰標記之間補連接列。沒有快取時兩者都是空的，畫面與沒有這個功能時相同
-        const routeInfo = Trip.routeView ? Trip.routeView.dayRoutes(day, ctx.places, ctx.routes, ctx.site) : null;
-        const autoByRow = {}, autoAfter = {};
-        if (routeInfo) routeInfo.legs.forEach(l => {
-            if (!l.cached) return;
-            const auto = { text: l.text, note: routeInfo.factorNote };
-            if (l.leg.rowIndex != null) autoByRow[l.leg.rowIndex] = auto;
-            else if (l.leg.needsRow) autoAfter[l.leg.fromItemIndex] = auto;
-        });
-        const summary = routeInfo && routeInfo.summary
+        const routeInfo = Trip.routeView.dayRoutes(day, ctx.places, ctx.routes, ctx.site);
+        const { autoByRow, autoAfter } = routeInfo;
+        const summary = routeInfo.summary
             ? `<p class="day-drive-summary text-xs font-bold text-white/90"><i class="fa-solid fa-car mr-1"></i>${esc(routeInfo.summaryText)}<span class="block text-[10px] font-medium text-white/70">${esc(routeInfo.factorNote)}</span></p>`
             : '';
         const titleHtml = `<h3 class="font-extrabold text-base md:text-xl">${esc(day.date)}${esc(day.title)}</h3>`;

@@ -1,6 +1,6 @@
 /*
  * 景點攻略資料：由 reference/research.md 的來源網頁（含補充來源）整理，
- * key 對應 data/places.js 的 place id。已接上網頁：js/guides.js 在使用者點開景點彈窗時才載入本檔並顯示。
+ * key 對應 data/places.json 的 place id。已接上網頁：js/guides.js 在使用者點開景點彈窗時才載入本檔並顯示。
  *
  * 每個景點的欄位
  *   name        景點名稱
@@ -11,7 +11,7 @@
  *   transport   交通與停車
  *   cautions    注意事項
  *   conflicts   不同來源說法不一之處（正文以官方為準）
- *   contactNotes 文章中找到的聯絡資訊（僅供參考，網頁不顯示，需要時再寫入 data/places.js）
+ *   contactNotes 文章中找到的聯絡資訊（僅供參考，網頁不顯示，需要時再寫入 data/places.json）
  *   上述陣列的項目：{ t: 文字, src: [來源編號], hidden?: true }（hidden 為 true 的項目網頁不顯示）
  *   sources     參考來源 { n 編號, title, url, summary, status, published, added, replaces }
  *     status    'ok' 讀到全文 / 'unreadable' 未能讀取（不作為內容依據）

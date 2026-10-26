@@ -83,7 +83,7 @@ test('失敗：標示 failed 與錯誤，不自動重試；段落離開行程後
     let fail = true;
     const { ctl, requests } = setup({
         handler: (p, b) => fail
-            ? { results: Object.fromEntries(b.legs.map(l => [l.key, { status: 'failed', error: '路線服務逾時' }])) }
+            ? { results: Object.fromEntries(b.legs.map(l => [l.key, { status: 'failed', error: '路線服務逾時', removed: true }])) }
             : okAll(p, b)
     });
     await ctl.pass();
@@ -119,6 +119,24 @@ test('recompute 與 recomputeAll：打 recompute-all，忽略快取', async () =
     assert.equal(requests[1].body.legs[0].from.lat, places.a.lat);
     await ctl.recomputeAll();
     assert.deepEqual(requests[2].body.legs.map(l => l.key), [ab, bc]);
+});
+
+test('重新計算失敗：舊結果從前端也移除，該段顯示「失敗」（公開頁面退回直線）並通知預覽更新', async () => {
+    let failing = false;
+    const handler = (_p, body) => failing
+        ? { results: Object.fromEntries(body.legs.map(l => [l.key, { status: 'failed', error: '路線服務逾時', removed: true }])) }
+        : okAll(_p, body);
+    const { ctl, computed } = setup({ handler });
+    await ctl.pass();
+    assert.equal(ctl.status(ab), 'ok');
+    const before = computed.length;
+    failing = true;
+    await ctl.recompute([ab]);
+    assert.equal(ctl.known[ab], undefined);
+    assert.equal(ctl.status(ab), 'failed');
+    assert.equal(ctl.error(ab), '路線服務逾時');
+    assert.equal(ctl.status(bc), 'ok', '其他段落不受影響');
+    assert.equal(computed.length, before + 1);
 });
 
 test('load：從伺服器草稿同步已算的段落，清掉舊的失敗標記', async () => {

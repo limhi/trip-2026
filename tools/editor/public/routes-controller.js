@@ -38,7 +38,10 @@
                     if (r && (r.status === 'ok' || r.status === 'cached')) {
                         known[l.key] = { distance: r.distance, duration: r.duration };
                         if (r.status === 'ok') gotNew = true;
-                    } else failed.set(l.key, (r && r.error) || '計算失敗');
+                    } else {
+                        failed.set(l.key, (r && r.error) || '計算失敗');
+                        if (r && r.removed) { delete known[l.key]; gotNew = true; }   // 伺服器已把舊結果移除（退回直線），預覽要更新
+                    }
                 }
             } catch (e) {
                 for (const l of legs) failed.set(l.key, e.message);

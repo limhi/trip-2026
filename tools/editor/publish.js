@@ -1,4 +1,4 @@
-// 發布流程（spec 4.5）：驗證 → 檢查 → 版本號 → commit → push 到 main。
+// 發布流程（docs/DESIGN.md 第 14.5 節）：驗證 → 檢查 → 版本號 → commit → push 到 main。
 // 全部同步執行；任一步失敗就丟出帶 status 與 steps 的錯誤，不重試、不 --force。
 const fs = require('fs');
 const path = require('path');
@@ -27,7 +27,21 @@ function nextVersion(trip, now) {
     return { number: `v${m[1]}.${+m[2] + 1}`, date: `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())}` };
 }
 
-// 與 HEAD 版本比對：哪幾天、哪些地點、住宿區、其他網站設定有異動（site.version 不算）
+const EMPTY_ROUTES = { profile: 'driving', legs: {} };
+
+// 路線快取的異動：新增、移除、內容變動（重新計算）的段落數
+function summarizeRoutes(oldRoutes, newRoutes) {
+    const o = oldRoutes.legs, n = newRoutes.legs;
+    const keys = Object.keys(n);
+    return {
+        added: keys.filter(k => !(k in o)).length,
+        removed: Object.keys(o).filter(k => !(k in n)).length,
+        changed: keys.filter(k => k in o && !isDeepStrictEqual(o[k], n[k])).length
+    };
+}
+
+// 與 HEAD 版本比對：哪幾天、哪些地點、住宿區、其他網站設定、路線快取有異動（site.version 不算）。
+// 資料的 routes 可省略（視為沒有快取）
 function summarize(oldData, newData) {
     const same = isDeepStrictEqual;
     const days = [];
@@ -48,6 +62,7 @@ function summarize(oldData, newData) {
     const rest = trip => { const { days: _d, hotels: _h, ...r } = trip; return { ...r, site: { ...r.site, version: null } }; };
     return {
         days, places,
+        routes: summarizeRoutes(oldData.routes || EMPTY_ROUTES, newData.routes || EMPTY_ROUTES),
         hotels: !same(oldData.trip.hotels, newData.trip.hotels),
         other: !same(rest(oldData.trip), rest(newData.trip))
     };
@@ -60,15 +75,19 @@ function headData(root) {
         if (!r.ok) return null;
         out[t.key] = JSON.parse(r.output);
     }
+    const routes = gitRun(root, 'show', `HEAD:${buildData.ROUTES_JSON}`);
+    if (routes.ok) out.routes = JSON.parse(routes.output);
     return out;
 }
 
+const routesChanged = r => !!(r.added || r.removed || r.changed);
 const PLACE_VERB = { added: '新增', removed: '刪除', modified: '修改' };
 function defaultMessage(next, changes) {
     const parts = [
         ...changes.days.map(d => `DAY ${d.day}`),
         ...changes.places.map(p => `${PLACE_VERB[p.kind]}「${p.name}」`),
         ...(changes.hotels ? ['住宿區'] : []),
+        ...(routesChanged(changes.routes) ? [`路線（${[['新增', 'added'], ['移除', 'removed'], ['重算', 'changed']].filter(([, k]) => changes.routes[k]).map(([t, k]) => `${t} ${changes.routes[k]}`).join('、')} 段）`] : []),
         ...(changes.other ? ['網站設定'] : [])
     ];
     return `${next.number}：調整 ${parts.length ? parts.slice(0, 4).join('、') : '無異動'}`;
@@ -76,8 +95,10 @@ function defaultMessage(next, changes) {
 
 function plan(root, { now = () => new Date() } = {}) {
     const disk = { trip: readJson(root, 'data/trip.json'), places: readJson(root, 'data/places.json') };
+    let diskRoutes = EMPTY_ROUTES;
+    try { diskRoutes = readJson(root, 'data/routes.json'); } catch { /* 沒有快取檔：check.js 會處理 */ }
     const head = headData(root);
-    const changes = summarize(head || { trip: { days: [], hotels: [], site: {} }, places: {} }, disk);
+    const changes = summarize(head || { trip: { days: [], hotels: [], site: {} }, places: {} }, { ...disk, routes: diskRoutes });
     const next = nextVersion(disk.trip, now);
     const branch = currentBranch(root);
     let missingRoutes = [];
@@ -86,7 +107,7 @@ function plan(root, { now = () => new Date() } = {}) {
         branch, onMain: branch === 'main',
         version: { current: disk.trip.site.version, next },
         changes,
-        hasChanges: !!(changes.days.length || changes.places.length || changes.hotels || changes.other),
+        hasChanges: !!(changes.days.length || changes.places.length || changes.hotels || changes.other || routesChanged(changes.routes)),
         message: defaultMessage(next, changes),
         missingRoutes,
         files: ADD_FILES.filter(f => fs.existsSync(path.join(root, f)))
@@ -140,25 +161,42 @@ function publish(root, body, { now = () => new Date(), routes: routesDraft } = {
     // 3. check.js
     runCheck('node tools/check.js');
 
-    // 4. 版本號 +1，重新產生 data/*.js，再檢查一次
-    const next = nextVersion(disk.trip, now);
-    disk.trip.site.version = next;
-    let routes;
-    try { routes = readJson(root, 'data/routes.json'); } catch { routes = undefined; }
-    try {
-        buildData.writeAtomic(root, { 'data/trip.json': store.serialize(disk.trip), ...buildData.buildFrom({ ...disk, routes }) });
-    } catch (e) { fail(500, '更新版本號', e.message); }
-    pass('更新版本號', `${next.number}（${next.date}）`);
-    runCheck('node tools/check.js（版本號更新後）');
-
-    // 5. commit（只提交發布清單內的檔案）
+    // 4–5. 版本號 +1、重新產生 data/*.js、再檢查一次、commit。
+    // 版本號已寫入磁碟之後任何一步失敗，都要把這些檔案還原成寫入前的內容（並清掉暫存區），不留下半套的版本號
     const files = ADD_FILES.filter(f => fs.existsSync(path.join(root, f)));
-    const add = gitRun(root, 'add', '--', ...files);
-    if (!add.ok) fail(500, 'git add', add.output);
-    const commit = gitRun(root, 'commit', '--cleanup=whitespace', '-m', message, '--', ...files);
-    if (!commit.ok) fail(500, 'git commit', commit.output);
-    pass('git commit', commit.output);
-    const sha = gitRun(root, 'rev-parse', 'HEAD').output;
+    const before = Object.fromEntries(files.map(f => [f, fs.readFileSync(path.join(root, f))]));
+    const rollback = () => {
+        try {
+            for (const f of files) fs.writeFileSync(path.join(root, f), before[f]);
+            gitRun(root, 'reset', '-q', '--', ...files);
+            steps.push({ name: '還原版本號與產生檔', ok: true, output: '已還原成發布前的內容' });
+        } catch (e) {
+            steps.push({ name: '還原版本號與產生檔', ok: false, output: e.message });
+        }
+    };
+    const next = nextVersion(disk.trip, now);
+    let sha;
+    try {
+        disk.trip.site.version = next;
+        let routes;
+        try { routes = readJson(root, 'data/routes.json'); } catch { routes = undefined; }
+        try {
+            buildData.writeAtomic(root, { 'data/trip.json': store.serialize(disk.trip), ...buildData.buildFrom({ ...disk, routes }) });
+        } catch (e) { fail(500, '更新版本號', e.message); }
+        pass('更新版本號', `${next.number}（${next.date}）`);
+        runCheck('node tools/check.js（版本號更新後）');
+
+        // commit（只提交發布清單內的檔案）
+        const add = gitRun(root, 'add', '--', ...files);
+        if (!add.ok) fail(500, 'git add', add.output);
+        const commit = gitRun(root, 'commit', '--cleanup=whitespace', '-m', message, '--', ...files);
+        if (!commit.ok) fail(500, 'git commit', commit.output);
+        pass('git commit', commit.output);
+        sha = gitRun(root, 'rev-parse', 'HEAD').output;
+    } catch (e) {
+        rollback();
+        throw e;
+    }
 
     // 6. push（失敗只回報，不重試、不 --force）
     const push = run('git', ['push', 'origin', 'main'], root, { timeout: 120000 });

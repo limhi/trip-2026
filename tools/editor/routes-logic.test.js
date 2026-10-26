@@ -71,6 +71,14 @@ test('missingCoords：有地點但沒座標的項目（map:false 與找不到地
     assert.deepEqual(R.missingCoords(t, places), [{ day: 1, itemIndex: 1, placeId: 'nocoord', name: '沒座標' }]);
 });
 
+test('missingCoords：與 model.validate 同一個判斷（waypoint 不算）', () => {
+    const t = { days: [day([{ type: 'waypoint', place: 'nocoord' }, { type: 'spot', place: 'nocoord' }])], hotels: [] };
+    assert.deepEqual(R.missingCoords(t, places).map(m => m.itemIndex), [1]);
+    const errors = M.validate(t, places).filter(e => /沒有座標/.test(e));
+    assert.equal(errors.length, 1);
+    assert.match(errors[0], /第 2 項/);
+});
+
 test('numberOrDelete：欄位輸入轉數字；空白代表刪除；非數字回 undefined（忽略）', () => {
     assert.equal(R.parseNumberInput('1.5'), 1.5);
     assert.equal(R.parseNumberInput(' 180 '), 180);

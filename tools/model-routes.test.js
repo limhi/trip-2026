@@ -215,6 +215,26 @@ test('getTimeWarnings：時間文字後面接說明（如「10:00 - 11:00 午餐
     assert.equal(warn(dayOf(items)).length, 1);
 });
 
+// ───────── forEachPlaceRef ─────────
+
+test('forEachPlaceRef：走過住宿、項目、住宿區的每個地點引用，owner 可用來改 id', () => {
+    const trip = {
+        days: [{ day: 1, stay: { place: 'a' }, items: [{ type: 'spot', place: 'b' }, { type: 'drive' }, { type: 'spot', place: 'c' }] }],
+        hotels: [{ place: 'a' }]
+    };
+    const seen = [];
+    model.forEachPlaceRef(trip, (id, label, owner) => seen.push([id, label, owner]));
+    assert.deepEqual(seen.map(s => s.slice(0, 2)), [['a', 'DAY 1 住宿'], ['b', 'DAY 1 第 1 項'], ['c', 'DAY 1 第 3 項'], ['a', '住宿區第 1 間']]);
+    seen[0][2].place = 'z';
+    assert.equal(trip.days[0].stay.place, 'z');
+});
+
+test('forEachPlaceRef：沒有 hotels 也不出錯', () => {
+    const seen = [];
+    model.forEachPlaceRef({ days: [{ day: 1, items: [{ type: 'spot', place: 'a' }] }] }, id => seen.push(id));
+    assert.deepEqual(seen, ['a']);
+});
+
 // ───────── validate：路線設定 ─────────
 
 test('validate：真實資料（含 site.routing）沒有問題', () => {

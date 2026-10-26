@@ -76,7 +76,7 @@
 | `tools/build-data.js` | 產生器：`node tools/build-data.js`（匯出 `build`、`buildFrom`、`buildRoutes`、`writeAtomic`、`TARGETS`、`ROUTES_JSON`；`writeAtomic` 先寫 `.tmp` 再全部 rename） | 測試：`node --test`（自動找 `*.test.js`） |
 | `data/routes.json` | 路線快取（**資料來源**，由編輯器寫入；目前還是空殼：`legs` 是空的，第一次算路線前頁面維持灰色虛線）：`{profile, legs:{ "經度,緯度>經度,緯度": {distance 公尺, duration 秒, geometry, provider, computedAt} }}`，值是原始值（不含係數） | 格式由 `tools/routing/cache.js` 固定（legs 依 key 排序） |
 | `data/routes.js`、`data/routes-geo.js` | 由 `routes.json` 產生：`window.TRIP_ROUTES`（距離／時間，小）、`window.TRIP_ROUTES_GEO`（polyline，大，第一次展開有快取的地圖時由 `js/map.js` 動態載入） | 同上，不手改；`check.js` 檢查同步 |
-| `tools/routing/` | `provider.js`（`route(from, to)`，OSRM 實作，只有編輯器呼叫）、`cache.js`（讀寫、`prune`、`usedKeys`／`missingKeys`／`unusedKeys`、`checkStructure`） | 路線規則見本文第 15 節；`js/model.js` 有 `getLegs`、`legKey`、`displayMinutes`、`formatLeg`、`getTimeWarnings` |
+| `tools/routing/` | `provider.js`（`route(from, to)`，OSRM 實作，只有編輯器呼叫）、`cache.js`（讀寫、`prune`、`usedKeys`／`missingKeys`／`unusedKeys`、`checkStructure`） | 路線規則見本文第 15 節；`js/model.js` 有 `getLegs`、`legKey`／`formatCoord`（provider 的請求網址共用同一個座標格式）、`displayMinutes`、`formatLeg`、`getTimeWarnings` |
 | `tools/editor/server.js` | 編輯器伺服器（`node tools/editor/server.js [--port 8780]`，只綁 `127.0.0.1`，非本機 Host 回 403）：路由、請求大小上限 5 MB、靜態檔 | `createServer({ root, provider })`，測試可注入假的路線服務；API 見第 14.2 節 |
 | `tools/editor/store.js` | 讀取、固定格式存檔、mtime 衝突檢查（只比 `trip.json`、`places.json`） | 見第 14.3 節 |
 | `tools/editor/preview.js` | 預覽：`POST /api/draft` 的記憶體草稿、`GET /preview/*`（草稿產生 `data/*.js`，不寫磁碟） | 見第 14.4 節 |
@@ -172,7 +172,7 @@
 - **調整順序＝上下搬 `items`，編號、地圖、連線自動跟著變，不需要另外維護地圖資料。**
 
 ### 4.4 `validate()` 與紅色提示列
-`model.validate()` 檢查：`place` id 是否存在、`type` 是否合法、卡片是否有標題來源、住宿 id、座標缺失。頁面載入時有問題會在最上方出現**紅色提示列**並寫入主控台。這是抓「打錯 id」最快的方法。
+`model.validate()` 檢查：`place` id 是否存在、`type` 是否合法、卡片是否有標題來源、住宿 id、座標缺失。「哪些位置會引用地點」的遍歷是 `model.forEachPlaceRef`（validate、編輯器的引用檢查與改 id 共用），「沒有座標」的判斷是 `model.lacksCoords`（validate 與編輯器的路線警告共用，waypoint 不算）。頁面載入時有問題會在最上方出現**紅色提示列**並寫入主控台。這是抓「打錯 id」最快的方法。
 
 ---
 
@@ -340,8 +340,8 @@ node tools/e2e.js
 
 | 方法與路徑 | 說明 |
 |---|---|
-| `GET /api/data` | `{ trip, places, mtimes: { trip, places } }`，讀磁碟上的 JSON |
-| `PUT /api/data` | body `{ trip, places, mtimes }`。缺欄位 400；磁碟檔的 mtime 比 `mtimes` 新 → **409**，不寫入。成功時寫兩個 JSON、產生 `data/*.js`，**並把記憶體中的路線快取草稿（修剪後）一併寫入** `data/routes.json`、`data/routes*.js`；回新的 `{ mtimes }` |
+| `GET /api/data` | `{ trip, places, mtimes: { trip, places, routes } }`，讀磁碟上的 JSON |
+| `PUT /api/data` | body `{ trip, places, mtimes }`（`mtimes` 要有 `trip`、`places`、`routes` 三個數字）。缺欄位 400；磁碟上任一個檔（`trip.json`、`places.json`、`routes.json`）的 mtime 比 `mtimes` 新 → **409**，不寫入。成功時寫兩個 JSON、產生 `data/*.js`，**並把記憶體中的路線快取草稿（修剪後）一併寫入** `data/routes.json`、`data/routes*.js`；回新的 `{ mtimes }` |
 | `GET /api/routes` | 路線快取草稿：`{ legs: { key: { distance, duration } } }`（沒有 geometry） |
 | `POST /api/routes/compute` | body `{ legs: [{ key, from: {lat,lng}, to: {lat,lng} }] }`（最多 200 段；`key` 必須等於 `model.legKey(from, to)`，否則 400）。快取命中的不重算。回 `{ results: { key: { status: 'ok'｜'cached'｜'failed', distance?, duration?, error? } } }` |
 | `POST /api/routes/recompute-all` | 同上，但忽略快取，全部重算 |
@@ -356,7 +356,7 @@ node tools/e2e.js
 
 ### 14.3 存檔（`store.js`）
 - 序列化固定格式：縮排 2 空格、保留欄位順序（key 順序就是顯示順序）、LF、UTF-8 無 BOM、結尾換行。未編輯的欄位（`site`、`hero`、`highlights`…）原封不動。
-- 衝突檢查只比 `data/trip.json`、`data/places.json` 的 mtime（`routes.json` 沒有）。
+- 衝突檢查比 `data/trip.json`、`data/places.json`、`data/routes.json` 三個檔的 mtime（`routes.json` 不存在時視為 0）；載入與每次存檔後都會回傳最新的 mtimes。
 - 寫入：JSON 與產生檔（含路線檔）全部先寫 `.tmp` 再逐一 rename（`build-data.writeAtomic`）；寫 `.tmp` 失敗會清掉暫存檔，不留半套。存檔不更動版本號。
 - 路線快取草稿存檔時用 `cache.prune` 只留下目前行程用到的段落（`cache.usedKeys`），並回傳實際寫入的內容，讓草稿跟著修剪。
 
@@ -373,13 +373,14 @@ node tools/e2e.js
 3. 確認已存檔：磁碟上的 `trip.json`、`places.json` 與 body 的內容必須完全相同 → 否則 **409**「編輯器有未存檔的修改」。若伺服器記憶體有路線快取草稿，把草稿與磁碟的 `routes.json`（各自修剪到目前行程用到的段落後）序列化比較，不同 → **409**「路線計算結果有未存檔的修改，請先存檔再發布」。
 4. `Trip.model.validate` 有問題 → 422。
 5. 執行 `node tools/check.js`，結束碼不是 0 → 422。
-6. 版本號小版 +1、日期改成當天，寫入 `trip.json` 並重新產生 `data/*.js`，再跑一次 `check.js`。
+6. 版本號小版 +1、日期改成當天，寫入 `trip.json` 並重新產生 `data/*.js`，再跑一次 `check.js`。**寫入版本號之後（第二次 `check.js`、`git add`、`git commit`）任何一步失敗，會把發布清單內的檔案還原成寫入前的內容並清掉暫存區**（steps 多一筆「還原版本號與產生檔」），不留下半套的版本號。
 7. `git add` 並 `git commit`（訊息用使用者在確認視窗編輯後的內容，`--cleanup=whitespace`，**不附 AI 署名**；commit 只含發布清單：`data/trip.json`、`places.json`、`trip.js`、`places.js`、`routes.json`、`routes.js`、`routes-geo.js`，其他檔案不會被帶進去）。
 8. `git push origin main`。失敗（403、non-fast-forward…）→ 502，**本機 commit 保留**，只回報錯誤文字；不重試、不 `--force`、不改用其他路徑。
 
 行為細節：
 - 路線沒有快取的段落**只在 plan 的 `missingRoutes` 回報警告**，不擋發布；與 `HEAD` 相同也只提示（仍會更新版本號）。
-- 前端（`public/publish.js`）的確認視窗顯示：驗證／已存檔／分支／版本號、異動摘要（各天、地點、住宿區、網站設定）、警告、可編輯的 commit 訊息；有驗證錯誤、未存檔、不在 `main` 時「確認發布」不可按。**在這個視窗按下「確認發布」＝使用者確認**（`docs/adr/0003`，`AGENTS.md` 已寫明）；這項授權只涵蓋編輯器按鈕，Claude 在對話中自己 commit／push 仍照 `AGENTS.md`。
+- 前端（`public/publish.js`）的確認視窗顯示：驗證／已存檔／分支／版本號、異動摘要（各天、地點、路線快取新增／移除／重算的段落數、住宿區、網站設定）、警告、可編輯的 commit 訊息；有驗證錯誤、未存檔、不在 `main` 時「確認發布」不可按。**在這個視窗按下「確認發布」＝使用者確認**（`docs/adr/0003`，`AGENTS.md` 已寫明）；這項授權只涵蓋編輯器按鈕，Claude 在對話中自己 commit／push 仍照 `AGENTS.md`。
+- plan 的 `changes.routes` = `{ added, removed, changed }`（與 `HEAD` 的 `routes.json` 比對的段落數）；只改路線也算有異動，預設訊息會列「路線（新增 n、移除 m、重算 k 段）」。
 - 預設 commit 訊息：`v新版號：調整 DAY n、新增「地點」…`（最多列 4 項）。
 
 ### 14.6 前端行為摘要
@@ -395,7 +396,6 @@ node tools/e2e.js
 ### 14.8 已知限制
 - 編輯器前端沒有在真實瀏覽器驗收過（自動測試只覆蓋純邏輯與伺服器 API）。
 - 路線快取草稿與預覽草稿都在伺服器記憶體：重啟伺服器就回到磁碟版；「重新載入」只重讀行程資料，不清路線草稿。
-- 路線快取沒有 mtime 衝突檢查（只有編輯器寫它）。
 - 發布時若路線草稿與磁碟不同回 409，所以重算路線後必須先存檔才能發布。
 - 發布只能在 `main`；整合分支上的編輯器程式要先合進 `main` 才能真的發布。
 
@@ -453,20 +453,20 @@ node tools/e2e.js
 
 ### 15.4 計算服務與 OSRM 使用限制（`tools/routing/provider.js`）
 - 介面：`route({lat,lng}, {lat,lng})` → `Promise<{ distance, duration, geometry }>`。目前實作是 OSRM 公開 demo（`https://router.project-osrm.org/route/v1/driving/…?overview=simplified&geometries=polyline`）。**要換服務（例如 Google Routes）只改這個檔**。
-- 規則（有假伺服器測試）：請求**逐一送出**（內部排隊）、兩次請求間隔**至少 1 秒**、逾時 **15 秒**、**不自動重試**（失敗直接丟錯，不影響後面的請求）、帶識別專案的 `User-Agent`（`trip-2026-editor/1.0 (+https://github.com/limhi/trip-2026)`）。
+- 規則（有假伺服器測試）：請求**逐一送出**（內部排隊）、兩次請求間隔**至少 1 秒**（用單調時鐘計時，`setTimeout` 提早醒來會補足）、逾時 **15 秒**（涵蓋整個請求，含讀回應 body；逾時報「路線服務逾時」）、**不自動重試**（失敗直接丟錯，不影響後面的請求）、帶識別專案的 `User-Agent`（`trip-2026-editor/1.0 (+https://github.com/limhi/trip-2026)`）。
 - OSRM 公開 demo 有使用政策、沒有 SLA、沒有路況預測；用量遠低於上限，但**不要改成批次大量查詢、不要平行送、不要加自動重試**。
 - 只有編輯器伺服器會呼叫；公開頁面與 `check.js` 都不呼叫。
 
 ### 15.5 編輯器行為（`routes-service.js`、`public/routes-controller.js`、`public/routes.js`）
 - 草稿 = 記憶體中的路線快取（一開始是磁碟上的 `routes.json`）；計算結果先進草稿，預覽立刻使用；按「存檔」才寫入檔案。
 - 順序、地點或座標改變時，前端找出快取沒有的路段，約 0.6 秒後送 `POST /api/routes/compute`；命中快取的不重算。每段顯示「等待計算／計算中／已算／失敗」，並有「重新計算」；路線列有「全部重算」（`/recompute-all`，忽略快取）。
-- 失敗（網路、逾時、服務錯誤）：該段退回直線、標示警告，**不自動重試**；同一段持續存在時維持失敗，段落離開行程後再出現、或按「重新計算」才會再試。失敗不擋存檔、不擋發布。
+- 失敗（網路、逾時、服務錯誤）：該段退回直線、標示警告，**不自動重試**；失敗的段落**一律從草稿移除**（包含按「重新計算」失敗時原本的舊路線，API 結果多 `removed: true`），公開預覽不會繼續畫舊路線；同一段持續存在時維持失敗，段落離開行程後再出現、或按「重新計算」才會再試。失敗不擋存檔、不擋發布。
 - 沒有座標的地點不算路線，並提示補座標。
 - 路線列可改「預設係數」「每段上限（分鐘）」（寫進 `site.routing`，空白＝刪除欄位用預設）；每天的日設定有「路況係數」。
 - 同一段同時只算一次（`inflight`），避免重複呼叫。
 
 ### 15.6 公開頁面行為（`js/route-view.js`、`js/blocks.js`、`js/map.js`）
-- 地圖：有快取的段落畫道路路線（`geometry` 解碼）取代灰色虛線；沒有 geo 或沒有快取的段落仍畫虛線直線；每段中點（沿路線一半長度處）標示「時間・距離」；超過門檻的段落紅色。完全沒有快取時維持原本單一灰色虛線。
+- 地圖：有快取的段落畫道路路線（`geometry` 解碼）取代灰色虛線；沒有 geo 或沒有快取的段落仍畫虛線直線；每段中點（沿路線一半長度處）標示「時間・距離」，並一律帶「預估 ×係數」（title 為完整的「預估・含路況緩衝 ×係數」）；超過門檻的段落紅色。完全沒有快取時維持原本單一灰色虛線。
 - 當天標題列顯示「總車程・總里程」（有快取的路段加總；缺段時加「（部分路段未計算）」）。
 - 綁定的 `drive`／`move` 列：**沒有 `duration` 時顯示計算結果**；有 `duration` 就用手寫的（手動覆寫）；`text` 不變。
 - 兩個標記之間沒有交通列時，自動補一條唯讀連接列「車程約 …（自動）」。

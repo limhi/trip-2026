@@ -91,11 +91,19 @@ test('recomputeAll：忽略快取，全部重新計算；失敗時保留舊值',
     assert.deepEqual(provider.calls, [ab.key, bc.key]);
     assert.equal(r.results[ab.key].status, 'ok');
 
-    const failing = setup(t, { failKeys: [ab.key] });
-    failing.svc.draft().legs[ab.key] = { distance: 5, duration: 6, geometry: 'old' };
-    const f = await failing.svc.recomputeAll({ legs: [ab] });
+});
+
+test('recomputeAll／重新計算失敗：該段從草稿移除（退回直線，不再畫舊路線）並通知預覽，其他段落保留', async t => {
+    const ab = leg(A, B), bc = leg(B, C);
+    const { svc, changes } = setup(t, { failKeys: [ab.key] });
+    svc.draft().legs[ab.key] = { distance: 5, duration: 6, geometry: 'old' };
+    svc.draft().legs[bc.key] = { distance: 7, duration: 8, geometry: 'keep' };
+    const f = await svc.recomputeAll({ legs: [ab] });
     assert.equal(f.results[ab.key].status, 'failed');
-    assert.equal(failing.svc.draft().legs[ab.key].geometry, 'old');
+    assert.equal(svc.draft().legs[ab.key], undefined);
+    assert.equal(svc.draft().legs[bc.key].geometry, 'keep');
+    assert.equal(svc.summary().legs[ab.key], undefined);
+    assert.equal(changes.length, 1, '草稿變動了，預覽要重新產生');
 });
 
 test('compute：重複的 key 只算一次；key 與座標對不上或格式錯誤回 400', async t => {

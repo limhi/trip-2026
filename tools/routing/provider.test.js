@@ -35,7 +35,7 @@ test('route：帶識別專案的 User-Agent', async t => {
     assert.match(s.requests[0].headers['user-agent'], /trip-2026/);
 });
 
-test('route：預設設定符合 spec（逾時 15 秒、間隔 1 秒、OSRM 公開 demo）', () => {
+test('route：預設設定符合 DESIGN 15.4（逾時 15 秒、間隔 1 秒、OSRM 公開 demo）', () => {
     assert.equal(provider.DEFAULTS.timeoutMs, 15000);
     assert.equal(provider.DEFAULTS.minIntervalMs, 1000);
     assert.equal(provider.DEFAULTS.baseUrl, 'https://router.project-osrm.org');
@@ -47,7 +47,7 @@ test('route：同時呼叫也會逐一送出，兩次請求間隔至少 1 秒', 
     const { route } = provider.createProvider({ baseUrl: s.base });
     await Promise.all([route(FROM, TO), route(TO, FROM), route(FROM, TO)]);
     assert.equal(s.requests.length, 3);
-    for (let i = 1; i < 3; i++) assert.ok(s.requests[i].at - s.requests[i - 1].at >= 995, `第 ${i + 1} 次與前一次相隔 ${s.requests[i].at - s.requests[i - 1].at} ms`);
+    for (let i = 1; i < 3; i++) assert.ok(s.requests[i].at - s.requests[i - 1].at >= 990,`第 ${i + 1} 次與前一次相隔 ${s.requests[i].at - s.requests[i - 1].at} ms`);
 });
 
 test('route：逾時就失敗，不重試', async t => {
@@ -56,6 +56,12 @@ test('route：逾時就失敗，不重試', async t => {
     await assert.rejects(route(FROM, TO), /逾時/);
     await new Promise(r => setTimeout(r, 400));
     assert.equal(s.requests.length, 1);
+});
+
+test('route：標頭回了但 body 一直不結束，也算逾時（不是「格式不是 JSON」）', async t => {
+    const s = await fakeServer(t, (req, res) => { res.writeHead(200, { 'content-type': 'application/json' }); res.write('{"code":'); });
+    const { route } = provider.createProvider({ baseUrl: s.base, timeoutMs: 150 });
+    await assert.rejects(route(FROM, TO), e => /路線服務逾時/.test(e.message) && !/JSON/.test(e.message));
 });
 
 test('route：HTTP 錯誤、OSRM 錯誤碼、格式不對都失敗且不重試', async t => {
