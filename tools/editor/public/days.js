@@ -65,15 +65,23 @@
                     const bad = errs.length > 0;
                     const isOpen = ui.openItem === it;
                     const num = point ? (point.number != null
-                        ? `<span title="地圖編號" class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">${point.number}</span>`
+                        ? `<span title="地圖編號" class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">${point.label}</span>`
                         : '<span title="在地圖上但不編號" class="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">◦</span>')
                         : '<span class="h-5 w-5 shrink-0"></span>';
-                    return `<div data-item data-di="${di}" data-ii="${ii}">
+                    // 擇一組：整組外面加一圈外框（首項上框、尾項下框、每項左右框），第一項標示「二選一」與共用時間
+                    const pos = L.altPosition(day, ii);
+                    const frame = pos ? `border-x-4 border-violet-400 ${pos === 'first' ? 'border-t-4 rounded-t-lg' : ''} ${pos === 'last' ? 'border-b-4 rounded-b-lg' : ''}` : '';
+                    const altTag = pos === 'first' ? `<div data-alttag class="bg-violet-100 px-2 py-0.5 text-[11px] font-bold text-violet-800">二選一（${esc(it.alt)}）</div>` : '';
+                    const altBtn = it.type !== 'spot' ? ''
+                        : it.alt ? '<button data-act="leavealt" class="rounded px-1.5 text-[11px] text-violet-700 hover:bg-violet-100" title="移出擇一組">移出擇一</button>'
+                        : L.canJoinAlt(day, ii) ? '<button data-act="joinalt" class="rounded px-1.5 text-[11px] text-violet-700 hover:bg-violet-100" title="與相鄰的景點併成擇一組（只去其中一個）">併成擇一</button>' : '';
+                    return `<div data-item data-di="${di}" data-ii="${ii}" class="${frame}">${altTag}
                         <div data-row draggable="true" data-act="toggle" class="flex cursor-pointer items-center gap-2 border-b px-2 py-1.5 hover:bg-slate-50 ${bad ? 'bg-rose-50' : ''} ${isOpen ? 'bg-blue-50' : ''}">
                             <span class="cursor-grab select-none text-slate-400">⋮⋮</span>${num}
                             <span class="shrink-0 rounded px-1.5 py-0.5 text-[11px] font-bold ${meta.chip}">${meta.label}</span>
                             <span data-time class="w-24 shrink-0 truncate text-xs text-slate-500">${esc(it.time || '')}</span>
                             <span data-sum class="min-w-0 flex-1 truncate ${bad ? 'text-rose-700' : ''}">${bad ? '⚠ ' : ''}${esc(itemLabel(it))}</span>
+                            ${altBtn}
                             <button data-act="up" class="rounded px-1.5 text-slate-500 hover:bg-slate-200" title="上移（到頂會跨到前一天）">↑</button>
                             <button data-act="down" class="rounded px-1.5 text-slate-500 hover:bg-slate-200" title="下移（到底會跨到後一天）">↓</button>
                             <button data-act="del" class="rounded px-1.5 text-rose-500 hover:bg-rose-100" title="刪除">✕</button>
@@ -133,6 +141,8 @@
                 const di = +itemEl.dataset.di, ii = +itemEl.dataset.ii, it = days[di].items[ii];
                 if (act === 'toggle') { ui.openItem = ui.openItem === it ? null : it; return render(); }
                 if (act === 'del') { days[di].items.splice(ii, 1); if (ui.openItem === it) ui.openItem = null; return rerender(); }
+                if (act === 'joinalt') { L.joinAlt(days[di], ii); return rerender(); }
+                if (act === 'leavealt') { L.leaveAlt(days[di], ii); return rerender(); }
                 if (act === 'up') return afterMove(L.stepItem(trip, di, ii, -1));
                 if (act === 'down') return afterMove(L.stepItem(trip, di, ii, 1));
             }
