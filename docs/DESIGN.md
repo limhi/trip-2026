@@ -145,6 +145,7 @@
 
 共通欄位：
 - `place`：引用地點 id。卡片標題預設用地點名稱（要改標題就寫 `title`）；該地點有 `infoType` 時，卡片可點開聯絡與導航彈窗；該項目會依出現順序自動成為當天地圖的標記。
+- `alt`（只限 `spot`）：相鄰、`alt` 字串相同的項目組成擇一組（ADR 0006）；共用時間寫在組內第一項的 `time`，其他成員不寫。`Trip.model.getAltGroups(day)` 推導出 `[{ alt, start, end }]`；`validate` 擋下非 `spot`、不相鄰、少於 2 項、非第一項寫 `time`。公開頁面（`js/blocks.js`）畫成「二選一」外框，成員卡片桌機（md 以上）並排、手機堆疊。地圖編號與路段尚未處理擇一組。
 - `map:false`：有 `place` 但不放上地圖。
 - `numbered:false`：放上地圖但不編號（`waypoint` 不會在左邊出現，地圖上以小圖示呈現）。
 

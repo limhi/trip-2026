@@ -144,6 +144,20 @@
         return '';
     }
 
+    // 擇一組外框：上方標示「二選一」與共用時間；成員卡片手機堆疊、桌機（md 以上）並排
+    function altGroup(time, members) {
+        const timeHtml = time ? `<span class="text-xs font-bold text-slate-700">${esc(time)}</span>` : '';
+        return `<div class="alt-group rounded-2xl border-2 border-dashed border-slate-400 p-3 bg-slate-50/60" data-alt-group>
+    <div class="flex justify-between items-center mb-2">
+        <span class="text-xs font-black bg-slate-600 text-white px-2 py-0.5 rounded"><i class="fa-solid fa-code-branch mr-1"></i>二選一</span>
+        ${timeHtml}
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+${members.filter(Boolean).join('\n')}
+    </div>
+</div>`;
+    }
+
     // ───────── 每日卡片外框 ─────────
     function dayCard(day, ctx, mapPanelHtml) {
         const theme = DAY_THEMES[day.theme] || DAY_THEMES.blue;
@@ -155,6 +169,25 @@
         const summary = routeInfo.summary
             ? `<p class="day-drive-summary text-xs font-bold text-white/90"><i class="fa-solid fa-car mr-1"></i>${esc(routeInfo.summaryText)}<span class="block text-[10px] font-medium text-white/70">${esc(routeInfo.factorNote)}</span></p>`
             : '';
+        // 擇一組（相鄰同 alt 的 spot）合成一個外框；其餘項目照舊一項一塊。連接列（autoAfter）放在項目或整組之後
+        const groupAt = {};
+        Trip.model.getAltGroups(day).forEach(group => { groupAt[group.start] = group; });
+        const blocks = [];
+        for (let index = 0; index < day.items.length; index++) {
+            const group = groupAt[index];
+            const last = group ? group.end : index;
+            if (group) {
+                const members = [];
+                for (let i = group.start; i <= group.end; i++) {
+                    members.push(renderItem(i === group.start ? { ...day.items[i], time: '' } : day.items[i], ctx, pointByItem[i], autoByRow[i]));
+                }
+                blocks.push(altGroup(day.items[group.start].time, members));
+            } else {
+                blocks.push(renderItem(day.items[index], ctx, pointByItem[index], autoByRow[index]));
+            }
+            for (let i = index; i <= last; i++) if (autoAfter[i]) blocks.push(autoLegRow(autoAfter[i]));
+            index = last;
+        }
         const titleHtml = `<h3 class="font-extrabold text-base md:text-xl">${esc(day.date)}${esc(day.title)}</h3>`;
         const stayPlace = day.stay && ctx.places[day.stay.place];
         let badge;
@@ -185,7 +218,7 @@
     </div>
     <div class="day-body-grid">
         <div class="p-4 md:p-6 space-y-3.5">
-${day.items.map((item, index) => [renderItem(item, ctx, pointByItem[index], autoByRow[index]), autoAfter[index] ? autoLegRow(autoAfter[index]) : '']).flat().filter(Boolean).join('\n')}
+${blocks.join('\n')}
         </div>
         ${mapPanelHtml}
     </div>

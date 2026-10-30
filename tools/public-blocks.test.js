@@ -140,3 +140,25 @@ test('mapPanelHtml：有快取時說明文字改為道路查詢路線；沒有�
     assert.ok(withRoutes.includes('×1.25'));
     assert.equal(Trip.mapPanelHtml(d, P), plain);
 });
+
+// ───────── 擇一組（alt）外框 ─────────
+
+test('擇一組：相鄰同 alt 的 spot 畫在一個「二選一」外框內，外框上方寫共用時間，成員卡片不重複寫時間', () => {
+    const html = render(day([
+        card('c'),
+        { ...card('a'), alt: 'x', time: '12:20 - 14:00' },
+        { ...card('b'), alt: 'x' }
+    ]));
+    assert.equal(count(html, /data-alt-group/g), 1);
+    const g = html.slice(html.indexOf('data-alt-group'));
+    assert.ok(g.includes('二選一'));
+    assert.equal(count(g, /12:20 - 14:00/g), 1);   // 只出現在外框上方
+    assert.ok(g.indexOf('12:20 - 14:00') < g.indexOf('A 景點') && g.indexOf('A 景點') < g.indexOf('B 景點'));
+    assert.ok(html.indexOf('C 景點') < html.indexOf('data-alt-group'));   // 組外的卡片在外框之外
+    // 桌機並排、手機堆疊：預設一欄，md 以上兩欄
+    assert.match(g, /grid-cols-1[^"]*md:grid-cols-2/);
+});
+
+test('沒有 alt 的行程：不出現擇一組外框', () => {
+    assert.equal(count(render(day([card('a'), card('b')])), /data-alt-group|二選一/g), 0);
+});
