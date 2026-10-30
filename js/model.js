@@ -295,6 +295,76 @@
         });
     }
 
+    const pad2 = n => String(n).padStart(2, '0');
+    const formatClock = m => `${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`;
+
+    // 移動列推導（純函式，不修改輸入；規則見 docs/adr/0007）。相鄰標記的定義與 getLegs 的連接列一致
+    // （有座標、非 backup、非 map:false；擇一組視為同一站，用組內第一項的 time 當共用時間框）。
+    // 兩站之間：恰好一個交通列（ROW_TYPES，drive 與 move 都算）→ 推導；沒有 → 列入 missing；多個 → 不推導只警告。
+    // 開始 = 前一站結束、結束 = 下一站開始，兩端都是完整區間才推導；一端不完整保留現有 time；重疊（結束早於開始）→ null＋警告。
+    // 回傳 {
+    //   moves:   [{ index, fromItemIndex, toItemIndex, fromId, toId, current, time, changed }]
+    //            index 是既有移動列在 day.items 的索引；time 是應有的 time（字串或 null，null＝清空或本來就沒有）；
+    //            changed = time !== (current ?? null)；
+    //   missing: [{ fromItemIndex, toItemIndex, fromId, toId, insertIndex, text, time }]
+    //            insertIndex ＝前一站最後一員的索引 + 1（依原陣列索引計；一次插入多個時由後往前插）；text 預設「前一站 ➔ 下一站」；
+    //   warnings:[{ type: 'overlap'|'multiple'|'extra', index | indexes, message }]
+    //            overlap：重疊（index 是移動列索引，缺列時是 insertIndex）；multiple：一段內有多個交通列（indexes）；
+    //            extra：不在任何兩站之間的交通列（index）
+    // }
+    function deriveMoves(day, places) {
+        const points = getMapPoints(day, places).filter(p => !p.excludeFromRoute);
+        const stops = [];
+        points.forEach(p => {
+            const last = stops[stops.length - 1];
+            if (p.alt && last && last[0].alt === p.alt) last.push(p);
+            else stops.push([p]);
+        });
+        const nameOf = id => (places[id] && places[id].name) || id;
+        const stopName = stop => stop.map(p => nameOf(p.id)).join('／');
+        const timeOf = index => {
+            const group = getAltGroupAt(day, index);
+            return day.items[group ? group.start : index].time;
+        };
+        const result = { moves: [], missing: [], warnings: [] };
+        const inGap = new Set();
+        for (let i = 0; i + 1 < stops.length; i++) {
+            const a = stops[i], b = stops[i + 1];
+            const fromItemIndex = a[a.length - 1].itemIndex, toItemIndex = b[0].itemIndex;
+            const rows = [];
+            for (let k = fromItemIndex + 1; k < toItemIndex; k++) if (ROW_TYPES.includes(day.items[k].type)) rows.push(k);
+            rows.forEach(k => inGap.add(k));
+            const where = `DAY ${day.day}（${stopName(a)} → ${stopName(b)}）`;
+            if (rows.length > 1) {
+                result.warnings.push({ type: 'multiple', indexes: rows, message: `${where}：兩站之間有 ${rows.length} 個移動列，請只留一個` });
+                continue;
+            }
+            const prev = parseTimeRange(timeOf(a[0].itemIndex)), next = parseTimeRange(timeOf(b[0].itemIndex));
+            let time = null, derived = false, overlap = false;
+            if (prev && next) {
+                if (next.start >= prev.end) { time = `${formatClock(prev.end)} - ${formatClock(next.start)}`; derived = true; }
+                else overlap = true;
+            }
+            const info = { fromItemIndex, toItemIndex, fromId: a[a.length - 1].id, toId: b[0].id };
+            if (rows.length === 1) {
+                const index = rows[0], current = day.items[index].time;
+                if (!derived && !overlap) time = current == null ? null : current;
+                result.moves.push({ index, ...info, current, time, changed: time !== (current == null ? null : current) });
+                if (overlap) result.warnings.push({ type: 'overlap', index, message: `${where}：前一站結束晚於下一站開始，移動列時間清空` });
+            } else {
+                const insertIndex = fromItemIndex + 1;
+                result.missing.push({ ...info, insertIndex, text: `${stopName(a)} ➔ ${stopName(b)}`, time });
+                if (overlap) result.warnings.push({ type: 'overlap', index: insertIndex, message: `${where}：前一站結束晚於下一站開始` });
+            }
+        }
+        day.items.forEach((item, index) => {
+            if (ROW_TYPES.includes(item.type) && !inGap.has(index)) {
+                result.warnings.push({ type: 'extra', index, message: `DAY ${day.day} 第 ${index + 1} 項：這個移動列不在任何兩個地圖標記之間` });
+            }
+        });
+        return result;
+    }
+
     // 「排太緊」警告列表（編輯器顯示，不擋發布），由 getLegSchedule 判斷
     function getTimeWarnings(day, places, routes, site) {
         const factor = getTrafficFactor(day, site);
@@ -308,7 +378,7 @@
     Trip.model = {
         getContact, getMapPoints, getAltGroups, getAltGroupAt, validate, forEachPlaceRef, lacksCoords, CARD_TYPES, ROW_TYPES,
         DEFAULT_ROUTING, formatCoord, legKey, getLegs, getTrafficFactor, displayMinutes,
-        formatDuration, formatDistance, formatLeg, formatFactorNote, parseTimeRange, getStayMinutes, formatStay, getStayLabel, isUsableLeg, getLegSchedule, getTimeWarnings
+        formatDuration, formatDistance, formatLeg, formatFactorNote, parseTimeRange, getStayMinutes, formatStay, getStayLabel, isUsableLeg, getLegSchedule, getTimeWarnings, deriveMoves
     };
     if (typeof module !== 'undefined') module.exports = Trip.model;
 })(typeof window !== 'undefined' ? window : globalThis);
