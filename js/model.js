@@ -73,6 +73,19 @@
         return !!(item.place && place && item.map !== false && item.type !== 'waypoint' && (place.lat == null || place.lng == null));
     }
 
+    // 某一天的擇一組（ADR 0006）：相鄰、alt 相同的項目為一組，回傳 [{ alt, start, end }]（items 的索引，含頭尾）。
+    // 只看相鄰與同名，不管成員合不合法（合法性由 validate 檢查），所以單獨一項的 alt 也會回傳
+    function getAltGroups(day) {
+        const groups = [];
+        day.items.forEach((item, index) => {
+            if (!item.alt) return;
+            const last = groups[groups.length - 1];
+            if (last && last.end === index - 1 && last.alt === item.alt) last.end = index;
+            else groups.push({ alt: item.alt, start: index, end: index });
+        });
+        return groups;
+    }
+
     // 檢查資料，回傳問題清單（空陣列代表沒問題）
     function validate(trip, places) {
         const errors = [];
@@ -87,6 +100,20 @@
                 if (item.type === 'waypoint' && !item.place) errors.push(`${where}：waypoint 必須指定 place`);
                 if (CARD_TYPES.includes(item.type) && !item.title && !item.place) errors.push(`${where}：卡片需要 place 或 title`);
                 if (lacksCoords(item, places[item.place])) errors.push(`${where}：地點「${item.place}」沒有座標，不會出現在地圖上`);
+            });
+
+            // 擇一組：成員只能是 spot、同一個 alt 必須相鄰、至少 2 項、只有第一項可寫 time
+            const seen = new Set();
+            getAltGroups(day).forEach(group => {
+                const label = `DAY ${day.day} 擇一組 alt「${group.alt}」`;
+                if (seen.has(group.alt)) errors.push(`${label}：同一個 alt 的項目必須相鄰`);
+                seen.add(group.alt);
+                if (group.end === group.start) errors.push(`${label}：至少 2 項`);
+                for (let i = group.start; i <= group.end; i++) {
+                    const where = `DAY ${day.day} 第 ${i + 1} 項`;
+                    if (day.items[i].type !== 'spot') errors.push(`${where}：擇一組（alt）的成員只能是 spot`);
+                    if (i > group.start && day.items[i].time) errors.push(`${where}：擇一組只有第一項可寫 time（共用時間）`);
+                }
             });
         });
 
@@ -214,7 +241,7 @@
     }
 
     Trip.model = {
-        getContact, getMapPoints, validate, forEachPlaceRef, lacksCoords, CARD_TYPES, ROW_TYPES,
+        getContact, getMapPoints, getAltGroups, validate, forEachPlaceRef, lacksCoords, CARD_TYPES, ROW_TYPES,
         DEFAULT_ROUTING, formatCoord, legKey, getLegs, getTrafficFactor, displayMinutes,
         formatDuration, formatDistance, formatLeg, formatFactorNote, getTimeWarnings
     };

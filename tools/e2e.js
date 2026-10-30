@@ -353,6 +353,34 @@ async function guard(label, fn) {
         } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
     });
 
+    // ───────── T11 擇一組（假資料：把第一組相鄰的兩個 spot 改成擇一組）─────────
+    await guard('T11', async () => {
+        const MUTATE = `;(function(){ for (const d of window.TRIP.days) for (let i = 0; i + 1 < d.items.length; i++) {
+            const a = d.items[i], b = d.items[i + 1];
+            if (a.type === 'spot' && b.type === 'spot') { a.alt = 'e2e'; b.alt = 'e2e'; delete b.time; return; } } })();`;
+        for (const width of [1280, 375]) {
+            const p = await newPage({ viewport: { width, height: 900 } });
+            await p.route('**/data/trip.js', async route => {
+                const res = await route.fetch();
+                await route.fulfill({ response: res, body: (await res.text()) + MUTATE });
+            });
+            await openIndex(p);
+            const info = await p.evaluate(() => {
+                const g = document.querySelector('[data-alt-group]');
+                const cards = g ? [...g.querySelectorAll('.grid > div')] : [];
+                const r = cards.map(c => c.getBoundingClientRect());
+                return {
+                    found: !!g, n: cards.length, banner: !!document.querySelector('body > div.bg-rose-600'),
+                    sideBySide: r.length === 2 && Math.abs(r[0].top - r[1].top) < 2,
+                    overflowX: document.documentElement.scrollWidth > window.innerWidth
+                };
+            });
+            check(`T11 ${width}px：擇一組有渲染出來（2 張卡）、無 JS 錯誤、無紅色提示列`, info.found && info.n === 2 && !info.banner && p.errors.length === 0, JSON.stringify(info) + p.errors.join(' | '));
+            if (tailwindCss) check(`T11 ${width}px：${width >= 768 ? '成員並排' : '成員堆疊'}、沒有橫向溢出`, info.sideBySide === (width >= 768) && !info.overflowX, JSON.stringify(info));
+            await p.close();
+        }
+    });
+
     // ───────── T4 打錯地點 id 要出現紅色提示列 ─────────
     await guard('T4', async () => {
         const p = await newPage();

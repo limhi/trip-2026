@@ -256,3 +256,22 @@ test('validate：site.routing 與 day.trafficFactor 必須是正數', () => {
     assert.match(errs(t => { t.days[1].trafficFactor = 0; }).join('\n'), /DAY 2.*trafficFactor/);
     assert.deepEqual(errs(t => { delete t.site.routing; }), []);   // 沒設定就用預設值
 });
+
+// ───────── 擇一組（alt）：推導與驗證 ─────────
+
+test('getAltGroups：相鄰、同名 alt 的項目組成一組；沒有 alt 的行程沒有擇一組', () => {
+    const items = [place('a'), { ...place('b'), alt: 'x', time: '12:00 - 13:00' }, { ...place('c'), alt: 'x' }, place('a')];
+    assert.deepEqual(model.getAltGroups({ items }), [{ alt: 'x', start: 1, end: 2 }]);
+    assert.deepEqual(model.getAltGroups({ items: [place('a'), place('b')] }), []);
+});
+
+test('validate：擇一組合法時沒有問題；成員不是 spot、不相鄰、少於 2 項、非第一項寫 time 都會被擋下', () => {
+    const trip = items => ({ days: [{ day: 1, items }], hotels: [] });
+    const errs = items => model.validate(trip(items), P).join('\n');
+    const m = (id, extra) => ({ type: 'spot', place: id, ...extra });
+    assert.equal(errs([m('a'), m('b', { alt: 'x', time: '12:00 - 13:00' }), m('c', { alt: 'x' })]), '');
+    assert.match(errs([m('a', { alt: 'x' }), { type: 'meal', title: '午餐', alt: 'x' }]), /第 2 項.*alt.*spot/);
+    assert.match(errs([m('a', { alt: 'x' }), m('b'), m('c', { alt: 'x' })]), /alt「x」.*相鄰/);
+    assert.match(errs([m('a'), m('b', { alt: 'x' })]), /alt「x」.*至少 2 項/);
+    assert.match(errs([m('a', { alt: 'x' }), m('b', { alt: 'x', time: '12:00 - 13:00' })]), /第 2 項.*time/);
+});
