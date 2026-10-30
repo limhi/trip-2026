@@ -360,7 +360,7 @@
         return out;
     }
 
-    // ───────── 移動列長度、連動、整天重排（docs/adr/0007；編輯器、CLI、測試共用，不依賴 deriveMoves 的時間規則）─────────
+    // ───────── 移動列長度、連動、整天重排（docs/adr/0007；編輯器、CLI、測試共用）─────────
 
     // 移動列長度（分）= 查詢時間（四捨五入（原始秒數 ÷ 60 × 係數））+ item.buffer（整數分、可為負、缺值視為 0）。
     // leg 是該移動列綁定路段的快取 { distance, duration }；沒有可用的查詢結果回 null
@@ -472,7 +472,7 @@
             if (ROW_TYPES.includes(item.type)) {
                 const minutes = getMoveMinutesAt(day, i, places, routes, site);
                 if (minutes != null) length = Math.max(0, minutes);
-                else out.warnings.push({ type: 'no-route', index: i, message: `DAY ${day.day} 第 ${i + 1} 項：沒有路線查詢結果，沿用現有移動時間` });
+                else out.warnings.push({ type: 'no-route', index: i, message: `DAY ${day.day} 第 ${i + 1} 項：沒有可用的路線查詢結果（路段還沒算，或這列不在兩個地圖標記之間），沿用現有移動時間` });
             }
             const start = cursor, end = cursor + length;
             if (end > DAY_END) {
