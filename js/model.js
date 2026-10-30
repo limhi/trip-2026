@@ -34,17 +34,34 @@
     // 某一天的地圖標記：依 items 的順序，有 place（且有座標）的項目自動成為標記。
     // number 是標記上的編號，左邊的卡片會顯示同一個編號；numbered:false 的項目不編號（number 為 null）。
     // itemIndex 是該標記對應 day.items 的第幾項。
+    // 擇一組（item.alt）的成員共用同一個號碼，label 再加字母（2a、2b）；alt 是該標記所屬的擇一組。
     function getMapPoints(day, places) {
         const points = [];
         let number = 0;
+        let lastAlt = null, lastAltNumber = null, letter = 0;   // 目前所在擇一組的號碼與已用字母數
         day.items.forEach((item, itemIndex) => {
             if (!item.place || item.map === false) return;
             const place = places[item.place];
             if (!place || place.lat == null || place.lng == null) return;
+            let pointNumber = null, label = null;
+            if (item.numbered !== false) {
+                const altInGroup = item.alt && item.alt === lastAlt && lastAltNumber != null;
+                pointNumber = altInGroup ? lastAltNumber : ++number;
+                if (item.alt) {
+                    letter = altInGroup ? letter + 1 : 1;
+                    label = `${pointNumber}${String.fromCharCode(96 + letter)}`;
+                } else label = String(pointNumber);
+            }
+            if (item.alt) {
+                lastAlt = item.alt;
+                lastAltNumber = pointNumber;
+            } else lastAlt = lastAltNumber = null;
             points.push({
                 id: item.place,
                 itemIndex,
-                number: item.numbered === false ? null : ++number,
+                number: pointNumber,
+                label,
+                alt: item.alt || null,
                 name: item.mapName || place.name,
                 type: item.backup ? 'backup' : (place.mapType || 'transport'),
                 lat: place.lat,
@@ -145,6 +162,8 @@
 
     // 某一天的路段：同一天內依順序相鄰的地圖標記兩兩一段（backup 不算，標記規則同 getMapPoints）；
     // closeLoop 的回程段（最後一個標記 → 第一個）也算。
+    // 擇一組的成員視為同一站：前一站 → 每個成員、每個成員 → 下一站各一段（分岔再合流），成員之間不連線；
+    // fromAlt／toAlt 是起點／終點所屬的擇一組 alt（沒有就 null），要並列「同一組的多條路徑」時用它們歸類。
     // rowIndex：兩標記之間恰好一個 drive／move 時是該項目的索引，否則 null；
     // needsRow：兩標記之間沒有交通列（需要補自動連接列）。closeLoop 的回程段不綁定任何列。
     function getLegs(day, places) {
@@ -162,12 +181,20 @@
             legs.push({
                 fromItemIndex: a.itemIndex, toItemIndex: b.itemIndex,
                 fromId: a.id, toId: b.id,
+                fromAlt: a.alt, toAlt: b.alt,
                 from, to, key: legKey(from, to),
                 rowIndex, needsRow, closeLoop
             });
         };
-        for (let i = 0; i + 1 < points.length; i++) make(points[i], points[i + 1], false);
-        if (day.closeLoop && points.length > 1) make(points[points.length - 1], points[0], true);
+        // 站：相鄰、同一擇一組的標記併成一站，其餘一個標記一站
+        const stops = [];
+        points.forEach(p => {
+            const last = stops[stops.length - 1];
+            if (p.alt && last && last[0].alt === p.alt) last.push(p);
+            else stops.push([p]);
+        });
+        for (let i = 0; i + 1 < stops.length; i++) stops[i].forEach(a => stops[i + 1].forEach(b => make(a, b, false)));
+        if (day.closeLoop && stops.length > 1) stops[stops.length - 1].forEach(a => stops[0].forEach(b => make(a, b, true)));
         return legs;
     }
 

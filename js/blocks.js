@@ -46,7 +46,7 @@
         if (!point || point.number == null) return '';
         const types = Trip.MAP_TYPES;
         const style = (types && (types[point.type] || types.transport)) || { color: '#475569' };
-        return `<span class="map-number-marker map-number-badge" style="background:${style.color}" title="地圖標記 ${point.number}">${point.number}</span>`;
+        return `<span class="map-number-marker map-number-badge" style="background:${style.color}" title="地圖標記 ${point.label}">${point.label}</span>`;
     }
 
     // ───────── 行程區塊 ─────────

@@ -230,3 +230,40 @@ test('排定不足不影響地圖紅色：只有單段超過門檻才紅（A→B
     assert.ok(!/map-leg-label-over/.test(labels(env)[0].opts.icon.html));
     assert.ok(!/排定/.test(labels(env)[0].opts.icon.html));
 });
+
+// ───────── 擇一組：編號與分岔再合流 ─────────
+// a → [b | c]（擇一組）→ d；a>b 與 b>d 有快取，a>c 與 c>d 沒有
+const P4 = { ...P, d: { name: 'D', lat: 24.4, lng: 121.4 } };
+const ALT_DAY = { day: 2, date: '', title: '', items: [spot('a'), { ...spot('b'), alt: 'x', time: '12:00 - 13:00' }, { ...spot('c'), alt: 'x' }, spot('d')] };
+const KEY_BD = '121.20000,24.20000>121.40000,24.40000';
+const ALT_CACHE = { legs: { [KEY_AB]: CACHE.legs[KEY_AB], [KEY_BD]: { distance: 50000, duration: 3000 } } };
+function expandAlt(env, routes) {
+    const el = makeDayEl();
+    env.Trip.bindDayMap(el.dayEl, ALT_DAY, P4, { routes, site: SITE });
+    el.button.listeners.click();
+}
+
+test('擇一組：標記編號為 1、2a、2b、3（下一站接 3）', () => {
+    const env = makeEnv();
+    expandAlt(env, undefined);
+    const nums = env.rec.direct.filter(l => l.kind === 'marker').map(m => m.opts.icon.html.replace(/<[^>]+>/g, ''));
+    assert.deepEqual(nums, ['1', '2a', '2b', '3']);
+});
+
+test('擇一組沒有快取：畫四段虛線（前一站→每個成員、每個成員→下一站），沒有成員之間的線', () => {
+    const env = makeEnv();
+    expandAlt(env, undefined);
+    const lines = polylines(env);
+    assert.deepEqual(JSON.parse(JSON.stringify(lines.map(l => l.points))), [
+        [[24.1, 121.1], [24.2, 121.2]], [[24.1, 121.1], [24.3, 121.3]],
+        [[24.2, 121.2], [24.4, 121.4]], [[24.3, 121.3], [24.4, 121.4]]
+    ]);
+    assert.ok(lines.every(l => l.opts.dashArray));
+});
+
+test('擇一組有快取：有快取的段落標示時間，沒有快取的段落是虛線且沒有標示', () => {
+    const env = makeEnv();
+    expandAlt(env, ALT_CACHE);
+    assert.equal(polylines(env).length, 4);
+    assert.equal(labels(env).length, 2);
+});
