@@ -135,7 +135,7 @@
 
 編號：每天的地圖標記由上而下自動編號（1、2、3…），左邊對應的卡片／起訖點列顯示同一個編號。調整順序就是在 `items` 裡上下搬移那一項，卡片與地圖會一起更新。
 
-**移動列（`move`，`docs/adr/0007`）**：只有 `move` 一種交通列（`drive` 已移除，`validate` 遇到會報錯）。`move` 的 `time` 由前後標記推導並存進資料：`Trip.model.deriveMoves(day, places)`（純函式）回傳 `{ moves, missing, warnings }`，`Trip.model.applyMoves(day, r, fill)` 套用結果。規則：兩標記之間恰好一個 `move` 才推導；開始 = 前一站結束、結束 = 下一站開始（擇一組用共用時間框），兩端都是完整區間才推導，一端不完整保留現有 `time`，重疊則清空並警告；多個 `move`、不在兩標記之間的 `move` 只警告。編輯器（`days-logic.js` 的 `syncMoves`）在改時間、地點、新增、刪除、搬移、轉類型、併入或移出擇一組後同步並補列（輸入時間的過程只連動時間、不補列，離開欄位才補），`move` 的 `time` 唯讀、`text` 與 `note` 可編；只補不刪。`node tools/sync-moves.js [--dry-run]` 對 `data/trip.json` 做同樣的事，`check.js` 對不一致、缺列、重疊只印警告。公開頁面的自動連接列保留作備援。
+**移動列（`move`，`docs/adr/0007`）**：只有 `move` 一種交通列（`drive` 已移除，`validate` 遇到會報錯）。設計決定：移動列長度 = 查詢時間 + `buffer`（可為負的整數分鐘），編輯器改某項目時間時同一天後面的項目整段平移（連動），載入時不自動改時間，每天有「整天重排」按鈕；規則見 ADR 0007 與 GLOSSARY（移動列、緩衝、連動）。**實作現況**：`drive` 移除、`Trip.model.deriveMoves`／`applyMoves`（目前仍是「由前後標記反推」的第一版，將被連動規則取代）、編輯器補列與 `time` 唯讀已完成；連動、`buffer` 與整天重排尚未實作，完成後這裡改寫成現況。
 
 ### 4.3 地圖標記與編號是「推導」出來的
 `model.getMapPoints(day, places)` 依 `items` 的順序，把有 `place` 且該地點有座標的項目變成標記：
