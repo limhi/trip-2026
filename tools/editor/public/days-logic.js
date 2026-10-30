@@ -208,6 +208,25 @@
         return { added, changed: r.changed, warnings: r.warnings };
     }
 
+    // 整天重排（「整天重排」按鈕與 tools/sync-moves.js --reschedule 共用；就地修改 day）：
+    //   1. 補缺的移動列（applyMoves）；補出的列有查詢結果時，先依前一站結束算出 time（fitMoves），沒有查詢結果就維持沒有 time 並警告。
+    //   2. 以第一個完整區間項目的開始為起點整天重排（model.rescheduleDay）：停留不變、移動列 = 查詢 + 緩衝。
+    // 可重複執行（第二次 added、changed 都是 0）。回傳 { added: 補了幾列, changed: 幾個項目的時間有變（含補出的列新得到的時間）, warnings: [{ type, index, message }] }
+    function rescheduleDay(day, places, { routes, site } = {}) {
+        const before = new Map(day.items.map(i => [i, i.time]));
+        const filled = M.applyMoves(day, M.deriveMoves(day, places)).added;
+        const added = new Set(filled.map(a => a.item));
+        const warnings = M.fitMoves(day, places, routes, site, item => added.has(item)).warnings;
+        added.forEach(item => {
+            if (!item.time && !warnings.some(w => w.type === 'no-route' && day.items[w.index] === item)) {
+                warnings.push({ type: 'no-route', index: day.items.indexOf(item), message: `DAY ${day.day} 第 ${day.items.indexOf(item) + 1} 項：新補的移動列沒有路線查詢結果，時間留空` });
+            }
+        });
+        const r = M.rescheduleDay(day, places, routes, site);
+        warnings.push(...r.warnings);
+        return { added: filled.length, changed: day.items.filter(i => before.get(i) !== i.time).length, warnings };
+    }
+
     // 移動列警告（多個、多餘）；不擋存檔與發布
     const moveWarnings = (day, places) => M.deriveMoves(day, places).warnings;
 
@@ -238,7 +257,7 @@
     const itemErrors = (errors, dayNo, ii) => errors.filter(e => e.startsWith(`DAY ${dayNo} 第 ${ii + 1} 項：`));
     const dayErrors = (errors, dayNo) => errors.filter(e => e.startsWith(`DAY ${dayNo} `));
 
-    const api = { TYPES, moveItem, stepItem, changeType, newItem, altPosition, canJoinAlt, joinAlt, leaveAlt, stayHint, timeParts, isFirstTimed, setItemTime, moveKeys, syncMoves, moveWarnings, getPath, setPath, itemErrors, dayErrors };
+    const api = { TYPES, moveItem, stepItem, changeType, newItem, altPosition, canJoinAlt, joinAlt, leaveAlt, stayHint, timeParts, isFirstTimed, setItemTime, moveKeys, syncMoves, rescheduleDay, moveWarnings, getPath, setPath, itemErrors, dayErrors };
     root.DaysLogic = api;
     if (typeof module !== 'undefined') module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

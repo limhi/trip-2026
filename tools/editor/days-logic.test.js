@@ -537,3 +537,40 @@ test('validate：buffer 只能在 move 且必須是整數', () => {
     assert.ok(errs([spot('x'), mv('10'), spot('y')]).some(e => e.includes('buffer')));
     assert.ok(errs([spot('x', { buffer: 10 })]).some(e => e.startsWith('DAY 1 第 1 項：') && e.includes('buffer')));
 });
+
+// ---- rescheduleDay（「整天重排」按鈕與 CLI 共用）：先補缺的移動列，再整天重排 ----
+
+test('rescheduleDay：停留不變、移動列 = 查詢 + 緩衝，整天接起來；補出的列時間由重排算出；再執行不變', () => {
+    const day = dayOf([sp('a', '09:00 - 10:00'), sp('b', '10:45 - 11:30'), { type: 'move', text: 'x', buffer: 5, time: '11:30 - 12:30' }, sp('c', '12:30 - 13:00')]);
+    const routes = routesOf([['a', 'b', 1200], ['b', 'c', 1800]]);
+    const r = L.rescheduleDay(day, SP, { routes, site: SITE });
+    assert.equal(r.added, 1);
+    assert.deepEqual(day.items.map(i => i.type), ['spot', 'move', 'spot', 'move', 'spot']);
+    assert.deepEqual(timesOf(day), ['09:00 - 10:00', '10:00 - 10:20', '10:20 - 11:05', '11:05 - 11:40', '11:40 - 12:10']);
+    assert.equal(r.changed, 4);   // 補出的列、第二個景點、移動列、最後景點；第一個景點不變
+    assert.deepEqual(r.warnings, []);
+    const again = L.rescheduleDay(day, SP, { routes, site: SITE });
+    assert.deepEqual([again.added, again.changed, again.warnings.length], [0, 0, 0]);
+});
+
+test('rescheduleDay：沒有查詢結果 → 補出的列維持沒有 time 並警告，其他項目照停留接續', () => {
+    const day = dayOf([sp('a', '09:00 - 10:00'), sp('b', '11:00 - 11:30')]);
+    const r = L.rescheduleDay(day, SP, { routes: undefined, site: SITE });
+    assert.equal(r.added, 1);
+    assert.equal('time' in day.items[1], false);
+    assert.deepEqual([day.items[0].time, day.items[2].time], ['09:00 - 10:00', '10:00 - 10:30']);
+    assert.ok(r.warnings.length >= 1);
+});
+
+test('rescheduleDay：既有移動列沒有查詢結果 → 沿用長度並警告（no-route）', () => {
+    const day = dayOf([sp('a', '09:00 - 10:00'), { type: 'move', text: 'x', time: '10:30 - 10:50' }, sp('b', '11:00 - 11:30')]);
+    const r = L.rescheduleDay(day, SP, { routes: { legs: {} }, site: SITE });
+    assert.deepEqual(timesOf(day), ['09:00 - 10:00', '10:00 - 10:20', '10:20 - 10:50']);
+    assert.deepEqual(r.warnings.map(w => w.type), ['no-route']);
+});
+
+test('rescheduleDay：不完整時間不動（反向：不會被排進時間軸）', () => {
+    const day = dayOf([sp('a', '09:00 - 10:00'), sp('b', '15:30 後'), sp('c', '11:00 - 11:30')]);
+    L.rescheduleDay(day, SP, { routes: undefined, site: SITE });
+    assert.equal(day.items.find(i => i.place === 'b').time, '15:30 後');
+});

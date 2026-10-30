@@ -78,3 +78,64 @@ test('CLI：寫入後再執行檔案不變；--dry-run 不寫檔', () => {
     cli(root);
     assert.equal(fs.readFileSync(f, 'utf8'), after);
 });
+
+// ---- --reschedule <day>：補缺的移動列後整天重排（查詢時間讀 data/routes.json） ----
+const model = require('../js/model.js');
+const { rescheduleTrip } = require('./sync-moves');
+const secRoutes = pairs => ({ legs: Object.fromEntries(pairs.map(([f, t, sec]) => [model.legKey(P[f], P[t]), { distance: 1000, duration: sec }])) });
+const twoDays = () => ({
+    site: { routing: { trafficFactor: 1 } },
+    days: [
+        { day: 1, items: [spot('a', '09:00 - 10:00'), spot('b', '10:45 - 11:30')] },
+        { day: 2, items: [spot('a', '09:00 - 10:00'), spot('b', '10:45 - 11:30')] }
+    ]
+});
+
+test('rescheduleTrip：只重排指定那一天（反向：另一天一個字都不動），補列與時間一併處理', () => {
+    const trip = twoDays();
+    const day2 = JSON.stringify(trip.days[1]);
+    const r = rescheduleTrip(trip, P, secRoutes([['a', 'b', 1200]]), 1);
+    assert.deepEqual(trip.days[0].items.map(i => i.time), ['09:00 - 10:00', '10:00 - 10:20', '10:20 - 11:05']);
+    assert.equal(JSON.stringify(trip.days[1]), day2);
+    assert.deepEqual([r.added, r.changed, r.warnings.length], [1, 2, 0]);
+});
+
+test('rescheduleTrip：已重排的資料再執行沒有差異；沒有查詢結果時警告', () => {
+    const trip = twoDays();
+    rescheduleTrip(trip, P, secRoutes([['a', 'b', 1200]]), 1);
+    const before = JSON.stringify(trip);
+    const r = rescheduleTrip(trip, P, secRoutes([['a', 'b', 1200]]), 1);
+    assert.equal(JSON.stringify(trip), before);
+    assert.deepEqual([r.added, r.changed], [0, 0]);
+    const t2 = twoDays();
+    assert.ok(rescheduleTrip(t2, P, { legs: {} }, 2).warnings.length >= 1);
+});
+
+test('rescheduleTrip：天不存在或不是整數就丟錯', () => {
+    for (const bad of [9, 0, 1.5, 'x', NaN]) assert.throws(() => rescheduleTrip(twoDays(), P, { legs: {} }, bad), /DAY/);
+});
+
+test('CLI --reschedule：--dry-run 不寫檔；寫入後再執行不變；錯誤天數非 0 結束', () => {
+    const root = tmpRoot(twoDays());
+    fs.writeFileSync(path.join(root, 'data/routes.json'), JSON.stringify(secRoutes([['a', 'b', 1200]])));
+    const f = path.join(root, 'data/trip.json');
+    const orig = fs.readFileSync(f, 'utf8');
+    const d = cli(root, '--reschedule', '1', '--dry-run');
+    assert.equal(d.status, 0);
+    assert.match(d.stdout, /dry-run/);
+    assert.equal(fs.readFileSync(f, 'utf8'), orig);
+    const w = cli(root, '--reschedule', '1');
+    assert.equal(w.status, 0);
+    assert.match(w.stdout, /build-data/);
+    const after = fs.readFileSync(f, 'utf8');
+    assert.equal(JSON.parse(after).days[0].items[1].time, '10:00 - 10:20');
+    assert.equal(JSON.parse(after).days[1].items.length, 2);   // 第 2 天沒被補列
+    cli(root, '--reschedule', '1');
+    assert.equal(fs.readFileSync(f, 'utf8'), after);
+    for (const bad of ['9', 'abc', '1.5']) {
+        const e = cli(root, '--reschedule', bad);
+        assert.notEqual(e.status, 0);
+        assert.match(e.stderr, /DAY|整數/);
+    }
+    assert.notEqual(cli(root, '--reschedule').status, 0);
+});
