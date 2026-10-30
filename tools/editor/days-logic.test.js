@@ -329,3 +329,95 @@ test('stayHint：擇一組只在持有共用時間的第一成員顯示一次，
     day.items[1].time = '09:00 - 12:00';   // 非第一成員即使有 time 也不顯示
     assert.equal(L.stayHint(day, 1), '');
 });
+
+// ---- syncMoves：套用 model.deriveMoves（時間連動、補列，只補不刪） ----
+const SP = {
+    a: { name: 'A館', lat: 24.1, lng: 121.1 },
+    b: { name: 'B館', lat: 24.2, lng: 121.2 },
+    c: { name: 'C館', lat: 24.3, lng: 121.3 },
+    d: { name: 'D館', lat: 24.4, lng: 121.4 }
+};
+const sp = (place, time, extra) => ({ type: 'spot', place, time, ...extra });
+const mv = (time, text) => ({ type: 'move', time, text: text || '路上' });
+
+test('syncMoves：改景點結束時間，後一個移動列的開始時間跟著變；改開始時間，前一個移動列的結束時間跟著變', () => {
+    const day = dayOf([sp('a', '09:00 - 10:30'), mv('10:30 - 11:00'), sp('b', '11:00 - 12:00')]);
+    day.items[0].time = '09:00 - 10:45';
+    assert.equal(L.syncMoves(day, SP), true);
+    assert.equal(day.items[1].time, '10:45 - 11:00');
+    day.items[2].time = '11:20 - 12:00';
+    assert.equal(L.syncMoves(day, SP), true);
+    assert.equal(day.items[1].time, '10:45 - 11:20');
+});
+
+test('syncMoves：已經一致就回傳 false 且資料不變', () => {
+    const day = dayOf([sp('a', '09:00 - 10:30'), mv('10:30 - 11:00'), sp('b', '11:00 - 12:00')]);
+    const before = JSON.stringify(day);
+    assert.equal(L.syncMoves(day, SP), false);
+    assert.equal(JSON.stringify(day), before);
+});
+
+test('syncMoves：擇一組前後的移動列共用時間框', () => {
+    const day = dayOf([sp('a', '09:00 - 10:00'), mv(undefined), sp('b', '11:00 - 12:30', { alt: 'x' }), sp('c', undefined, { alt: 'x' }), mv(undefined), sp('d', '13:00 - 14:00')]);
+    L.syncMoves(day, SP);
+    assert.equal(day.items[1].time, '10:00 - 11:00');
+    assert.equal(day.items[4].time, '12:30 - 13:00');
+});
+
+test('syncMoves：相鄰標記之間缺移動列就補，文字「前一站 ➔ 下一站」，時間一併推導；多處缺列也插在正確位置', () => {
+    const day = dayOf([sp('a', '09:00 - 10:00'), sp('b', '10:30 - 11:00'), sp('c', '11:20 - 12:00')]);
+    assert.equal(L.syncMoves(day, SP), true);
+    assert.deepEqual(day.items.map(i => i.type), ['spot', 'move', 'spot', 'move', 'spot']);
+    assert.deepEqual([day.items[1].text, day.items[1].time], ['A館 ➔ B館', '10:00 - 10:30']);
+    assert.deepEqual([day.items[3].text, day.items[3].time], ['B館 ➔ C館', '11:00 - 11:20']);
+    assert.equal(L.syncMoves(day, SP), false);   // 補完後穩定，不會一直補
+});
+
+test('syncMoves：缺列且一端不完整時補列但不寫 time', () => {
+    const day = dayOf([sp('a', '09:00 - 10:00'), sp('b', '11:00 後')]);
+    L.syncMoves(day, SP);
+    assert.equal(day.items.length, 3);
+    assert.equal('time' in day.items[1], false);
+});
+
+test('syncMoves：只補不刪，刪掉景點後留下的移動列與其文字都保留', () => {
+    const day = dayOf([sp('a', '09:00 - 10:00'), mv('10:00 - 10:30', '去B'), sp('b', '10:30 - 11:00'), mv('11:00 - 11:20', '去C'), sp('c', '11:20 - 12:00')]);
+    day.items.splice(2, 1);   // 刪掉 b：兩個移動列相鄰在 a、c 之間
+    L.syncMoves(day, SP);
+    assert.equal(day.items.length, 4);
+    assert.deepEqual(day.items.filter(i => i.type === 'move').map(i => i.text), ['去B', '去C']);
+});
+
+test('syncMoves：一端不是完整區間時保留移動列現有時間', () => {
+    const day = dayOf([sp('a', '09:00 - 10:00'), mv('10:00 - 10:30'), sp('b', '10:30 後')]);
+    assert.equal(L.syncMoves(day, SP), false);
+    assert.equal(day.items[1].time, '10:00 - 10:30');
+});
+
+test('syncMoves：重疊時清空移動列時間，並可由 moveWarnings 取得警告', () => {
+    const day = dayOf([sp('a', '09:00 - 11:00'), mv('11:00 - 11:30'), sp('b', '10:30 - 12:00')]);
+    assert.equal(L.syncMoves(day, SP), true);
+    assert.equal('time' in day.items[1], false);
+    assert.deepEqual(L.moveWarnings(day, SP).map(w => w.type), ['overlap']);
+});
+
+test('moveWarnings：多餘與重複的移動列各出警告，且 syncMoves 不刪也不改', () => {
+    const day = dayOf([mv('08:00 - 09:00'), sp('a', '09:00 - 10:00'), mv('00:00 - 00:00'), mv('01:00 - 02:00'), sp('b', '10:30 - 11:00')]);
+    const before = JSON.stringify(day);
+    assert.equal(L.syncMoves(day, SP), false);
+    assert.equal(JSON.stringify(day), before);
+    assert.deepEqual(L.moveWarnings(day, SP).map(w => w.type).sort(), ['extra', 'multiple']);
+});
+
+test('syncMoves：非移動列的項目（景點、用餐、提醒）一律不被改動', () => {
+    const day = dayOf([sp('a', '09:00 - 10:00'), { type: 'meal', tag: 't', title: 'm', time: '12:00' }, { type: 'notice', tag: 'n', title: 'n' }, mv('x'), sp('b', '11:00 - 12:00')]);
+    const snap = JSON.stringify([0, 1, 2, 4].map(i => day.items[i]));
+    L.syncMoves(day, SP);
+    assert.equal(JSON.stringify([0, 1, 2, 4].map(i => day.items[i])), snap);
+});
+
+test('syncMoves：fill = false 只連動時間、不補列（輸入中不改列數）', () => {
+    const day = dayOf([sp('a', '09:00 - 10:00'), sp('b', '10:30 - 11:00'), sp('c', '11:20 - 12:00')]);
+    assert.equal(L.syncMoves(day, SP, false), false);
+    assert.equal(day.items.length, 3);
+});

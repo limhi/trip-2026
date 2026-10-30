@@ -126,6 +126,29 @@
         return M.getStayLabel(it);
     }
 
+    // ---- 移動列自動連動（ADR 0007）：推導規則全在 model.deriveMoves，這裡只套用結果 ----
+
+    // 套用推導：更新移動列時間（null＝清空）、在缺移動列處補一列（fill = false 時不補，輸入中不能動到列數）；只補不刪。回傳是否有變動
+    function syncMoves(day, places, fill = true) {
+        const r = M.deriveMoves(day, places);
+        let changed = false;
+        r.moves.forEach(m => {
+            if (!m.changed) return;
+            if (m.time == null) delete day.items[m.index].time; else day.items[m.index].time = m.time;
+            changed = true;
+        });
+        if (fill) r.missing.slice().sort((a, b) => b.insertIndex - a.insertIndex).forEach(s => {   // 由後往前插，前面的索引才不會位移
+            const item = { type: 'move', text: s.text };
+            if (s.time) item.time = s.time;
+            day.items.splice(s.insertIndex, 0, item);
+            changed = true;
+        });
+        return changed;
+    }
+
+    // 移動列警告（重疊、多個、多餘）；不擋存檔與發布
+    const moveWarnings = (day, places) => M.deriveMoves(day, places).warnings;
+
     function newItem(type, placeIds) {
         if (type === 'move') return { type, text: '新項目' };
         if (type === 'waypoint') return { type, place: placeIds[0] };
@@ -153,7 +176,7 @@
     const itemErrors = (errors, dayNo, ii) => errors.filter(e => e.startsWith(`DAY ${dayNo} 第 ${ii + 1} 項：`));
     const dayErrors = (errors, dayNo) => errors.filter(e => e.startsWith(`DAY ${dayNo} `));
 
-    const api = { TYPES, moveItem, stepItem, changeType, newItem, altPosition, canJoinAlt, joinAlt, leaveAlt, stayHint, getPath, setPath, itemErrors, dayErrors };
+    const api = { TYPES, moveItem, stepItem, changeType, newItem, altPosition, canJoinAlt, joinAlt, leaveAlt, stayHint, syncMoves, moveWarnings, getPath, setPath, itemErrors, dayErrors };
     root.DaysLogic = api;
     if (typeof module !== 'undefined') module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

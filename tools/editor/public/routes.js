@@ -64,6 +64,7 @@
             const { trip, places } = data();
             const out = [];
             for (const day of trip.days) {
+                M.deriveMoves(day, places).warnings.forEach(w => out.push(w.message));   // 移動列：重疊、多個、多餘
                 M.getTimeWarnings(day, places, { legs: ctl.known }, trip.site).forEach(w => out.push(w.message));
                 M.getLegs(day, places).forEach((leg, n) => {
                     if (ctl.status(leg.key) === 'failed') out.push(`DAY ${day.day} 第 ${n + 1} 段（${nameOf(leg.fromId)} → ${nameOf(leg.toId)}）：路線計算失敗（${ctl.error(leg.key)}），公開頁面會退回直線`);

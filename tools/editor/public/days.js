@@ -35,6 +35,7 @@
                 const ok = !item.place || draft().places[item.place];
                 return `<label class="col-span-2 block"><span class="text-xs text-slate-500">${label}（輸入名稱或 id 搜尋）</span><input list="placelist" data-f="place" value="${esc(item.place)}" class="mt-0.5 w-full rounded border p-1.5 ${ok ? '' : 'border-rose-500 bg-rose-50'}"><span class="hint text-xs ${ok ? 'text-slate-500' : 'text-rose-600'}">${item.place ? (ok ? esc(placeName(item.place)) : '找不到這個地點 id') : ''}</span></label>`;
             }
+            if (name === 'time' && item.type === 'move') return `<label class="block"><span class="text-xs text-slate-500">${label}（自動，依前後景點推算）</span><input data-f="time" readonly value="${esc(item.time)}" class="mt-0.5 w-full rounded border bg-slate-100 p-1.5 text-slate-500"></label>`;
             return `<label class="block"><span class="text-xs text-slate-500">${label}</span><input data-f="${name}" value="${esc(item[name])}" class="mt-0.5 w-full rounded border p-1.5"></label>`;
         }
 
@@ -122,9 +123,35 @@
         // 資料改了：重新驗證（外框更新）→ 重畫分頁
         function rerender() { ctx.changed(); render(); }
 
-        function afterMove(pos) {
+        // 移動列連動（ADR 0007）：對受影響的天套用 model.deriveMoves。回傳是否有天的項目數變了（有補列就要重畫）
+        function syncDays(dis, fill = true) {
+            const { trip, places } = draft();
+            let grew = false;
+            new Set(dis).forEach(di => {
+                const day = trip.days[di], n = day.items.length;
+                L.syncMoves(day, places, fill);
+                if (day.items.length !== n) grew = true;
+            });
+            return grew;
+        }
+
+        // 輸入中不重畫：只把該天各列的時間（含展開的移動列唯讀欄位）改成最新值
+        function refreshTimes(di) {
+            const day = draft().trip.days[di];
+            pane.querySelectorAll(`[data-item][data-di="${di}"]`).forEach(el => {
+                const it = day.items[+el.dataset.ii], t = it.time || '';
+                el.querySelector('[data-time]').textContent = t;
+                const input = el.querySelector('[data-form] input[data-f="time"][readonly]');
+                if (input) input.value = t;
+            });
+        }
+
+        function afterMove(pos, fromDi) {
             if (!pos) return;
             const day = draft().trip.days[pos.di];
+            const moved = day.items[pos.ii];
+            syncDays([fromDi, pos.di]);   // 補列會讓索引位移，重新找被搬的項目
+            pos = { di: pos.di, ii: day.items.indexOf(moved) };
             ui.openDays.add(day.day);
             rerender();
             const el = pane.querySelector(`[data-item][data-di="${pos.di}"][data-ii="${pos.ii}"] [data-row]`);
@@ -141,11 +168,11 @@
             if (itemEl) {
                 const di = +itemEl.dataset.di, ii = +itemEl.dataset.ii, it = days[di].items[ii];
                 if (act === 'toggle') { ui.openItem = ui.openItem === it ? null : it; return render(); }
-                if (act === 'del') { days[di].items.splice(ii, 1); if (ui.openItem === it) ui.openItem = null; return rerender(); }
-                if (act === 'joinalt') { L.joinAlt(days[di], ii); return rerender(); }
-                if (act === 'leavealt') { L.leaveAlt(days[di], ii); return rerender(); }
-                if (act === 'up') return afterMove(L.stepItem(trip, di, ii, -1));
-                if (act === 'down') return afterMove(L.stepItem(trip, di, ii, 1));
+                if (act === 'del') { days[di].items.splice(ii, 1); if (ui.openItem === it) ui.openItem = null; syncDays([di]); return rerender(); }
+                if (act === 'joinalt') { L.joinAlt(days[di], ii); syncDays([di]); return rerender(); }
+                if (act === 'leavealt') { L.leaveAlt(days[di], ii); syncDays([di]); return rerender(); }
+                if (act === 'up') return afterMove(L.stepItem(trip, di, ii, -1), di);
+                if (act === 'down') return afterMove(L.stepItem(trip, di, ii, 1), di);
             }
             const headEl = el.closest('[data-dayhead]');
             if (headEl) {
@@ -159,6 +186,7 @@
                 const it = L.newItem(type, Object.keys(draft().places));
                 days[di].items.push(it);
                 ui.openItem = it;
+                syncDays([di]);
                 return rerender();
             }
         });
@@ -174,10 +202,12 @@
             const form = el.closest('[data-form]');
             if (form && el.dataset.f) {
                 const it = days[+form.dataset.di].items[+form.dataset.ii], f = el.dataset.f;
-                if (f === 'type') { L.changeType(it, el.value); return rerender(); }
+                const di = +form.dataset.di;
+                if (f === 'type') { L.changeType(it, el.value); syncDays([di]); return rerender(); }
                 if (el.type === 'checkbox') {
                     if (f === 'backup') { if (el.checked) it.backup = true; else delete it.backup; }
                     else if (el.checked) delete it[f]; else it[f] = false;
+                    syncDays([di]);
                     return rerender();
                 }
                 if (el.value === '') delete it[f]; else it[f] = el.value;
@@ -189,13 +219,15 @@
                         hint.className = 'hint text-xs ' + (ok ? 'text-slate-500' : 'text-rose-600');
                         return ctx.changed();
                     }
+                    syncDays([di]);
                     return rerender();
                 }
                 const row = form.previousElementSibling;
                 row.querySelector('[data-sum]').textContent = itemLabel(it);
                 if (f === 'time') {
-                    row.querySelector('[data-time]').textContent = it.time || '';
-                    row.querySelector('[data-stay]').textContent = L.stayHint(days[+form.dataset.di], +form.dataset.ii);
+                    row.querySelector('[data-stay]').textContent = L.stayHint(days[di], +form.dataset.ii);
+                    if (syncDays([di], committed)) return rerender();   // 輸入中不補列（不能打斷輸入）；確定後才補
+                    refreshTimes(di);
                 }
                 return ctx.changed();
             }
@@ -250,7 +282,7 @@
             if (!t) return;
             e.preventDefault();
             const from = ui.drag; ui.drag = null;
-            afterMove(L.moveItem(draft().trip, from.di, from.ii, t.di, t.ii));
+            afterMove(L.moveItem(draft().trip, from.di, from.ii, t.di, t.ii), from.di);
         });
         pane.addEventListener('dragend', () => { ui.drag = null; clearMarks(); pane.querySelectorAll('.opacity-40').forEach(n => n.classList.remove('opacity-40')); });
 
