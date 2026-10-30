@@ -92,12 +92,18 @@
 </div>`;
     }
 
+    // 停留時間只給 spot／meal：「（停留 1 小時 40 分）」；沒有值回空字串
+    function stayText(item) {
+        const stay = item.type === 'spot' || item.type === 'meal' ? Trip.model.getStayMinutes(item.time) : null;
+        return stay ? `（停留 ${Trip.model.formatStay(stay)}）` : '';
+    }
+
     function card(item, ctx, point) {
         const style = CARD_STYLES[item.type];
         const place = ctx.places[item.place];
         const click = interactive(place, item.place);
         const title = item.title || (place && place.name) || '';
-        const time = item.time ? `<span class="text-xs font-bold ${style.time}">${esc(item.time)}</span>` : '';
+        const time = item.time ? `<span class="text-xs font-bold ${style.time}">${esc(item.time)}${stayText(item)}</span>` : '';
         const desc = item.desc ? `<p class="text-slate-700 text-xs md:text-sm mt-1 font-medium leading-relaxed">${esc(item.desc)}</p>` : '';
         return `<div class="p-4 rounded-xl ${style.box} border-l-8 shadow-sm${click.cls}"${click.attrs}>
     <div class="flex justify-between items-start mb-1">
@@ -151,8 +157,8 @@
     }
 
     // 擇一組外框：上方標示「二選一」與共用時間；成員卡片手機堆疊、桌機（md 以上）並排
-    function altGroup(time, members) {
-        const timeHtml = time ? `<span class="text-xs font-bold text-slate-700">${esc(time)}</span>` : '';
+    function altGroup(first, members) {
+        const timeHtml = first.time ? `<span class="text-xs font-bold text-slate-700">${esc(first.time)}${stayText(first)}</span>` : '';
         return `<div class="alt-group rounded-2xl border-2 border-dashed border-slate-400 p-3 bg-slate-50/60" data-alt-group>
     <div class="flex justify-between items-center mb-2">
         <span class="text-xs font-black bg-slate-600 text-white px-2 py-0.5 rounded"><i class="fa-solid fa-code-branch mr-1"></i>二選一</span>
@@ -185,7 +191,7 @@ ${members.filter(Boolean).join('\n')}
                 for (let i = group.start; i <= group.end; i++) {
                     members.push(renderItem(i === group.start ? { ...day.items[i], time: '' } : day.items[i], ctx, pointByItem[i], autoByRow[i]));
                 }
-                blocks.push(altGroup(day.items[group.start].time, members));
+                blocks.push(altGroup(day.items[group.start], members));
             } else {
                 blocks.push(renderItem(day.items[index], ctx, pointByItem[index], autoByRow[index]));
             }

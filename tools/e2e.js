@@ -439,6 +439,15 @@ async function guard(label, fn) {
             const flipped = slots.map((ps, i) => i === 0 ? ps.map((sc, j) => j === 0 ? { ...sc, short: !sc.short } : sc) : ps);
             const shifted = slots.map((ps, i) => i === 0 ? ps.map((sc, j) => j === 0 ? { ...sc, needed: sc.needed + 7 } : sc) : ps);
             check(`T12 DAY ${day.day} 反向：期望的「排定不足」被翻轉、或查詢時間被改掉，比對都會失敗`, (await altProblems(p, day, flipped)).length > 0 && (await altProblems(p, day, shifted)).length > 0 && (await altProblems(p, day, slots.slice(1))).length > 0);
+            // 停留時間：共用時間框顯示一次，成員卡片不重複
+            const stayCount = async text => p.evaluate(({ n, text }) => {
+                const g = [...document.querySelectorAll('[data-alt-group]')].find(el => el.closest('[data-day]') ? el.closest('[data-day]').dataset.day == n : true);
+                return g ? (g.innerText.split(text).length - 1) : -1;
+            }, { n: day.day, text });
+            if (day.day === 4) {
+                check('T12 DAY 4 真實資料：擇一組顯示「停留 1 小時 40 分」恰好一次', await stayCount('停留 1 小時 40 分') === 1);
+                check('T12 DAY 4 反向：錯的停留時間文字比對會失敗', await stayCount('停留 1 小時 41 分') !== 1);
+            }
         }
         check('T12 真實資料頁面無 JS 錯誤、沒有紅色提示列', p.errors.length === 0 && !(await p.evaluate(() => !!document.querySelector('body > div.bg-rose-600'))), p.errors.join(' | '));
         await p.close();

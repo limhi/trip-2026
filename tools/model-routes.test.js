@@ -382,3 +382,17 @@ test('getLegSchedule：擇一組前後有綁定的交通列時，整組的路段
     const s = model.getLegSchedule(day, P, { legs: {} }, SITE);
     assert.deepEqual(s.map(x => x.scheduled), [30, 30, 20, 20]);
 });
+
+// ───────── 停留時間 ─────────
+
+test('getStayMinutes：完整區間且結束晚於開始才有值；不完整、相等、跨午夜、未填都是 null', () => {
+    assert.equal(model.getStayMinutes('12:20 - 14:00'), 100);
+    assert.equal(model.getStayMinutes('09:00 - 09:45（含排隊）'), 45);
+    for (const t of ['15:30 後', '12:15', '', undefined, '12:00 - 12:00', '23:00 - 01:00']) assert.equal(model.getStayMinutes(t), null, String(t));
+});
+
+test('formatStay：沿用 formatDuration 的寫法但不帶「約」', () => {
+    assert.equal(model.formatStay(100), '1 小時 40 分');
+    assert.equal(model.formatStay(45), '45 分');
+    assert.equal(model.formatStay(120), '2 小時');
+});

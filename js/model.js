@@ -241,6 +241,17 @@
         return end >= start ? { start, end } : null;
     }
 
+    // 停留時間（分）：time 是完整區間且結束晚於開始才有值，否則 null（不完整、相等、跨午夜）。公開頁面與編輯器共用
+    function getStayMinutes(time) {
+        const range = parseTimeRange(time);
+        return range && range.end > range.start ? range.end - range.start : null;
+    }
+
+    // 100 → 「1 小時 40 分」、45 → 「45 分」（formatDuration 的寫法，不帶「約」）
+    function formatStay(minutes) {
+        return formatDuration(minutes).replace(/^約 /, '');
+    }
+
     // 路段快取的一筆是否可用：distance 與 duration 都是有限數字（getLegSchedule 與公開頁面的 dayRoutes 共用這一個判斷）
     const isUsableLeg = c => !!c && [c.distance, c.duration].every(v => typeof v === 'number' && Number.isFinite(v));
 
@@ -290,7 +301,7 @@
     Trip.model = {
         getContact, getMapPoints, getAltGroups, getAltGroupAt, validate, forEachPlaceRef, lacksCoords, CARD_TYPES, ROW_TYPES,
         DEFAULT_ROUTING, formatCoord, legKey, getLegs, getTrafficFactor, displayMinutes,
-        formatDuration, formatDistance, formatLeg, formatFactorNote, parseTimeRange, isUsableLeg, getLegSchedule, getTimeWarnings
+        formatDuration, formatDistance, formatLeg, formatFactorNote, parseTimeRange, getStayMinutes, formatStay, isUsableLeg, getLegSchedule, getTimeWarnings
     };
     if (typeof module !== 'undefined') module.exports = Trip.model;
 })(typeof window !== 'undefined' ? window : globalThis);

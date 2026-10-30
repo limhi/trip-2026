@@ -219,3 +219,25 @@ test('擇一組的當天總車程取較長的路徑並標註；缺快取的路�
 test('沒有 alt 的行程：不出現擇一組外框', () => {
     assert.equal(count(render(day([card('a'), card('b')])), /data-alt-group|二選一/g), 0);
 });
+
+// ───────── 停留時間 ─────────
+
+test('停留時間：spot 與 meal 的完整區間顯示「（停留 …）」；不完整、結束不晚於開始、其他類型不顯示', () => {
+    const html = item => render(day([item]), undefined);
+    assert.ok(html({ ...card('a'), time: '12:20 - 14:00' }).includes('12:20 - 14:00（停留 1 小時 40 分）'));
+    assert.ok(html({ type: 'meal', tag: '午餐', title: '吃', time: '12:00 - 12:45' }).includes('（停留 45 分）'));
+    assert.ok(!html({ ...card('a'), time: '15:30 後' }).includes('停留'));
+    assert.ok(!html({ ...card('a'), time: '12:00 - 12:00' }).includes('停留'));
+    assert.ok(!html({ type: 'stay', tag: '住宿', title: 'x', place: 'a', time: '18:00 - 20:00' }).includes('停留'));
+    assert.ok(!html({ type: 'end', tag: '結束', title: 'x', time: '18:00 - 20:00' }).includes('停留'));
+});
+
+test('停留時間：擇一組只在共用時間框顯示一次，成員卡片不重複', () => {
+    const d = day([{ ...card('a'), alt: 'x', time: '12:20 - 14:00' }, { ...card('b'), alt: 'x', time: '' }]);
+    assert.equal(count(render(d, undefined), /停留 1 小時 40 分/g), 1);
+});
+
+test('停留時間：不進排太緊警告', () => {
+    const d = day([{ ...card('a'), time: '12:20 - 14:00' }, card('b')]);
+    assert.equal(Trip.model.getTimeWarnings(d, P, CACHE, SITE).length, 0);
+});
