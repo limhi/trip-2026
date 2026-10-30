@@ -165,9 +165,39 @@ test('joinAlt：共用時間只留在組內第一項，其他成員的 time 被�
     assert.equal(d.items[1].time, undefined);
     const e = dayOf([spot('x', { time: '10:00 - 11:00' }), spot('y', { time: '12:00 - 13:00' })]);
     L.joinAlt(e, 1);
-    assert.equal(e.items[0].time, '10:00 - 11:00');   // 第一項有時間就以它為準
+    assert.equal(e.items[0].time, '10:00 - 13:00');   // 都是完整區間：取聯集（最早開始到最晚結束）
     assert.equal(e.items[1].time, undefined);
     assert.deepEqual(errorsOf(e), []);
+});
+
+test('joinAlt：Day 4 的例子，12:20 - 13:00 與 13:10 - 14:00 併成一組 → 12:20 - 14:00', () => {
+    const d = dayOf([spot('x', { time: '12:20 - 13:00' }), spot('y', { time: '13:10 - 14:00' })]);
+    L.joinAlt(d, 1);
+    assert.equal(d.items[0].time, '12:20 - 14:00');
+    assert.equal(d.items[1].time, undefined);
+});
+
+test('joinAlt：只有一個成員有完整區間時，保留它的原文（含後面的說明）', () => {
+    const d = dayOf([spot('x'), spot('y', { time: '12:20 - 14:00 午餐前' })]);
+    L.joinAlt(d, 1);
+    assert.equal(d.items[0].time, '12:20 - 14:00 午餐前');
+});
+
+test('joinAlt：有成員的時間不是完整區間，改保留第一個有時間的成員的原文，不亂湊', () => {
+    const d = dayOf([spot('x', { time: '17:10 後' }), spot('y', { time: '12:00 - 13:00' })]);
+    L.joinAlt(d, 1);
+    assert.equal(d.items[0].time, '17:10 後');
+    assert.equal(d.items[1].time, undefined);
+    const e = dayOf([spot('x', { time: '12:00 - 13:00' }), spot('y', { time: '17:10 後' })]);
+    L.joinAlt(e, 1);
+    assert.equal(e.items[0].time, '12:00 - 13:00');
+});
+
+test('joinAlt：加入既有擇一組時，共用時間與新成員的時間取聯集', () => {
+    const d = dayOf([spot('x', { alt: 'g', time: '12:00 - 13:00' }), spot('y', { alt: 'g' }), spot('z', { time: '13:30 - 15:00' })]);
+    L.joinAlt(d, 2);
+    assert.equal(d.items[0].time, '12:00 - 15:00');
+    assert.equal(d.items[2].time, undefined);
 });
 
 test('joinAlt：同一天已有的 alt 名稱不會被新組重複使用', () => {

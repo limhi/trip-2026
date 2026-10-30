@@ -69,10 +69,17 @@
         return isSpot(ii - 1) || isSpot(ii + 1);
     }
 
-    // 共用時間只留在組內第一項：第一項沒有時間時取成員裡第一個有的，其餘清掉
+    // 共用時間只留在組內第一項。所有有時間的成員都是完整區間時取聯集（最早開始到最晚結束）；
+    // 只有一個成員有時間、或有成員的時間不是完整區間（「17:10 後」等）時，保留第一個有時間的成員的原文，不亂湊
     function normalizeAltTime(day, g) {
         const members = day.items.slice(g.start, g.end + 1);
-        const time = members.map(m => m.time).find(Boolean);
+        const timed = members.map(m => m.time).filter(Boolean);
+        const ranges = timed.map(M.parseTimeRange);
+        let time = timed[0];
+        if (timed.length > 1 && ranges.every(Boolean)) {
+            const clock = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+            time = `${clock(Math.min(...ranges.map(r => r.start)))} - ${clock(Math.max(...ranges.map(r => r.end)))}`;
+        }
         members.forEach(m => delete m.time);
         if (time) members[0].time = time;
     }
