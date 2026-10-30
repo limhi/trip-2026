@@ -513,3 +513,27 @@ test('載入資料不會改任何時間：只有 setItemTime／syncMoves 才會�
     L.moveKeys(day, SP);
     assert.equal(JSON.stringify(day), before);
 });
+
+// ---- 緩衝 buffer（ticket 02）：只在 move，整數分鐘，0 不寫入 ----
+test('move 的欄位表含 buffer；其他類型沒有', () => {
+    assert.ok(L.TYPES.move.fields.includes('buffer'));
+    assert.ok(!L.TYPES.spot.fields.includes('buffer'));
+});
+
+test('changeType：move 保留 buffer，轉 spot 則丟掉', () => {
+    const item = { type: 'move', time: '1', text: 't', buffer: -10 };
+    L.changeType(item, 'move');
+    assert.equal(item.buffer, -10);
+    L.changeType(item, 'spot');
+    assert.deepEqual(item, { type: 'spot', time: '1' });
+});
+
+test('validate：buffer 只能在 move 且必須是整數', () => {
+    const errs = items => Model.validate({ days: [dayOf(items)] }, altPlaces);
+    const mv = buffer => ({ type: 'move', text: 'm', buffer });
+    assert.deepEqual(errs([spot('x'), mv(-15), spot('y')]), []);
+    assert.deepEqual(errs([spot('x'), mv(20), spot('y')]), []);
+    assert.ok(errs([spot('x'), mv(1.5), spot('y')]).some(e => e.startsWith('DAY 1 第 2 項：') && e.includes('buffer')));
+    assert.ok(errs([spot('x'), mv('10'), spot('y')]).some(e => e.includes('buffer')));
+    assert.ok(errs([spot('x', { buffer: 10 })]).some(e => e.startsWith('DAY 1 第 1 項：') && e.includes('buffer')));
+});

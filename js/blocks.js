@@ -68,10 +68,14 @@
         return `${note} <span class="auto-leg-duration text-amber-600 ${weight}">(查詢 ${esc(auto.text)})</span>${scheduledText(auto)}${shortText(auto)}${autoNote(auto)}`;
     }
 
+    // 緩衝非 0 時在移動列加註；只是標示，不改查詢時間
+    const bufferText = item => Number.isInteger(item.buffer) && item.buffer !== 0
+        ? ` <span class="leg-buffer text-slate-500 font-bold">含緩衝 ${item.buffer > 0 ? '+' : '−'}${Math.abs(item.buffer)} 分</span>` : '';
+
     function moveRow(item, auto) {
         return `<div class="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 text-xs md:text-sm border border-slate-200">
     <span class="font-bold text-slate-500 w-28 shrink-0"><i class="fa-solid fa-route mr-1"></i> ${esc(item.time)}</span>
-    <div class="text-slate-700">${esc(item.text)}${legExtras(item, auto, 'font-bold')}</div>
+    <div class="text-slate-700">${esc(item.text)}${legExtras(item, auto, 'font-bold')}${bufferText(item)}</div>
 </div>`;
     }
 

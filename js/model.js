@@ -121,6 +121,10 @@
                 if ('duration' in item) errors.push(`${where}：項目的 duration 已改名為 note，請改用 note`);
                 if (item.type === 'drive') errors.push(`${where}：項目類型 drive 已移除，請改用 move`);
                 else if (!ALL_TYPES.includes(item.type)) errors.push(`${where}：不認得的類型「${item.type}」`);
+                if ('buffer' in item) {
+                    if (item.type !== 'move') errors.push(`${where}：buffer（緩衝）只能用在 move`);
+                    else if (!Number.isInteger(item.buffer)) errors.push(`${where}：buffer（緩衝）必須是整數分鐘`);
+                }
                 if (item.type === 'waypoint' && !item.place) errors.push(`${where}：waypoint 必須指定 place`);
                 if (CARD_TYPES.includes(item.type) && !item.title && !item.place) errors.push(`${where}：卡片需要 place 或 title`);
                 if (lacksCoords(item, places[item.place])) errors.push(`${where}：地點「${item.place}」沒有座標，不會出現在地圖上`);

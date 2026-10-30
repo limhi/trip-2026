@@ -9,7 +9,7 @@
     const FIELD = {
         time: ['時間', 'text'], tag: ['標籤', 'text'], title: ['標題（空白＝用地點名稱）', 'text'], text: ['文字', 'text'],
         note: ['備註', 'text'], icon: ['圖示', 'text'], mapName: ['地圖上的名稱', 'text'], desc: ['說明', 'area'],
-        place: ['地點', 'place'], map: ['顯示在地圖', 'bool'], numbered: ['地圖上編號', 'bool'], backup: ['備案（不連線）', 'bool']
+        buffer: ['緩衝（分鐘，可正負）', 'int'], place: ['地點', 'place'], map: ['顯示在地圖', 'bool'], numbered: ['地圖上編號', 'bool'], backup: ['備案（不連線）', 'bool']
     };
 
     // ctx：{ data(): {trip, places}, errors(): string[], changed(): 重新驗證並更新外框, toast(msg), routes(): { legs }（路線快取，可省略） }
@@ -53,6 +53,7 @@
                     <label class="block"><span class="text-xs text-slate-500">時間說明</span><input data-f="tail" value="${esc(parts.tail)}" ${rw}></label>
                 </div>`;
             }
+            if (kind === 'int') return `<label class="block"><span class="text-xs text-slate-500">${label}</span><input data-f="${name}" inputmode="numeric" value="${esc(item[name])}" class="mt-0.5 w-full rounded border p-1.5"></label>`;
             return `<label class="block"><span class="text-xs text-slate-500">${label}</span><input data-f="${name}" value="${esc(item[name])}" class="mt-0.5 w-full rounded border p-1.5"></label>`;
         }
 
@@ -259,6 +260,16 @@
                     form.previousElementSibling.querySelector('[data-sum]').textContent = itemLabel(it);
                     if (committed) { syncDays(before); return rerender(); }
                     return ctx.changed();
+                }
+                if (FIELD[f][1] === 'int') {   // 整數欄位：空白或 0＝刪除；打到一半不是整數就先忽略
+                    const n = el.value.trim() === '' ? 0 : Number(el.value);
+                    if (!Number.isInteger(n)) return;
+                    if (n === 0) delete it[f]; else it[f] = n;
+                    if (f === 'buffer') {   // 緩衝變了＝這個移動列的長度變了：該列改成新長度，後面整天平移差值
+                        const r = M.fitMoves(days[di], places, routesOf(), trip.site, item => item === it);
+                        if (r.changed.length) refreshTimes(di);
+                    }
+                    return committed ? rerender() : ctx.changed();
                 }
                 if (el.value === '') delete it[f]; else it[f] = el.value;
                 if (f === 'place') {

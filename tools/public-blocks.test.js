@@ -241,3 +241,15 @@ test('停留時間：不進排太緊警告', () => {
     const d = day([{ ...card('a'), time: '12:20 - 14:00' }, card('b')]);
     assert.equal(Trip.model.getTimeWarnings(d, P, CACHE, SITE).length, 0);
 });
+
+test('緩衝非 0：移動列加註「含緩衝 +N 分」「含緩衝 −N 分」；0 或沒有則不加；查詢時間文字不受影響', () => {
+    const base = render(day([card('a'), moveRow({ time: '08:00 - 10:00' }), card('b')]), CACHE);
+    assert.equal(count(base, /含緩衝/g), 0);
+    const pos = render(day([card('a'), moveRow({ time: '08:00 - 10:00', buffer: 15 }), card('b')]), CACHE);
+    assert.ok(pos.includes('含緩衝 +15 分'));
+    assert.ok(pos.includes('查詢 約 1 小時 21 分'));
+    const neg = render(day([card('a'), moveRow({ time: '08:00 - 08:30', buffer: -10 }), card('b')]), CACHE);
+    assert.ok(neg.includes('含緩衝 −10 分'));
+    assert.equal(count(neg, /leg-short/g), 1);   // 排定不足紅字照舊
+    assert.equal(count(render(day([card('a'), moveRow({ buffer: 0 }), card('b')]), CACHE), /含緩衝/g), 0);
+});
