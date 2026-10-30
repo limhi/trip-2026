@@ -1,4 +1,4 @@
-// node --test tools/derive-moves.test.js：移動列推導（js/model.js 的 deriveMoves，純函式）
+// node --test tools/derive-moves.test.js：移動列補齊與警告（js/model.js 的 deriveMoves／applyMoves；時間規則在 cascade.test.js）
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const model = require('../js/model.js');
@@ -12,55 +12,38 @@ const P = {
 };
 const spot = (place, time, extra) => ({ type: 'spot', place, time, ...extra });
 const move = (time, extra) => ({ type: 'move', time, text: '路上', ...extra });
-const view = r => r.moves.map(m => [m.index, m.time, m.changed]);
+const view = r => r.moves.map(m => [m.index, m.fromId, m.toId]);
 
-test('一般情況：移動列時間 = 前一站結束到下一站開始', () => {
+test('既有移動列：列出索引與前後站，不帶時間（時間由連動決定，不再反推）', () => {
     const day = { day: 1, items: [spot('a', '09:00 - 10:30'), move('00:00 - 00:00'), spot('b', '11:15 - 12:00')] };
     const r = model.deriveMoves(day, P);
-    assert.deepEqual(view(r), [[1, '10:30 - 11:15', true]]);
-    assert.equal(r.moves[0].fromId, 'a');
-    assert.equal(r.moves[0].toId, 'b');
+    assert.deepEqual(view(r), [[1, 'a', 'b']]);
+    assert.ok(!('time' in r.moves[0]) && !('changed' in r.moves[0]));
     assert.deepEqual(r.missing, []);
     assert.deepEqual(r.warnings, []);
 });
 
-test('已經一致的移動列 changed 為 false', () => {
-    const day = { day: 1, items: [spot('a', '09:00 - 10:30'), { type: 'move', time: '10:30 - 11:15' }, spot('b', '11:15 - 12:00')] };
-    assert.deepEqual(view(model.deriveMoves(day, P)), [[1, '10:30 - 11:15', false]]);
-});
-
-test('擇一組：前一站用組的共用結束、下一站用組的共用開始', () => {
+test('擇一組：前一站用組的最後一員、下一站用組的第一員', () => {
     const day = { day: 1, items: [
         spot('a', '09:00 - 10:00'), move('x'),
         spot('b', '10:30 - 12:00', { alt: 'g' }), spot('c', undefined, { alt: 'g' }),
         move('y'), spot('d', '13:00 - 14:00')
     ] };
     const r = model.deriveMoves(day, P);
-    assert.deepEqual(view(r), [[1, '10:00 - 10:30', true], [4, '12:00 - 13:00', true]]);
-    assert.equal(r.moves[1].fromId, 'c');   // 組的最後一員（實際相鄰的那一項）
+    assert.deepEqual(view(r), [[1, 'a', 'b'], [4, 'c', 'd']]);
     assert.deepEqual(r.warnings, []);
 });
 
-test('一端不是完整區間：保留現有 time，不報警告', () => {
+test('時間不完整或前後時間重疊都不產生警告（不再檢查時間）', () => {
     const day = { day: 1, items: [spot('a', '09:00 - 10:00'), move('10:00 - 10:20'), spot('b', '15:30 後')] };
-    const r = model.deriveMoves(day, P);
-    assert.deepEqual(view(r), [[1, '10:00 - 10:20', false]]);
-    assert.deepEqual(r.warnings, []);
-    const noTime = { day: 1, items: [spot('a', '09:00 - 10:00'), move(undefined), spot('b')] };
-    assert.deepEqual(view(model.deriveMoves(noTime, P)), [[1, null, false]]);
+    assert.deepEqual(model.deriveMoves(day, P).warnings, []);
+    const ov = { day: 3, items: [spot('a', '09:00 - 10:30'), move('10:30 - 11:00'), spot('b', '10:00 - 11:00')] };
+    assert.deepEqual(model.deriveMoves(ov, P).warnings, []);
+    const ovMissing = { day: 1, items: [spot('a', '09:00 - 10:00'), spot('b', '09:30 - 10:00')] };
+    assert.deepEqual(model.deriveMoves(ovMissing, P).warnings, []);
 });
 
-test('重疊：應有時間為 null 並回報 overlap 警告', () => {
-    const day = { day: 3, items: [spot('a', '09:00 - 10:30'), move('10:30 - 11:00'), spot('b', '10:00 - 11:00')] };
-    const r = model.deriveMoves(day, P);
-    assert.deepEqual(view(r), [[1, null, true]]);
-    assert.equal(r.warnings.length, 1);
-    assert.equal(r.warnings[0].type, 'overlap');
-    assert.equal(r.warnings[0].index, 1);
-    assert.match(r.warnings[0].message, /DAY 3/);
-});
-
-test('兩標記之間多個移動列：不推導，回報 multiple 警告', () => {
+test('兩標記之間多個移動列：回報 multiple 警告', () => {
     const day = { day: 1, items: [spot('a', '09:00 - 10:00'), move('1'), move('2'), spot('b', '11:00 - 12:00')] };
     const r = model.deriveMoves(day, P);
     assert.deepEqual(r.moves, []);
@@ -74,24 +57,14 @@ test('不在任何兩標記之間的移動列：extra 警告', () => {
     assert.deepEqual(r.warnings.map(w => [w.type, w.index]), [['extra', 0], ['extra', 2]]);
 });
 
-test('缺移動列：列出相鄰標記、插入位置與預設文字', () => {
+test('缺移動列：列出相鄰標記、插入位置與預設文字，不帶時間', () => {
     const day = { day: 1, items: [spot('a', '09:00 - 10:00'), { type: 'notice', title: 'x' }, spot('b', '11:00 - 12:00'), spot('c', '12:30 - 13:00')] };
     const r = model.deriveMoves(day, P);
     assert.deepEqual(r.moves, []);
     assert.deepEqual(r.missing, [
-        { fromItemIndex: 0, toItemIndex: 2, fromId: 'a', toId: 'b', insertIndex: 1, text: 'A館 ➔ B館', time: '10:00 - 11:00' },
-        { fromItemIndex: 2, toItemIndex: 3, fromId: 'b', toId: 'c', insertIndex: 3, text: 'B館 ➔ C館', time: '12:00 - 12:30' }
+        { fromItemIndex: 0, toItemIndex: 2, fromId: 'a', toId: 'b', insertIndex: 1, text: 'A館 ➔ B館' },
+        { fromItemIndex: 2, toItemIndex: 3, fromId: 'b', toId: 'c', insertIndex: 3, text: 'B館 ➔ C館' }
     ]);
-});
-
-test('缺移動列但一端不完整：time 為 null；重疊也警告', () => {
-    const day = { day: 1, items: [spot('a', '09:00 - 10:00'), spot('b', '15:30 後'), spot('c', '15:00 - 16:00')] };
-    const r = model.deriveMoves(day, P);
-    assert.deepEqual(r.missing.map(m => m.time), [null, null]);
-    const ov = { day: 1, items: [spot('a', '09:00 - 10:00'), spot('b', '09:30 - 10:00')] };
-    const r2 = model.deriveMoves(ov, P);
-    assert.deepEqual(r2.missing.map(m => m.time), [null]);
-    assert.deepEqual(r2.warnings.map(w => w.type), ['overlap']);
 });
 
 test('缺列：擇一組用成員名稱串接，插入在組的最後一員之後', () => {
@@ -102,7 +75,6 @@ test('缺列：擇一組用成員名稱串接，插入在組的最後一員之�
     assert.equal(r.missing.length, 1);
     assert.equal(r.missing[0].insertIndex, 2);
     assert.equal(r.missing[0].text, 'A館／B館 ➔ C館');
-    assert.equal(r.missing[0].time, '10:00 - 11:00');
 });
 
 test('backup、map:false、沒有座標的項目不算標記，與 getLegs 的連接列一致', () => {
@@ -110,7 +82,7 @@ test('backup、map:false、沒有座標的項目不算標記，與 getLegs 的�
         spot('nocoord', '10:00 - 11:00'), move('?'), spot('d', '12:00 - 13:00')];
     const day = { day: 1, items };
     const r = model.deriveMoves(day, P);
-    assert.deepEqual(view(r), [[4, '10:00 - 12:00', true]]);
+    assert.deepEqual(view(r), [[4, 'a', 'd']]);
     const legs = model.getLegs(day, P);
     assert.deepEqual(legs.map(l => [l.fromItemIndex, l.toItemIndex, l.rowIndex]), [[0, 5, 4]]);
     const noRow = { day: 1, items: items.filter(i => i.type !== 'move') };
@@ -118,18 +90,42 @@ test('backup、map:false、沒有座標的項目不算標記，與 getLegs 的�
     assert.equal(model.deriveMoves(noRow, P).missing.length, 1);
 });
 
-test('不修改輸入', () => {
+test('deriveMoves 不修改輸入', () => {
     const day = { day: 1, items: [spot('a', '09:00 - 10:30'), move('x'), spot('b', '11:15 - 12:00'), spot('c', '13:00 - 14:00')] };
     const before = JSON.stringify(day);
     model.deriveMoves(day, P);
     assert.equal(JSON.stringify(day), before);
 });
 
-test('真實行程資料：每個移動列都與前後標記一致，沒有缺列與警告', () => {
+// ───────── applyMoves：只補列，不寫任何時間 ─────────
+
+test('applyMoves：缺列處補一列（由後往前插），只有 type 與 text，不寫 time，回傳補上的項目', () => {
+    const day = { day: 1, items: [spot('a', '09:00 - 10:00'), spot('b', '10:30 - 11:00'), spot('c', '12:00 - 13:00')] };
+    const r = model.applyMoves(day, model.deriveMoves(day, P));
+    assert.deepEqual(day.items.map(i => i.type), ['spot', 'move', 'spot', 'move', 'spot']);
+    assert.deepEqual(day.items[1], { type: 'move', text: 'A館 ➔ B館' });
+    assert.deepEqual(day.items[3], { type: 'move', text: 'B館 ➔ C館' });
+    assert.deepEqual(r.added.map(a => a.item), [day.items[3], day.items[1]]);   // 同一個物件，供呼叫端接著算時間
+    assert.deepEqual(day.items.filter(i => i.type === 'spot').map(i => i.time), ['09:00 - 10:00', '10:30 - 11:00', '12:00 - 13:00']);
+});
+
+test('applyMoves：既有移動列的時間完全不動（反向：舊規則會改成 10:30 - 11:15）', () => {
+    const day = { day: 1, items: [spot('a', '09:00 - 10:30'), move('00:00 - 00:00'), spot('b', '11:15 - 12:00')] };
+    const r = model.applyMoves(day, model.deriveMoves(day, P));
+    assert.equal(day.items[1].time, '00:00 - 00:00');
+    assert.deepEqual(r.added, []);
+});
+
+test('applyMoves：fill = false 不補列', () => {
+    const day = { day: 1, items: [spot('a', '09:00 - 10:00'), spot('b', '10:30 - 11:00')] };
+    assert.deepEqual(model.applyMoves(day, model.deriveMoves(day, P), false).added, []);
+    assert.equal(day.items.length, 2);
+});
+
+test('真實行程資料：沒有缺列、多個、多餘的移動列（時間不再要求與前後標記一致）', () => {
     const trip = require('../data/trip.json'), places = require('../data/places.json');
     for (const day of trip.days) {
         const r = model.deriveMoves(day, places);
-        assert.deepEqual(r.moves.filter(m => m.changed).map(m => [day.day, m.index]), [], `DAY ${day.day} 移動列時間與推導值不同`);
         assert.deepEqual(r.missing.map(m => [day.day, m.text]), [], `DAY ${day.day} 缺移動列`);
         assert.deepEqual(r.warnings.map(w => w.message), []);
     }

@@ -2,6 +2,7 @@
 // 計算流程在 routes-controller.js、純邏輯在 routes-logic.js、規則在 js/model.js。
 //   const routes = EditorRoutes.create({ pane, bar, data, changed, onComputed, onStatus });
 //   routes.legHtml(di, ii) / routes.dayHeadHtml(di)   給 days.js 畫在項目之間與日標題
+//   routes.known()                                    路線快取 { key: { distance, duration } }（days.js 算移動列長度用）
 //   routes.reset()                                    重新載入資料後呼叫
 // 草稿變動（document 的 'draftchange'）時自動重畫並排程計算；結果更新時只就地換掉路線區塊，不重畫整個分頁（避免輸入中失去焦點）。
 (function () {
@@ -11,7 +12,7 @@
     const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
     // pane：每日行程分頁（放路線區塊）；bar：路線設定與警告列；data()：{ trip, places }；
-    // changed()：草稿改了（重新驗證並通知預覽）；onComputed()：有新算出的路線（預覽要重新整理）
+    // changed()：草稿改了（重新驗證並通知預覽）；onComputed(keys)：有新算出的路線（keys＝新算出的路段；預覽要重新整理、受影響的天要連動）
     // onStatus()：路線狀態變了（含「有未存檔的路線」），外框要重畫
     function create({ pane, bar, data, changed, onComputed, onStatus = () => {} }) {
         const ctl = window.RoutesController.create({ data, onUpdate: () => { refresh(); onStatus(); }, onComputed });
@@ -64,7 +65,13 @@
             const { trip, places } = data();
             const out = [];
             for (const day of trip.days) {
-                M.deriveMoves(day, places).warnings.forEach(w => out.push(w.message));   // 移動列：重疊、多個、多餘
+                M.deriveMoves(day, places).warnings.forEach(w => out.push(w.message));   // 移動列：多個、多餘
+                const noRoute = new Set();
+                M.getLegs(day, places).forEach(leg => {   // 移動列沒有查詢結果：時間沿用現有值，不會連動
+                    if (leg.rowIndex == null || leg.closeLoop || noRoute.has(leg.rowIndex) || ctl.status(leg.key) === 'computing') return;
+                    noRoute.add(leg.rowIndex);
+                    if (M.getMoveMinutesAt(day, leg.rowIndex, places, { legs: ctl.known }, trip.site) == null) out.push(`DAY ${day.day} 第 ${leg.rowIndex + 1} 項：移動列沒有路線查詢結果，時間沿用現有值（算出路線後才會連動）`);
+                });
                 M.getTimeWarnings(day, places, { legs: ctl.known }, trip.site).forEach(w => out.push(w.message));
                 M.getLegs(day, places).forEach((leg, n) => {
                     if (ctl.status(leg.key) === 'failed') out.push(`DAY ${day.day} 第 ${n + 1} 段（${nameOf(leg.fromId)} → ${nameOf(leg.toId)}）：路線計算失敗（${ctl.error(leg.key)}），公開頁面會退回直線`);
@@ -140,6 +147,7 @@
 
         return {
             legHtml, dayHeadHtml,
+            known: () => ctl.known,
             unsaved: () => ctl.unsaved(),
             markSaved: () => ctl.markSaved(),
             reset() {

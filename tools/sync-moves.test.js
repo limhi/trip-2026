@@ -1,4 +1,4 @@
-// node --test tools/sync-moves.test.js：移動列同步（tools/sync-moves.js 的 syncTrip 與 CLI）
+// node --test tools/sync-moves.test.js：補齊缺的移動列（tools/sync-moves.js 的 syncTrip 與 CLI）
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
@@ -15,43 +15,35 @@ const P = {
 const spot = (place, time) => ({ type: 'spot', place, time });
 const mk = items => ({ days: [{ day: 1, items }] });
 
-test('不一致的移動列被更新，其他欄位與項目都保留', () => {
+test('既有移動列的時間與其他欄位完全不動（反向：舊規則會把 00:00 - 00:00 改成 10:00 - 10:40）', () => {
     const trip = mk([spot('a', '09:00 - 10:00'), { type: 'move', time: '00:00 - 00:00', text: '路上', note: '備註' }, spot('b', '10:40 - 11:00')]);
+    const before = JSON.stringify(trip);
     const r = syncTrip(trip, P);
-    assert.deepEqual(trip.days[0].items[1], { type: 'move', time: '10:00 - 10:40', text: '路上', note: '備註' });
-    assert.equal(trip.days[0].items.length, 3);
-    assert.equal(r.updated, 1);
+    assert.equal(JSON.stringify(trip), before);
     assert.equal(r.added, 0);
 });
 
-test('缺的移動列被補在兩站之間（由後往前插，多個缺口都正確）', () => {
+test('缺的移動列被補在兩站之間（由後往前插，多個缺口都正確），只有 type 與 text，不寫 time', () => {
     const trip = mk([spot('a', '09:00 - 10:00'), spot('b', '10:30 - 11:00'), spot('c', '12:00 - 13:00')]);
     const r = syncTrip(trip, P);
     const items = trip.days[0].items;
     assert.deepEqual(items.map(i => i.type), ['spot', 'move', 'spot', 'move', 'spot']);
-    assert.deepEqual(items[1], { type: 'move', text: 'A館 ➔ B館', time: '10:00 - 10:30' });
-    assert.equal(items[3].time, '11:00 - 12:00');
+    assert.deepEqual(items[1], { type: 'move', text: 'A館 ➔ B館' });
+    assert.deepEqual(items[3], { type: 'move', text: 'B館 ➔ C館' });
     assert.equal(r.added, 2);
 });
 
-test('應清空的時間：刪除 time 欄位', () => {
-    const trip = mk([spot('a', '09:00 - 10:30'), { type: 'move', time: '10:30 - 11:00', text: 'x' }, spot('b', '10:00 - 11:00')]);
-    const r = syncTrip(trip, P);
-    assert.ok(!('time' in trip.days[0].items[1]));
-    assert.equal(r.warnings.length, 1);
-});
-
-test('已一致：沒有任何變動、可重複執行', () => {
+test('已齊全：沒有任何變動、可重複執行', () => {
     const trip = mk([spot('a', '09:00 - 10:00'), { type: 'move', time: '10:00 - 10:30', text: 'x' }, spot('b', '10:30 - 11:00')]);
     const before = JSON.stringify(trip);
     const r = syncTrip(trip, P);
     assert.equal(JSON.stringify(trip), before);
-    assert.deepEqual([r.updated, r.added], [0, 0]);
+    assert.equal(r.added, 0);
     syncTrip(trip, P);
     assert.equal(JSON.stringify(trip), before);
 });
 
-test('缺列且無法推導時間：補列但不寫 time；不刪任何項目（多個移動列只警告）', () => {
+test('不刪任何項目（多個移動列只警告）', () => {
     const trip = mk([spot('a', '09:00 - 10:00'), spot('b'), { type: 'move', text: 'm1' }, { type: 'move', text: 'm2' }, spot('c', '12:00 - 13:00')]);
     const r = syncTrip(trip, P);
     const items = trip.days[0].items;

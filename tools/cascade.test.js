@@ -183,3 +183,63 @@ test('整天重排：沒有完整時間的一天不動', () => {
     const day = { day: 1, items: [spot('a'), move(), spot('b', '15:30 後')] };
     assert.deepEqual(model.rescheduleDay(day, P, undefined, undefined), { changed: [], warnings: [] });
 });
+
+// ───────── fitMoves：依查詢結果調整指定移動列（新補的列沒有時間時由前一站結束 + 長度算出） ─────────
+
+const all = () => true;
+
+test('fitMoves：既有移動列長度改成新查詢長度，後面整段平移差值', () => {
+    const day = { day: 1, trafficFactor: 1, items: [spot('a', '09:00 - 10:00'), move('10:00 - 10:30'), spot('b', '10:30 - 11:30'), move('11:30 - 12:00'), spot('c', '12:00 - 13:00')] };
+    const r = model.fitMoves(day, P, routesOf([['a', 'b', 2400], ['b', 'c', 1800]]), undefined, all);
+    assert.deepEqual(times(day), ['09:00 - 10:00', '10:00 - 10:40', '10:40 - 11:40', '11:40 - 12:10', '12:10 - 13:10']);
+    assert.deepEqual(r.changed.map(c => c.index), [1, 2, 3, 4]);
+});
+
+test('fitMoves：緩衝計入；長度不變就不動任何東西', () => {
+    const day = { day: 1, trafficFactor: 1, items: [spot('a', '09:00 - 10:00'), move('10:00 - 10:35', { buffer: 5 }), spot('b', '10:35 - 11:30')] };
+    const before = JSON.stringify(day);
+    assert.deepEqual(model.fitMoves(day, P, routesOf([['a', 'b', 1800]]), undefined, all).changed, []);
+    assert.equal(JSON.stringify(day), before);
+});
+
+test('fitMoves：want 沒選中的移動列不動（只處理指定的列）', () => {
+    const day = { day: 1, trafficFactor: 1, items: [spot('a', '09:00 - 10:00'), move('10:00 - 10:30'), spot('b', '10:30 - 11:30'), move('11:30 - 12:00'), spot('c', '12:00 - 13:00')] };
+    model.fitMoves(day, P, routesOf([['a', 'b', 2400], ['b', 'c', 1800]]), undefined, (item, key) => key === model.legKey(P.a, P.b) && false);
+    assert.deepEqual(times(day), ['09:00 - 10:00', '10:00 - 10:30', '10:30 - 11:30', '11:30 - 12:00', '12:00 - 13:00']);
+    model.fitMoves(day, P, routesOf([['a', 'b', 2400], ['b', 'c', 1800]]), undefined, (item, key) => key === model.legKey(P.a, P.b));
+    assert.deepEqual(times(day), ['09:00 - 10:00', '10:00 - 10:40', '10:40 - 11:40', '11:40 - 12:10', '12:10 - 13:10']);   // 只有 a→b 那列被調整；b→c 的長度（30）本來就對
+});
+
+test('fitMoves：沒有時間的移動列 = 前一站結束 + 長度，後面整段平移（讓下一站開始 = 這列結束）', () => {
+    const day = { day: 1, trafficFactor: 1, items: [spot('a', '09:00 - 10:00'), move(), spot('b', '10:00 - 11:00'), spot('c', '11:30 - 12:00')] };
+    const r = model.fitMoves(day, P, routesOf([['a', 'b', 1200]]), undefined, all);
+    assert.deepEqual(times(day), ['09:00 - 10:00', '10:00 - 10:20', '10:20 - 11:20', '11:50 - 12:20']);
+    assert.deepEqual(r.changed.map(c => c.index), [1, 2, 3]);
+});
+
+test('fitMoves：沒有時間的移動列，原本兩站之間有空檔：以下一站開始為準補齊（不留空檔、不多推）', () => {
+    const day = { day: 1, trafficFactor: 1, items: [spot('a', '09:00 - 10:00'), move(), spot('b', '10:30 - 11:00')] };
+    model.fitMoves(day, P, routesOf([['a', 'b', 1200]]), undefined, all);
+    assert.deepEqual(times(day), ['09:00 - 10:00', '10:00 - 10:20', '10:20 - 10:50']);
+});
+
+test('fitMoves：沒有查詢結果、前一站時間不完整、超出當天都不動', () => {
+    const noRoute = { day: 1, items: [spot('a', '09:00 - 10:00'), move(), spot('b', '10:00 - 11:00')] };
+    assert.deepEqual(model.fitMoves(noRoute, P, undefined, undefined, all).changed, []);
+    assert.equal('time' in noRoute.items[1], false);
+    const partial = { day: 1, trafficFactor: 1, items: [spot('a', '15:30 後'), move(), spot('b', '16:00 - 17:00')] };
+    model.fitMoves(partial, P, routesOf([['a', 'b', 600]]), undefined, all);
+    assert.equal('time' in partial.items[1], false);
+    const late = { day: 1, trafficFactor: 1, items: [spot('a', '23:00 - 23:50'), move('23:50 - 23:55'), spot('b', '23:55 - 23:59')] };
+    const r = model.fitMoves(late, P, routesOf([['a', 'b', 3600]]), undefined, all);
+    assert.equal(late.items[1].time, '23:50 - 23:55');
+    assert.equal(r.warnings[0].type, 'overflow');
+});
+
+test('fitMoves：擇一組只處理一次（同一列綁定多條路段）', () => {
+    const day = { day: 1, trafficFactor: 1, items: [spot('a', '09:00 - 10:00'), move('10:00 - 10:20'), spot('b', '10:20 - 11:20', { alt: 'g' }), spot('c', undefined, { alt: 'g' }), spot('d', '12:00 - 13:00')] };
+    model.fitMoves(day, P, routesOf([['a', 'b', 1800], ['a', 'c', 600]]), undefined, all);
+    assert.equal(day.items[1].time, '10:00 - 10:30');
+    assert.equal(day.items[2].time, '10:30 - 11:30');
+    assert.equal(day.items[4].time, '12:10 - 13:10');
+});

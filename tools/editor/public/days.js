@@ -12,7 +12,7 @@
         place: ['地點', 'place'], map: ['顯示在地圖', 'bool'], numbered: ['地圖上編號', 'bool'], backup: ['備案（不連線）', 'bool']
     };
 
-    // ctx：{ data(): {trip, places}, errors(): string[], changed(): 重新驗證並更新外框, toast(msg) }
+    // ctx：{ data(): {trip, places}, errors(): string[], changed(): 重新驗證並更新外框, toast(msg), routes(): { legs }（路線快取，可省略） }
     function create(pane, ctx) {
         const scroller = pane.parentElement;
         const ui = { openDays: new Set([1]), dayCfg: new Set(), openItem: null, drag: null };
@@ -24,7 +24,7 @@
             return it.title || placeName(it.place) || it.text || '(空白)';
         };
 
-        function fieldHtml(name, item) {
+        function fieldHtml(name, item, day, ii) {
             const [label, kind] = FIELD[name];
             if (kind === 'bool') {
                 const checked = name === 'backup' ? !!item.backup : item[name] !== false;
@@ -35,7 +35,24 @@
                 const ok = !item.place || draft().places[item.place];
                 return `<label class="col-span-2 block"><span class="text-xs text-slate-500">${label}（輸入名稱或 id 搜尋）</span><input list="placelist" data-f="place" value="${esc(item.place)}" class="mt-0.5 w-full rounded border p-1.5 ${ok ? '' : 'border-rose-500 bg-rose-50'}"><span class="hint text-xs ${ok ? 'text-slate-500' : 'text-rose-600'}">${item.place ? (ok ? esc(placeName(item.place)) : '找不到這個地點 id') : ''}</span></label>`;
             }
-            if (name === 'time' && item.type === 'move') return `<label class="block"><span class="text-xs text-slate-500">${label}（自動，依前後景點推算）</span><input data-f="time" readonly value="${esc(item.time)}" class="mt-0.5 w-full rounded border bg-slate-100 p-1.5 text-slate-500"></label>`;
+            if (name === 'time' && item.type === 'move' && L.isFirstTimed(day, ii)) {   // 整天第一個有時間的項目是移動列（出發時間）：開始可改，結束由查詢長度決定
+                const parts = L.timeParts(item.time);
+                return `<div class="col-span-2 grid grid-cols-2 gap-2">
+                    <label class="block"><span class="text-xs text-slate-500">開始（整天起點，改它整天跟著平移）</span><input data-f="start" value="${esc(parts.start)}" class="mt-0.5 w-full rounded border p-1.5"></label>
+                    <label class="block"><span class="text-xs text-slate-500">結束（唯讀：開始 + 路線查詢長度）</span><input data-f="end" readonly value="${esc(parts.end)}" class="mt-0.5 w-full rounded border bg-slate-100 p-1.5 text-slate-500"></label>
+                </div>`;
+            }
+            if (name === 'time' && item.type === 'move') return `<label class="block"><span class="text-xs text-slate-500">${label}（自動：前一站結束 + 路線查詢長度，改「緩衝」可微調）</span><input data-f="time" readonly value="${esc(item.time)}" class="mt-0.5 w-full rounded border bg-slate-100 p-1.5 text-slate-500"></label>`;
+            const parts = name === 'time' ? L.timeParts(item.time) : null;
+            if (parts) {   // 完整區間：開始（只有整天第一項可改）、結束（改它＝改停留，後面整天順延）、說明文字
+                const first = L.isFirstTimed(day, ii);
+                const ro = 'readonly class="mt-0.5 w-full rounded border bg-slate-100 p-1.5 text-slate-500"', rw = 'class="mt-0.5 w-full rounded border p-1.5"';
+                return `<div class="col-span-2 grid grid-cols-3 gap-2">
+                    <label class="block"><span class="text-xs text-slate-500">開始${first ? '（整天起點，改它整天跟著平移）' : '（唯讀：前一項結束 + 移動）'}</span><input data-f="start" value="${esc(parts.start)}" ${first ? rw : ro}></label>
+                    <label class="block"><span class="text-xs text-slate-500">結束（改它＝改停留，後面順延）</span><input data-f="end" value="${esc(parts.end)}" ${rw}></label>
+                    <label class="block"><span class="text-xs text-slate-500">時間說明</span><input data-f="tail" value="${esc(parts.tail)}" ${rw}></label>
+                </div>`;
+            }
             return `<label class="block"><span class="text-xs text-slate-500">${label}</span><input data-f="${name}" value="${esc(item[name])}" class="mt-0.5 w-full rounded border p-1.5"></label>`;
         }
 
@@ -90,7 +107,7 @@
                         </div>
                         ${isOpen ? `<div class="grid grid-cols-2 gap-2 border-b bg-blue-50/50 p-3" data-form data-di="${di}" data-ii="${ii}">
                             <label class="col-span-2 block"><span class="text-xs text-slate-500">類型</span><select data-f="type" class="mt-0.5 w-full rounded border p-1.5">${Object.keys(TYPES).map(t => `<option value="${t}" ${t === it.type ? 'selected' : ''}>${TYPES[t].label}（${t}）</option>`).join('')}</select></label>
-                            ${meta.fields.map(f => fieldHtml(f, it)).join('')}
+                            ${meta.fields.map(f => fieldHtml(f, it, day, ii)).join('')}
                             ${bad ? `<ul class="col-span-2 list-disc pl-5 text-xs text-rose-600">${errs.map(e => `<li>${esc(e)}</li>`).join('')}</ul>` : ''}
                         </div>` : ''}
                         ${ctx.legHtml ? `<div data-legslot data-di="${di}" data-ii="${ii}">${ctx.legHtml(di, ii)}</div>` : ''}
@@ -123,34 +140,52 @@
         // 資料改了：重新驗證（外框更新）→ 重畫分頁
         function rerender() { ctx.changed(); render(); }
 
-        // 移動列連動（ADR 0007）：對受影響的天套用 model.deriveMoves。回傳是否有天的項目數變了（有補列就要重畫）
-        function syncDays(dis, fill = true) {
+        const routesOf = () => (ctx.routes ? ctx.routes() : undefined);
+        // 結構改動前先記下受影響各天的移動列路段（Map di → moveKeys），改動後交給 syncDays
+        const snap = dis => new Map([...new Set(dis)].map(di => [di, L.moveKeys(draft().trip.days[di], draft().places)]));
+
+        // 移動列連動（ADR 0007）：補缺的移動列（fill），路段變了或新補的移動列依查詢長度調整、後面平移。回傳是否有天補了列（要重畫）
+        function syncDays(before, fill = true) {
             const { trip, places } = draft();
             let grew = false;
-            new Set(dis).forEach(di => {
-                const day = trip.days[di], n = day.items.length;
-                L.syncMoves(day, places, fill);
-                if (day.items.length !== n) grew = true;
+            before.forEach((keys, di) => {
+                const r = L.syncMoves(trip.days[di], places, { routes: routesOf(), site: trip.site, before: keys, fill });
+                if (r.added) grew = true;
             });
             return grew;
         }
 
-        // 輸入中不重畫：只把該天各列的時間（含展開的移動列唯讀欄位）改成最新值
+        // 輸入中不重畫：只把該天各列的時間、停留提示與展開表單的時間欄（正在輸入的欄位除外）改成最新值
         function refreshTimes(di) {
             const day = draft().trip.days[di];
             pane.querySelectorAll(`[data-item][data-di="${di}"]`).forEach(el => {
-                const it = day.items[+el.dataset.ii], t = it.time || '';
+                const ii = +el.dataset.ii, t = day.items[ii].time || '';
                 el.querySelector('[data-time]').textContent = t;
-                const input = el.querySelector('[data-form] input[data-f="time"][readonly]');
-                if (input) input.value = t;
+                el.querySelector('[data-stay]').textContent = L.stayHint(day, ii);
+                const form = el.querySelector('[data-form]');
+                if (!form) return;
+                const parts = L.timeParts(t) || {};
+                const set = (f, v) => { const input = form.querySelector(`input[data-f="${f}"]`); if (input && input !== document.activeElement && v != null) input.value = v; };
+                set('time', t); set('start', parts.start); set('end', parts.end); set('tail', parts.tail);
             });
         }
 
-        function afterMove(pos, fromDi) {
+        // 路線算完（keys = 新算出的路段）：綁定這些路段的移動列依新長度調整，後面平移；不重畫，只更新時間
+        function applyComputed(keys) {
+            const { trip, places } = draft();
+            const want = new Set(keys || []);
+            let any = false;
+            trip.days.forEach((day, di) => {
+                if (M.fitMoves(day, places, routesOf(), trip.site, (_item, key) => want.has(key)).changed.length) { any = true; refreshTimes(di); }
+            });
+            if (any) ctx.changed();
+        }
+
+        function afterMove(pos, fromDi, before) {
             if (!pos) return;
             const day = draft().trip.days[pos.di];
             const moved = day.items[pos.ii];
-            syncDays([fromDi, pos.di]);   // 補列會讓索引位移，重新找被搬的項目
+            syncDays(before);   // 補列會讓索引位移，重新找被搬的項目
             pos = { di: pos.di, ii: day.items.indexOf(moved) };
             ui.openDays.add(day.day);
             rerender();
@@ -168,11 +203,11 @@
             if (itemEl) {
                 const di = +itemEl.dataset.di, ii = +itemEl.dataset.ii, it = days[di].items[ii];
                 if (act === 'toggle') { ui.openItem = ui.openItem === it ? null : it; return render(); }
-                if (act === 'del') { days[di].items.splice(ii, 1); if (ui.openItem === it) ui.openItem = null; syncDays([di]); return rerender(); }
-                if (act === 'joinalt') { L.joinAlt(days[di], ii); syncDays([di]); return rerender(); }
-                if (act === 'leavealt') { L.leaveAlt(days[di], ii); syncDays([di]); return rerender(); }
-                if (act === 'up') return afterMove(L.stepItem(trip, di, ii, -1), di);
-                if (act === 'down') return afterMove(L.stepItem(trip, di, ii, 1), di);
+                if (act === 'del') { const b = snap([di]); days[di].items.splice(ii, 1); if (ui.openItem === it) ui.openItem = null; syncDays(b); return rerender(); }
+                if (act === 'joinalt') { const b = snap([di]); L.joinAlt(days[di], ii); syncDays(b); return rerender(); }
+                if (act === 'leavealt') { const b = snap([di]); L.leaveAlt(days[di], ii); syncDays(b); return rerender(); }
+                if (act === 'up') { const b = snap([di, Math.max(0, di - 1)]); return afterMove(L.stepItem(trip, di, ii, -1), di, b); }
+                if (act === 'down') { const b = snap([di, Math.min(days.length - 1, di + 1)]); return afterMove(L.stepItem(trip, di, ii, 1), di, b); }
             }
             const headEl = el.closest('[data-dayhead]');
             if (headEl) {
@@ -184,9 +219,10 @@
                 const di = +el.closest('[data-dropend]').dataset.di;
                 const type = pane.querySelector(`[data-newtype="${di}"]`).value;
                 const it = L.newItem(type, Object.keys(draft().places));
+                const b = snap([di]);
                 days[di].items.push(it);
                 ui.openItem = it;
-                syncDays([di]);
+                syncDays(b);
                 return rerender();
             }
         });
@@ -202,13 +238,27 @@
             const form = el.closest('[data-form]');
             if (form && el.dataset.f) {
                 const it = days[+form.dataset.di].items[+form.dataset.ii], f = el.dataset.f;
-                const di = +form.dataset.di;
-                if (f === 'type') { L.changeType(it, el.value); syncDays([di]); return rerender(); }
+                const di = +form.dataset.di, before = snap([di]);
+                if (f === 'type') { L.changeType(it, el.value); syncDays(before); return rerender(); }
                 if (el.type === 'checkbox') {
                     if (f === 'backup') { if (el.checked) it.backup = true; else delete it.backup; }
                     else if (el.checked) delete it[f]; else it[f] = false;
-                    syncDays([di]);
+                    syncDays(before);
                     return rerender();
+                }
+                if (f === 'start' || f === 'end' || f === 'tail' || (f === 'time' && it.type !== 'move')) {
+                    // 時間：邊輸入邊連動（只改時間、不補列、不重畫）；離開欄位後才補列並重畫
+                    const ii = +form.dataset.ii;
+                    const r = L.setItemTime(days[di], ii, f, el.value);
+                    if (!r.ok) {
+                        if (!committed) return;
+                        ctx.toast('時間沒有套用（結束早於開始、格式不對，或平移後超出當天）');
+                        return rerender();
+                    }
+                    refreshTimes(di);
+                    form.previousElementSibling.querySelector('[data-sum]').textContent = itemLabel(it);
+                    if (committed) { syncDays(before); return rerender(); }
+                    return ctx.changed();
                 }
                 if (el.value === '') delete it[f]; else it[f] = el.value;
                 if (f === 'place') {
@@ -219,16 +269,10 @@
                         hint.className = 'hint text-xs ' + (ok ? 'text-slate-500' : 'text-rose-600');
                         return ctx.changed();
                     }
-                    syncDays([di]);
+                    syncDays(before);
                     return rerender();
                 }
-                const row = form.previousElementSibling;
-                row.querySelector('[data-sum]').textContent = itemLabel(it);
-                if (f === 'time') {
-                    row.querySelector('[data-stay]').textContent = L.stayHint(days[di], +form.dataset.ii);
-                    if (syncDays([di], committed)) return rerender();   // 輸入中不補列（不能打斷輸入）；確定後才補
-                    refreshTimes(di);
-                }
+                form.previousElementSibling.querySelector('[data-sum]').textContent = itemLabel(it);
                 return ctx.changed();
             }
             const dayCfg = el.closest('[data-di]');
@@ -282,14 +326,14 @@
             if (!t) return;
             e.preventDefault();
             const from = ui.drag; ui.drag = null;
-            afterMove(L.moveItem(draft().trip, from.di, from.ii, t.di, t.ii), from.di);
+            const b = snap([from.di, t.di]); afterMove(L.moveItem(draft().trip, from.di, from.ii, t.di, t.ii), from.di, b);
         });
         pane.addEventListener('dragend', () => { ui.drag = null; clearMarks(); pane.querySelectorAll('.opacity-40').forEach(n => n.classList.remove('opacity-40')); });
 
         // 重新載入資料時呼叫：丟掉指向舊項目的展開狀態
         function reset() { ui.openItem = null; }
 
-        return { render, reset };
+        return { render, reset, applyComputed };
     }
 
     window.DaysTab = { create };

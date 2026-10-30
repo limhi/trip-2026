@@ -14,7 +14,7 @@
  *   7. 版本號格式
  *   8. 路線快取：data/routes.js、routes-geo.js 與 routes.json 同步（併入第 0 項）、routes.json 結構正確；
  *      行程有路段沒快取、快取有沒被使用的舊筆只會警告，不失敗
- *   9. 移動列：時間與推導值不同、缺移動列、重疊／重複只警告（見 tools/sync-moves.js）
+ *   9. 移動列：缺移動列、重複、多餘只警告（見 tools/sync-moves.js）
  * 有任何問題會列出並以非 0 結束。這不能取代瀏覽器實測（見 docs/DESIGN.md 的「驗證方法」）。
  */
 const fs = require('fs');
@@ -70,10 +70,9 @@ if (TRIP && PLACES && model) {
     if (!v || !/^v\d+\.\d+$/.test(v.number) || !/^\d{4}\/\d{2}\/\d{2}$/.test(v.date)) fail('site.version 格式應為 { number: "v1.5", date: "2026/10/17" }');
     else info.push(`版本 ${v.number} · ${v.date}`);
 
-    // 移動列：與前後站推導值不同、缺移動列、重疊／重複只警告（node tools/sync-moves.js 可一次同步）
+    // 移動列：缺移動列、重複、多餘只警告（node tools/sync-moves.js 可補缺的列；不檢查時間）
     for (const day of TRIP.days) {
         const r = model.deriveMoves(day, PLACES);
-        r.moves.filter(m => m.changed).forEach(m => warnings.push(`DAY ${day.day} 第 ${m.index + 1} 項：移動列時間與推導值不同（現在 ${m.current == null ? '無' : m.current}，應為 ${m.time == null ? '空' : m.time}）；請執行 node tools/sync-moves.js`));
         r.missing.forEach(m => warnings.push(`DAY ${day.day}：${m.text} 之間缺少移動列；請執行 node tools/sync-moves.js`));
         r.warnings.forEach(w => warnings.push(w.message));
     }

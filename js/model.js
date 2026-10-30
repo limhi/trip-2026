@@ -299,19 +299,15 @@
     const pad2 = n => String(n).padStart(2, '0');
     const formatClock = m => `${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`;
 
-    // 移動列推導（純函式，不修改輸入；規則見 docs/adr/0007）。相鄰標記的定義與 getLegs 的連接列一致
-    // （有座標、非 backup、非 map:false；擇一組視為同一站，用組內第一項的 time 當共用時間框）。
-    // 兩站之間：恰好一個交通列（ROW_TYPES）→ 推導；沒有 → 列入 missing；多個 → 不推導只警告。
-    // 開始 = 前一站結束、結束 = 下一站開始，兩端都是完整區間才推導；一端不完整保留現有 time；重疊（結束早於開始）→ null＋警告。
+    // 移動列補齊與警告（純函式，不修改輸入；規則見 docs/adr/0007）。相鄰標記的定義與 getLegs 的連接列一致
+    // （有座標、非 backup、非 map:false；擇一組視為同一站）。這裡不看任何時間：時間由 cascadeDay／fitMoves 依查詢長度決定。
+    // 兩站之間：恰好一個交通列（ROW_TYPES）→ 列入 moves；沒有 → 列入 missing；多個 → 只警告。
     // 回傳 {
-    //   moves:   [{ index, fromItemIndex, toItemIndex, fromId, toId, current, time, changed }]
-    //            index 是既有移動列在 day.items 的索引；time 是應有的 time（字串或 null，null＝清空或本來就沒有）；
-    //            changed = time !== (current ?? null)；
-    //   missing: [{ fromItemIndex, toItemIndex, fromId, toId, insertIndex, text, time }]
-    //            insertIndex ＝前一站最後一員的索引 + 1（依原陣列索引計；一次插入多個時由後往前插）；text 預設「前一站 ➔ 下一站」；
-    //   warnings:[{ type: 'overlap'|'multiple'|'extra', index | indexes, message }]
-    //            overlap：重疊（index 是移動列索引，缺列時是 insertIndex）；multiple：一段內有多個交通列（indexes）；
-    //            extra：不在任何兩站之間的交通列（index）
+    //   moves:   [{ index, fromItemIndex, toItemIndex, fromId, toId }]   index 是既有移動列在 day.items 的索引
+    //   missing: [{ fromItemIndex, toItemIndex, fromId, toId, insertIndex, text }]
+    //            insertIndex ＝前一站最後一員的索引 + 1（依原陣列索引計；一次插入多個時由後往前插）；text 預設「前一站 ➔ 下一站」
+    //   warnings:[{ type: 'multiple'|'extra', index | indexes, message }]
+    //            multiple：一段內有多個交通列（indexes）；extra：不在任何兩站之間的交通列（index）
     // }
     function deriveMoves(day, places) {
         const points = getMapPoints(day, places).filter(p => !p.excludeFromRoute);
@@ -323,10 +319,6 @@
         });
         const nameOf = id => (places[id] && places[id].name) || id;
         const stopName = stop => stop.map(p => nameOf(p.id)).join('／');
-        const timeOf = index => {
-            const group = getAltGroupAt(day, index);
-            return day.items[group ? group.start : index].time;
-        };
         const result = { moves: [], missing: [], warnings: [] };
         const inGap = new Set();
         for (let i = 0; i + 1 < stops.length; i++) {
@@ -335,28 +327,13 @@
             const rows = [];
             for (let k = fromItemIndex + 1; k < toItemIndex; k++) if (ROW_TYPES.includes(day.items[k].type)) rows.push(k);
             rows.forEach(k => inGap.add(k));
-            const where = `DAY ${day.day}（${stopName(a)} → ${stopName(b)}）`;
             if (rows.length > 1) {
-                result.warnings.push({ type: 'multiple', indexes: rows, message: `${where}：兩站之間有 ${rows.length} 個移動列，請只留一個` });
+                result.warnings.push({ type: 'multiple', indexes: rows, message: `DAY ${day.day}（${stopName(a)} → ${stopName(b)}）：兩站之間有 ${rows.length} 個移動列，請只留一個` });
                 continue;
             }
-            const prev = parseTimeRange(timeOf(a[0].itemIndex)), next = parseTimeRange(timeOf(b[0].itemIndex));
-            let time = null, derived = false, overlap = false;
-            if (prev && next) {
-                if (next.start >= prev.end) { time = `${formatClock(prev.end)} - ${formatClock(next.start)}`; derived = true; }
-                else overlap = true;
-            }
             const info = { fromItemIndex, toItemIndex, fromId: a[a.length - 1].id, toId: b[0].id };
-            if (rows.length === 1) {
-                const index = rows[0], current = day.items[index].time;
-                if (!derived && !overlap) time = current == null ? null : current;
-                result.moves.push({ index, ...info, current, time, changed: time !== (current == null ? null : current) });
-                if (overlap) result.warnings.push({ type: 'overlap', index, message: `${where}：前一站結束晚於下一站開始，移動列時間清空` });
-            } else {
-                const insertIndex = fromItemIndex + 1;
-                result.missing.push({ ...info, insertIndex, text: `${stopName(a)} ➔ ${stopName(b)}`, time });
-                if (overlap) result.warnings.push({ type: 'overlap', index: insertIndex, message: `${where}：前一站結束晚於下一站開始` });
-            }
+            if (rows.length === 1) result.moves.push({ index: rows[0], ...info });
+            else result.missing.push({ ...info, insertIndex: fromItemIndex + 1, text: `${stopName(a)} ➔ ${stopName(b)}` });
         }
         day.items.forEach((item, index) => {
             if (ROW_TYPES.includes(item.type) && !inGap.has(index)) {
@@ -366,20 +343,15 @@
         return result;
     }
 
-    // 套用 deriveMoves 的結果（就地修改 day）：更新移動列時間（null＝清空）、在缺移動列處補一列（fill = false 時不補，輸入中不能動到列數）；只補不刪。
-    // r 是同一天的 deriveMoves(day, places) 結果；回傳 { updated: 被更新的 moves 項, added: 被補上的 missing 項 }。編輯器與 tools/sync-moves.js 共用
+    // 套用 deriveMoves 的結果（就地修改 day）：在缺移動列處補一列 { type: 'move', text }（不寫 time；fill = false 時不補，輸入中不能動到列數）；只補不刪。
+    // r 是同一天的 deriveMoves(day, places) 結果；回傳 { added: [{ ...missing 項, item }] }（item 是補上的那個物件，呼叫端可接著用 fitMoves 算時間）。編輯器與 tools/sync-moves.js 共用
     function applyMoves(day, r, fill = true) {
-        const out = { updated: [], added: [] };
-        r.moves.forEach(m => {
-            if (!m.changed) return;
-            if (m.time == null) delete day.items[m.index].time; else day.items[m.index].time = m.time;
-            out.updated.push(m);
-        });
-        if (fill) r.missing.slice().sort((a, b) => b.insertIndex - a.insertIndex).forEach(s => {   // 由後往前插，前面的索引才不會位移
+        const out = { added: [] };
+        if (!fill) return out;
+        r.missing.slice().sort((a, b) => b.insertIndex - a.insertIndex).forEach(s => {   // 由後往前插，前面的索引才不會位移
             const item = { type: 'move', text: s.text };
-            if (s.time != null) item.time = s.time;
             day.items.splice(s.insertIndex, 0, item);
-            out.added.push(s);
+            out.added.push({ ...s, item });
         });
         return out;
     }
@@ -403,10 +375,10 @@
         return leg ? getMoveMinutes(item, cache[leg.key], getTrafficFactor(day, site)) : null;
     }
 
-    // 完整區間 time 平移 / 改寫成 start–end 分鐘，區間後面的說明文字保留；格式「HH:MM - HH:MM」
+    // 把 time 改寫成 start–end 分鐘，區間後面的說明文字保留（time 不是完整區間就沒有說明文字）；格式「HH:MM - HH:MM」
     function setTimeRange(time, start, end) {
-        const m = /^\s*(\d{1,2}):(\d{2})\s*[-–—~]\s*(\d{1,2}):(\d{2})(?!\d)/.exec(time);
-        return `${formatClock(start)} - ${formatClock(end)}${time.slice(m[0].length)}`;
+        const m = /^\s*(\d{1,2}):(\d{2})\s*[-–—~]\s*(\d{1,2}):(\d{2})(?!\d)/.exec(time || '');
+        return `${formatClock(start)} - ${formatClock(end)}${m ? time.slice(m[0].length) : ''}`;
     }
 
     const DAY_END = 24 * 60 - 1;
@@ -432,6 +404,51 @@
             out.changed.push({ index: i, from: item.time, to });
             item.time = to;
         }
+        return out;
+    }
+
+    // 依查詢結果調整移動列（就地修改 day）：只處理 want(item, legKey) 為真的移動列（擇一組同一列綁多條路段時只處理一次，路段 key 取第一條）。
+    // 長度 = getMoveMinutesAt（查詢 + buffer，不小於 0）；沒有查詢結果的列不動。
+    //   - 列有完整時間：開始不變、結束改成開始 + 長度，後面所有項目平移長度的差值（cascadeDay）。
+    //   - 列沒有完整時間（剛補出的列）：前一站（擇一組用共用時間框）有完整結束才算：開始 = 前一站結束、結束 = 開始 + 長度，
+    //     之後第一個完整時間項目的開始 = 這列結束（後面整段平移，不留空檔也不重複推）。
+    // 由前往後處理；超出 00:00–23:59 的列不動並警告。回傳 { changed: [{ index, from, to }], warnings }
+    function fitMoves(day, places, routes, site, want) {
+        const out = { changed: [], warnings: [] };
+        const seen = new Set();
+        const record = (index, from, to) => out.changed.push({ index, from, to });
+        getLegs(day, places).forEach(leg => {
+            const i = leg.rowIndex;
+            if (i == null || leg.closeLoop || seen.has(i)) return;
+            seen.add(i);
+            const item = day.items[i];
+            if (!want(item, leg.key)) return;
+            const minutes = getMoveMinutesAt(day, i, places, routes, site);
+            if (minutes == null) return;
+            const length = Math.max(0, minutes);
+            const range = parseTimeRange(item.time);
+            let start, delta;
+            if (range) {
+                start = range.start;
+                delta = length - (range.end - range.start);
+            } else {
+                const group = getAltGroupAt(day, leg.fromItemIndex);
+                const prev = parseTimeRange(day.items[group ? group.start : leg.fromItemIndex].time);
+                if (!prev) return;
+                start = prev.end;
+                const next = day.items.slice(i + 1).map(x => parseTimeRange(x.time)).find(Boolean);
+                delta = next ? start + length - next.start : 0;
+            }
+            if (start + length > DAY_END) {
+                out.warnings.push({ type: 'overflow', index: i, message: `DAY ${day.day} 第 ${i + 1} 項：移動 ${length} 分後超出當天，時間未更動` });
+                return;
+            }
+            const to = setTimeRange(item.time, start, start + length);
+            if (to !== item.time) { record(i, item.time, to); item.time = to; }
+            const r = cascadeDay(day, i, delta);
+            r.changed.forEach(c => out.changed.push(c));
+            r.warnings.forEach(w => out.warnings.push(w));
+        });
         return out;
     }
 
@@ -479,7 +496,7 @@
         getContact, getMapPoints, getAltGroups, getAltGroupAt, validate, forEachPlaceRef, lacksCoords, CARD_TYPES, ROW_TYPES,
         DEFAULT_ROUTING, formatCoord, legKey, getLegs, getTrafficFactor, displayMinutes,
         formatDuration, formatDistance, formatLeg, formatFactorNote, parseTimeRange, getStayMinutes, formatStay, getStayLabel, isUsableLeg, getLegSchedule, getTimeWarnings, deriveMoves, applyMoves,
-        getMoveMinutes, getMoveMinutesAt, cascadeDay, rescheduleDay
+        getMoveMinutes, getMoveMinutesAt, cascadeDay, fitMoves, setTimeRange, rescheduleDay
     };
     if (typeof module !== 'undefined') module.exports = Trip.model;
 })(typeof window !== 'undefined' ? window : globalThis);

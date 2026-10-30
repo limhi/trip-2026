@@ -11,7 +11,7 @@
     const L = root.RoutesLogic || require('./routes-logic');
     const M = (root.Trip && root.Trip.model) || require('../../../js/model');
 
-    // data()：{ trip, places }；fetchFn(path, init)：同 fetch；onUpdate：狀態變了（重畫）；onComputed：有新結果（預覽要更新）
+    // data()：{ trip, places }；fetchFn(path, init)：同 fetch；onUpdate：狀態變了（重畫）；onComputed(keys)：有新算出的路段（keys；預覽要更新、受影響的天要連動）
     function create({ data, fetchFn = (...a) => root.fetch(...a), timers = { setTimeout: (...a) => root.setTimeout(...a), clearTimeout: (...a) => root.clearTimeout(...a) }, delay = 600, onUpdate = () => {}, onComputed = () => {} }) {
         const known = {};            // key → { distance, duration }（原始值）
         const failed = new Map();    // key → 錯誤文字
@@ -32,13 +32,14 @@
             for (const l of legs) { computing.add(l.key); failed.delete(l.key); }
             onUpdate();
             let gotNew = false;
+            const newKeys = [];
             try {
                 const { results } = await call(force ? '/api/routes/recompute-all' : '/api/routes/compute', 'POST', { legs });
                 for (const l of legs) {
                     const r = results[l.key];
                     if (r && (r.status === 'ok' || r.status === 'cached')) {
                         known[l.key] = { distance: r.distance, duration: r.duration };
-                        if (r.status === 'ok') gotNew = true;
+                        if (r.status === 'ok') { gotNew = true; newKeys.push(l.key); }
                     } else {
                         failed.set(l.key, (r && r.error) || '計算失敗');
                         if (r && r.removed) { delete known[l.key]; gotNew = true; }   // 伺服器已把舊結果移除（退回直線），預覽要更新
@@ -51,7 +52,7 @@
             }
             if (gotNew) unsaved = true;
             onUpdate();
-            if (gotNew) onComputed();
+            if (gotNew) onComputed(newKeys);
         }
 
         // 計算目前行程裡快取沒有、也不在計算中或已失敗的段落

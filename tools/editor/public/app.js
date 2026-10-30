@@ -61,12 +61,13 @@ preview.start();
 let routes = null;   // 路線功能（routes.js）；days 先建立，所以用延後綁定
 const days = DaysTab.create($('pane-days'), {
     data: () => state.data, errors: () => state.errors, changed, toast, onDayOpen: n => preview.scrollToDay(n),
+    routes: () => (routes ? { legs: routes.known() } : undefined),
     legHtml: (di, ii) => (routes ? routes.legHtml(di, ii) : ''),
     dayHeadHtml: di => (routes ? routes.dayHeadHtml(di) : '')
 });
 routes = EditorRoutes.create({
     pane: $('pane-days'), bar: $('routebar'), data: () => state.data, changed,
-    onComputed: () => preview.sendDraft({ trip: state.data.trip, places: state.data.places }),
+    onComputed: keys => { days.applyComputed(keys); preview.sendDraft({ trip: state.data.trip, places: state.data.places }); },
     onStatus: renderChrome
 });
 

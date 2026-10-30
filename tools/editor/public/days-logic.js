@@ -126,15 +126,89 @@
         return M.getStayLabel(it);
     }
 
-    // ---- 移動列自動連動（ADR 0007）：推導規則全在 model.deriveMoves，這裡只套用結果 ----
+    // ---- 時間連動（ADR 0007）：長度與平移規則全在 model（cascadeDay、fitMoves），這裡只決定「哪個欄位怎麼改」 ----
 
-    // 套用推導（fill = false 時只連動時間、不補列，輸入中不能動到列數）。回傳是否有變動
-    function syncMoves(day, places, fill = true) {
-        const r = M.applyMoves(day, M.deriveMoves(day, places), fill);
-        return r.updated.length + r.added.length > 0;
+    const CLOCK = /^(\d{1,2}):(\d{2})$/;
+    const toMinutes = v => { const m = CLOCK.exec(String(v).trim()); return m && +m[1] < 24 && +m[2] < 60 ? +m[1] * 60 + +m[2] : null; };
+    const TIME_HEAD = /^\s*(\d{1,2}):(\d{2})\s*[-–—~]\s*(\d{1,2}):(\d{2})(?!\d)/;
+
+    // 完整區間 time 拆成 { start, end, tail }（'HH:MM'、'HH:MM'、區間後的說明文字）；不是完整區間回傳 null。編輯器的開始／結束／後註欄用
+    function timeParts(time) {
+        const r = M.parseTimeRange(time);
+        if (!r) return null;
+        const clock = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+        return { start: clock(r.start), end: clock(r.end), tail: time.slice(TIME_HEAD.exec(time)[0].length).trim() };
     }
 
-    // 移動列警告（重疊、多個、多餘）；不擋存檔與發布
+    // 整天第一個有完整時間的項目（它的開始時間可以改，是整天的起點）；其他項目的開始時間唯讀
+    function isFirstTimed(day, ii) {
+        if (!M.parseTimeRange(day.items[ii].time)) return false;
+        return !day.items.slice(0, ii).some(x => M.parseTimeRange(x.time));
+    }
+
+    // 改項目的時間，part：
+    //   'end'   結束（H:MM）：停留跟著變，後面整天平移結束的變化量
+    //   'start' 開始（H:MM）：只有整天第一個完整時間項目可改；該項整項平移，後面整天跟著平移同樣分鐘
+    //   'tail'  區間後的說明文字：只改文字
+    //   'time'  整串時間文字（沒有完整區間的項目，例如「15:30 後」）：直接寫入，空字串刪除欄位
+    // 輸入到一半（不是 H:MM）、結束早於開始、中間項目改開始、平移後超出當天都回傳 { ok: false } 且不改任何資料。
+    // 回傳 { ok, changed, warnings }（changed／warnings 來自 model.cascadeDay）
+    function setItemTime(day, ii, part, value) {
+        const it = day.items[ii], none = { ok: false, changed: [], warnings: [] };
+        const done = (cascade = { changed: [], warnings: [] }) => ({ ok: true, ...cascade });
+        if (part === 'time') { if (value === '' || value == null) delete it.time; else it.time = value; return done(); }
+        const range = M.parseTimeRange(it.time);
+        if (!range) return none;
+        if (part === 'tail') {
+            const head = TIME_HEAD.exec(it.time)[0];
+            it.time = head + (String(value).trim() ? ' ' + String(value).trim() : '');
+            return done();
+        }
+        const minutes = toMinutes(value);
+        if (minutes == null) return none;
+        if (part === 'end') {
+            if (minutes < range.start) return none;
+            const delta = minutes - range.end;
+            if (!delta) return done();
+            const probe = JSON.parse(JSON.stringify(day));   // 先在副本上試，超出當天就整個不套用
+            probe.items[ii].time = M.setTimeRange(it.time, range.start, minutes);
+            if (M.cascadeDay(probe, ii, delta).warnings.length) return none;
+            it.time = probe.items[ii].time;
+            return done(M.cascadeDay(day, ii, delta));
+        }
+        if (part === 'start') {
+            if (!isFirstTimed(day, ii)) return none;
+            const delta = minutes - range.start;
+            if (!delta) return done();
+            if (range.end + delta > 24 * 60 - 1) return none;
+            const probe = JSON.parse(JSON.stringify(day));
+            probe.items[ii].time = M.setTimeRange(it.time, minutes, range.end + delta);
+            if (M.cascadeDay(probe, ii, delta).warnings.length) return none;
+            it.time = probe.items[ii].time;
+            return done(M.cascadeDay(day, ii, delta));
+        }
+        return none;
+    }
+
+    // 移動列（物件）→ 綁定路段的 key；改動前後各取一次，路段變了的列才需要重算長度
+    function moveKeys(day, places) {
+        const keys = new Map();
+        M.getLegs(day, places).forEach(leg => {
+            if (leg.rowIndex != null && !leg.closeLoop && !keys.has(day.items[leg.rowIndex])) keys.set(day.items[leg.rowIndex], leg.key);
+        });
+        return keys;
+    }
+
+    // 結構改動（新增、刪除、搬移、換地點、轉類型、擇一組）之後：補缺的移動列（fill = false 時不補），
+    // 再讓「路段變了」或「新補的」移動列依查詢長度調整（before = 改動前的 moveKeys；沒有查詢結果的列不動，等路線算完再處理）。
+    // opts：{ routes: { legs }, site, before, fill }。回傳 { added: 補了幾列, changed, warnings }
+    function syncMoves(day, places, { routes, site, before = new Map(), fill = true } = {}) {
+        const added = M.applyMoves(day, M.deriveMoves(day, places), fill).added.length;
+        const r = M.fitMoves(day, places, routes, site, (item, key) => before.get(item) !== key);
+        return { added, changed: r.changed, warnings: r.warnings };
+    }
+
+    // 移動列警告（多個、多餘）；不擋存檔與發布
     const moveWarnings = (day, places) => M.deriveMoves(day, places).warnings;
 
     function newItem(type, placeIds) {
@@ -164,7 +238,7 @@
     const itemErrors = (errors, dayNo, ii) => errors.filter(e => e.startsWith(`DAY ${dayNo} 第 ${ii + 1} 項：`));
     const dayErrors = (errors, dayNo) => errors.filter(e => e.startsWith(`DAY ${dayNo} `));
 
-    const api = { TYPES, moveItem, stepItem, changeType, newItem, altPosition, canJoinAlt, joinAlt, leaveAlt, stayHint, syncMoves, moveWarnings, getPath, setPath, itemErrors, dayErrors };
+    const api = { TYPES, moveItem, stepItem, changeType, newItem, altPosition, canJoinAlt, joinAlt, leaveAlt, stayHint, timeParts, isFirstTimed, setItemTime, moveKeys, syncMoves, moveWarnings, getPath, setPath, itemErrors, dayErrors };
     root.DaysLogic = api;
     if (typeof module !== 'undefined') module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -37,7 +37,7 @@ function setup({ handler } = {}) {
     };
     const ctl = create({
         data: () => ({ trip, places }), fetchFn, timers,
-        onUpdate: () => updates.push(1), onComputed: () => computed.push(1)
+        onUpdate: () => updates.push(1), onComputed: keys => computed.push(keys)
     });
     return { ctl, requests, timers, updates, computed };
 }
@@ -168,4 +168,11 @@ test('load：伺服器回報草稿有未存檔的路線時 unsaved 為 true（�
     const { ctl } = setup({ handler: () => ({ legs: { [ab]: { distance: 5, duration: 6 } }, unsaved: true }) });
     await ctl.load();
     assert.equal(ctl.unsaved(), true);
+});
+
+test('onComputed 帶新算出（不是快取命中）的路段 key；沒有新結果就不呼叫', async () => {
+    const { ctl, timers, computed } = setup({ handler: (_p, body) => ({ results: Object.fromEntries(body.legs.map(l => [l.key, { status: l.key === ab ? 'ok' : 'cached', distance: 1000, duration: 600 }])) }) });
+    ctl.schedule();
+    await timers.fire();
+    assert.deepEqual(computed, [[ab]]);
 });
