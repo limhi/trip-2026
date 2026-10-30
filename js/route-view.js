@@ -66,23 +66,55 @@
         const have = legs.filter(l => l.cached);
         // 給 blocks.js 用：綁定到交通列的、沒有交通列時補在前一項後面的計算結果（key 是 day.items 的索引）
         const factorNote = model.formatFactorNote(factor);
-        const autoByRow = {}, autoAfter = {};
+        // 同一個交通列（或同一個連接位置）的路段併成一筆：一般只有一段；擇一組前後有多條路徑，
+        // 併成一筆並多一個 paths（每條路徑各自的查詢時間與是否不足），scheduled 是共用的排定時間，short 是任一條不足
+        const placeName = id => (places[id] && places[id].name) || id;
+        const pathLabel = leg => leg.fromAlt && leg.toAlt ? `${placeName(leg.fromId)} → ${placeName(leg.toId)}`
+            : leg.toAlt ? `→ ${placeName(leg.toId)}` : `${placeName(leg.fromId)} →`;
+        const slots = new Map();
         have.forEach(l => {
-            const auto = { text: l.text, note: factorNote, scheduled: l.scheduled, needed: l.minutes, short: l.short };
-            if (l.leg.rowIndex != null) autoByRow[l.leg.rowIndex] = auto;
-            else if (l.leg.needsRow) autoAfter[l.leg.fromItemIndex] = auto;
+            const { leg } = l;
+            const slotKey = leg.rowIndex != null ? `row:${leg.rowIndex}`
+                : leg.needsRow ? `after:${leg.fromAlt ? 'alt-' + leg.fromAlt : leg.fromItemIndex}>${leg.toAlt ? 'alt-' + leg.toAlt : leg.toItemIndex}` : null;
+            if (!slotKey) return;
+            if (!slots.has(slotKey)) slots.set(slotKey, []);
+            slots.get(slotKey).push(l);
         });
-        const summary = have.length ? {
-            minutes: have.reduce((s, l) => s + l.minutes, 0),
-            meters: have.reduce((s, l) => s + l.cached.distance, 0),
-            missing: legs.length - have.length
-        } : null;
+        const autoByRow = {}, autoAfter = {};
+        slots.forEach(members => {
+            const first = members[0];
+            const auto = { text: first.text, note: factorNote, scheduled: first.scheduled, needed: first.minutes, short: first.short };
+            if (members.length > 1 || first.leg.fromAlt || first.leg.toAlt) {
+                auto.paths = members.map(l => ({ label: pathLabel(l.leg), text: l.text, needed: l.minutes, short: l.short }));
+                auto.text = auto.paths.map(p => `${p.label} ${p.text}`).join('／');
+                auto.needed = Math.max(...members.map(l => l.minutes));
+                auto.short = members.some(l => l.short);
+            }
+            if (first.leg.rowIndex != null) autoByRow[first.leg.rowIndex] = auto;
+            else autoAfter[first.leg.fromItemIndex] = auto;
+        });
+        // 總車程：沿站點累加；擇一組取較長的那條路徑（各成員的累計取最大），沒有擇一組時等於全部加總
+        const best = {};
+        let total = null;
+        const reached = new Set(legs.filter(l => !l.leg.closeLoop).map(l => l.leg.toItemIndex));   // 不是第一站的標記
+        const consider = cand => { if (!total || cand.minutes > total.minutes) total = cand; };
+        have.forEach(l => {
+            // 起點沒有累計（前一段沒有快取）時接在目前最長的累計後面，缺段時等同全部加總；第一站從 0 開始
+            const from = best[l.leg.fromItemIndex] || (reached.has(l.leg.fromItemIndex) && total) || { minutes: 0, meters: 0 };
+            const cand = { minutes: from.minutes + l.minutes, meters: from.meters + l.cached.distance };
+            if (l.leg.closeLoop) return consider(cand);
+            const to = l.leg.toItemIndex;
+            if (!best[to] || cand.minutes > best[to].minutes) best[to] = cand;
+            consider(cand);
+        });
+        const hasAlt = legs.some(l => l.leg.fromAlt || l.leg.toAlt);
+        const summary = have.length ? { minutes: total.minutes, meters: total.meters, missing: legs.length - have.length } : null;
         return {
             factor, max, legs, summary, autoByRow, autoAfter,
             hasCache: have.length > 0,
             factorNote,
             summaryText: summary
-                ? `總車程 ${model.formatDuration(summary.minutes)}・總里程 ${model.formatDistance(summary.meters)}${summary.missing ? '（部分路段未計算）' : ''}`
+                ? `總車程 ${model.formatDuration(summary.minutes)}・總里程 ${model.formatDistance(summary.meters)}${hasAlt ? '（含擇一組取較長）' : ''}${summary.missing ? '（部分路段未計算）' : ''}`
                 : ''
         };
     }

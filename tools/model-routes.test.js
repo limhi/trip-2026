@@ -359,3 +359,17 @@ test('getLegs：擇一組在最前面、closeLoop 回程也分岔再合流', () 
     assert.deepEqual(legs.filter(l => !l.closeLoop).map(l => [l.fromItemIndex, l.toItemIndex]), [[0, 2], [1, 2], [2, 3], [2, 4]]);
     assert.deepEqual(legs.filter(l => l.closeLoop).map(l => [l.fromItemIndex, l.toItemIndex]), [[3, 0], [3, 1], [4, 0], [4, 1]]);
 });
+
+// ───────── 擇一組：排定時間（整組共用第一項的 time）─────────
+
+test('getLegSchedule：擇一組沒有交通列時，組前用組的開始時間、組後用組的結束時間（每個成員都一樣）', () => {
+    const day = { items: [{ ...place('a'), time: '09:00 - 10:00' }, { ...place('b'), alt: 'x', time: '10:30 - 11:30' }, { ...place('c'), alt: 'x' }, { ...place('d'), time: '12:00 - 13:00' }] };
+    const s = model.getLegSchedule(day, P, { legs: {} }, SITE);
+    assert.deepEqual(s.map(x => [x.leg.fromId, x.leg.toId, x.scheduled]), [['a', 'b', 30], ['a', 'c', 30], ['b', 'd', 30], ['c', 'd', 30]]);
+});
+
+test('getLegSchedule：擇一組前後有綁定的交通列時，整組的路段共用該列的排定時間', () => {
+    const day = { items: [place('a'), { type: 'drive', time: '08:00 - 08:30' }, { ...place('b'), alt: 'x', time: '09:00 - 10:00' }, { ...place('c'), alt: 'x' }, { type: 'move', time: '10:00 - 10:20' }, place('d')] };
+    const s = model.getLegSchedule(day, P, { legs: {} }, SITE);
+    assert.deepEqual(s.map(x => x.scheduled), [30, 30, 20, 20]);
+});
