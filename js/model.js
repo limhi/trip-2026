@@ -384,6 +384,87 @@
         return out;
     }
 
+    // ───────── 移動列長度、連動、整天重排（docs/adr/0007；編輯器、CLI、測試共用，不依賴 deriveMoves 的時間規則）─────────
+
+    // 移動列長度（分）= 查詢時間（四捨五入（原始秒數 ÷ 60 × 係數））+ item.buffer（整數分、可為負、缺值視為 0）。
+    // leg 是該移動列綁定路段的快取 { distance, duration }；沒有可用的查詢結果回 null
+    function getMoveMinutes(item, leg, factor) {
+        if (!isUsableLeg(leg)) return null;
+        return displayMinutes(leg.duration, factor) + ((item && item.buffer) || 0);
+    }
+
+    // 同上，但由一天的資料找綁定路段（getLegs 的 rowIndex；兩標記之間恰好一個 move 才綁定）。
+    // 該項目不是移動列、沒有綁定路段、沒有可用的快取都回 null
+    function getMoveMinutesAt(day, index, places, routes, site) {
+        const item = day.items[index];
+        if (!item || !ROW_TYPES.includes(item.type)) return null;
+        const cache = (routes && routes.legs) || {};
+        const leg = getLegs(day, places).find(l => l.rowIndex === index && isUsableLeg(cache[l.key]));
+        return leg ? getMoveMinutes(item, cache[leg.key], getTrafficFactor(day, site)) : null;
+    }
+
+    // 完整區間 time 平移 / 改寫成 start–end 分鐘，區間後面的說明文字保留；格式「HH:MM - HH:MM」
+    function setTimeRange(time, start, end) {
+        const m = /^\s*(\d{1,2}):(\d{2})\s*[-–—~]\s*(\d{1,2}):(\d{2})(?!\d)/.exec(time);
+        return `${formatClock(start)} - ${formatClock(end)}${time.slice(m[0].length)}`;
+    }
+
+    const DAY_END = 24 * 60 - 1;
+
+    // 連動（就地修改 day）：第 index 項的結束時間變了 delta 分鐘（可為負；呼叫端已改好該項自己的 time），
+    // 把它後面所有完整區間項目整段平移 delta 分，停留與移動長度不變；前面的項目不動。
+    // 不完整時間（「15:30 後」、未填、跨午夜、結束 ≤ 開始）不動；擇一組視為同一站：index 在組內時從組之後開始，成員沒有 time 自然不動。
+    // 平移後超出 00:00–23:59 的項目不動並警告。
+    // 回傳 { changed: [{ index, from, to }], warnings: [{ type: 'overflow', index, message }] }
+    function cascadeDay(day, index, delta) {
+        const out = { changed: [], warnings: [] };
+        if (!delta) return out;
+        const group = getAltGroupAt(day, index);
+        for (let i = (group ? group.end : index) + 1; i < day.items.length; i++) {
+            const item = day.items[i], range = parseTimeRange(item.time);
+            if (!range) continue;
+            const start = range.start + delta, end = range.end + delta;
+            if (start < 0 || end > DAY_END) {
+                out.warnings.push({ type: 'overflow', index: i, message: `DAY ${day.day} 第 ${i + 1} 項：平移 ${delta} 分後超出當天，時間未更動` });
+                continue;
+            }
+            const to = setTimeRange(item.time, start, end);
+            out.changed.push({ index: i, from: item.time, to });
+            item.time = to;
+        }
+        return out;
+    }
+
+    // 整天重排（就地修改 day）：以第一個完整區間項目的開始時間為起點，依序排後面所有完整區間項目：
+    // 景點等項目的停留（結束 − 開始）不變；移動列長度 = getMoveMinutesAt（查詢 + buffer），沒有查詢結果就沿用現有長度並警告。
+    // 不完整時間的項目不動、不佔時間；擇一組成員沒有 time，整組共用第一項的時間框。可重複執行（第二次 changed 為空）。
+    // 超出 00:00–23:59 的項目不動並警告（之後的項目仍接在原本的游標上）。
+    // 回傳 { changed: [{ index, from, to }], warnings: [{ type: 'no-route' | 'overflow', index, message }] }
+    function rescheduleDay(day, places, routes, site) {
+        const out = { changed: [], warnings: [] };
+        let cursor = null;
+        day.items.forEach((item, i) => {
+            const range = parseTimeRange(item.time);
+            if (!range) return;
+            if (cursor == null) cursor = range.start;
+            let length = range.end - range.start;
+            if (ROW_TYPES.includes(item.type)) {
+                const minutes = getMoveMinutesAt(day, i, places, routes, site);
+                if (minutes != null) length = Math.max(0, minutes);
+                else out.warnings.push({ type: 'no-route', index: i, message: `DAY ${day.day} 第 ${i + 1} 項：沒有路線查詢結果，沿用現有移動時間` });
+            }
+            const start = cursor, end = cursor + length;
+            if (end > DAY_END) {
+                out.warnings.push({ type: 'overflow', index: i, message: `DAY ${day.day} 第 ${i + 1} 項：重排後超出當天，時間未更動` });
+                return;
+            }
+            const to = setTimeRange(item.time, start, end);
+            if (to !== item.time) { out.changed.push({ index: i, from: item.time, to }); item.time = to; }
+            cursor = end;
+        });
+        return out;
+    }
+
     // 「排太緊」警告列表（編輯器顯示，不擋發布），由 getLegSchedule 判斷
     function getTimeWarnings(day, places, routes, site) {
         const factor = getTrafficFactor(day, site);
@@ -397,7 +478,8 @@
     Trip.model = {
         getContact, getMapPoints, getAltGroups, getAltGroupAt, validate, forEachPlaceRef, lacksCoords, CARD_TYPES, ROW_TYPES,
         DEFAULT_ROUTING, formatCoord, legKey, getLegs, getTrafficFactor, displayMinutes,
-        formatDuration, formatDistance, formatLeg, formatFactorNote, parseTimeRange, getStayMinutes, formatStay, getStayLabel, isUsableLeg, getLegSchedule, getTimeWarnings, deriveMoves, applyMoves
+        formatDuration, formatDistance, formatLeg, formatFactorNote, parseTimeRange, getStayMinutes, formatStay, getStayLabel, isUsableLeg, getLegSchedule, getTimeWarnings, deriveMoves, applyMoves,
+        getMoveMinutes, getMoveMinutesAt, cascadeDay, rescheduleDay
     };
     if (typeof module !== 'undefined') module.exports = Trip.model;
 })(typeof window !== 'undefined' ? window : globalThis);
