@@ -202,6 +202,37 @@ test('leaveAlt：移出中間成員，該項移到組外，其餘成員仍相鄰
     assert.deepEqual(errorsOf(d), []);
 });
 
+test('leaveAlt：兩項的組移出第一項，共用時間交給留下的那一項，離開的項目不帶時間', () => {
+    const d = dayOf([spot('x', { alt: 'g', time: '12:00 - 13:00' }), spot('y', { alt: 'g' })]);
+    assert.equal(L.leaveAlt(d, 0), true);
+    assert.deepEqual(alts(d), ['-', '-']);
+    assert.equal(d.items[0].time, undefined);
+    assert.equal(d.items[1].time, '12:00 - 13:00');
+    assert.deepEqual(errorsOf(d), []);
+});
+
+test('leaveAlt：三項的組移出最後一項，共用時間留在第一項', () => {
+    const d = dayOf([spot('x', { alt: 'g', time: '12:00 - 13:00' }), spot('y', { alt: 'g' }), spot('z', { alt: 'g' })]);
+    L.leaveAlt(d, 2);
+    assert.deepEqual(alts(d), ['g', 'g', '-']);
+    assert.deepEqual(d.items.map(i => i.time), ['12:00 - 13:00', undefined, undefined]);
+    assert.deepEqual(errorsOf(d), []);
+});
+
+test('leaveAlt：三項的組移出中間成員，共用時間仍留在第一項', () => {
+    const d = dayOf([spot('x', { alt: 'g', time: '12:00 - 13:00' }), spot('y', { alt: 'g' }), spot('z', { alt: 'g' })]);
+    L.leaveAlt(d, 1);
+    assert.deepEqual(d.items.map(i => i.place), ['x', 'z', 'y']);
+    assert.deepEqual(d.items.map(i => i.time), ['12:00 - 13:00', undefined, undefined]);
+    assert.deepEqual(errorsOf(d), []);
+});
+
+test('leaveAlt：三項的組移出第一項，離開的項目沒有時間，新的第一項接手', () => {
+    const d = dayOf([spot('x', { alt: 'g', time: '12:00 - 13:00' }), spot('y', { alt: 'g' }), spot('z', { alt: 'g' })]);
+    L.leaveAlt(d, 0);
+    assert.deepEqual(d.items.map(i => i.time), [undefined, '12:00 - 13:00', undefined]);
+});
+
 test('leaveAlt：不在組內的項目不動', () => {
     const d = dayOf([spot('x'), spot('y')]);
     assert.equal(L.leaveAlt(d, 0), false);

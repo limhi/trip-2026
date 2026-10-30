@@ -107,8 +107,8 @@
         const wasFirst = ii === g.start;
         if (wasFirst) delete it.time;
         const rest = M.getAltGroups(day).find(x => x.alt === g.alt);
+        if (rest && wasFirst && sharedTime) day.items[rest.start].time = sharedTime;   // 共用時間交給留下來的第一項（組解散時也是）
         if (rest && rest.end === rest.start) delete day.items[rest.start].alt;
-        else if (rest && wasFirst && sharedTime) day.items[rest.start].time = sharedTime;   // 共用時間交給新的第一項
         return true;
     }
 
