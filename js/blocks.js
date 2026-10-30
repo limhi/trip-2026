@@ -57,10 +57,14 @@
     const shortText = auto => auto.short
         ? ` <span class="leg-short text-rose-600 font-extrabold block sm:inline">⚠ 排定不足（排定 ${auto.scheduled} 分、查詢 ${esc(Trip.model.formatDuration(auto.needed))}）</span>` : '';
 
+    // 擇一組前後：同一列並列每條路徑的查詢時間（「→ A 約 X 分／→ B 約 Y 分」），各路徑分別與同一個排定時間比對，不足的那條自己帶紅字
+    const pathsText = (auto, weight) => auto.paths.map(p => `<span class="leg-path ${weight}">${esc(p.label)} <span class="auto-leg-duration text-amber-600">(查詢 ${esc(p.text)})</span>${shortText({ scheduled: auto.scheduled, needed: p.needed, short: p.short })}</span>`).join('／');
+
     // duration 只是備註文字；查詢時間（auto）與備註並列
     function legExtras(item, auto, weight) {
         const note = item.duration ? ` <span class="text-amber-600 ${weight}">(${esc(item.duration)})</span>` : '';
         if (!auto) return note;
+        if (auto.paths) return `${note} ${pathsText(auto, weight)}${scheduledText(auto)}${autoNote(auto)}`;
         return `${note} <span class="auto-leg-duration text-amber-600 ${weight}">(查詢 ${esc(auto.text)})</span>${scheduledText(auto)}${shortText(auto)}${autoNote(auto)}`;
     }
 
@@ -82,7 +86,9 @@
     function autoLegRow(auto) {
         return `<div class="auto-leg-row flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 text-xs md:text-sm border border-dashed border-slate-300">
     <i class="fa-solid fa-car text-amber-500 w-4 shrink-0 text-center"></i>
-    <div class="text-slate-700"><span class="font-bold">車程${esc(auto.text)}（自動）</span>${scheduledText(auto)}${shortText(auto)}${autoNote(auto)}</div>
+    <div class="text-slate-700">${auto.paths
+        ? `<span class="font-bold">車程（自動）</span> ${pathsText(auto, 'font-bold')}${scheduledText(auto)}`
+        : `<span class="font-bold">車程${esc(auto.text)}（自動）</span>${scheduledText(auto)}${shortText(auto)}`}${autoNote(auto)}</div>
 </div>`;
     }
 

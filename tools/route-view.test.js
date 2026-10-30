@@ -121,6 +121,80 @@ test('dayRoutes：每段帶排定時間與是否不足；紅色 over 只看單�
     assert.equal(routeView.dayRoutes(day, P, routes({ [KEY_AB]: { distance: 1000, duration: 2400 } }), SITE).legs[0].short, false);
 });
 
+// ───────── 擇一組：並列路徑、各自判斷、總車程取較長 ─────────
+// 行程：a → [b | c]（擇一組 x）→ d
+const PA = { ...P, d: { name: 'D', lat: 24.4, lng: 121.4 } };
+const key = (from, to) => model.legKey(PA[from], PA[to]);
+const model = require('../js/model.js');
+const MIN = 60;
+// 原始分鐘（×1.25 後）：a→b 40（50）、a→c 20（25）、b→d 8（10）、c→d 48（60）
+const ALT_CACHE = routes({
+    [key('a', 'b')]: { distance: 40000, duration: 40 * MIN },
+    [key('a', 'c')]: { distance: 20000, duration: 20 * MIN },
+    [key('b', 'd')]: { distance: 8000, duration: 8 * MIN },
+    [key('c', 'd')]: { distance: 48000, duration: 48 * MIN }
+});
+const altItems = (a, b, c, d) => [a, { ...spot('b'), alt: 'x', ...b }, { ...spot('c'), alt: 'x', ...c }, d];
+
+test('dayRoutes：擇一組前綁定的交通列只有一個 autoByRow，並列每條路徑、各自判斷不足（一足一不足）', () => {
+    const day = { items: [spot('a'), { type: 'drive', time: '08:00 - 08:40', text: '開車' }, { ...spot('b'), alt: 'x', time: '09:00 - 10:00' }, { ...spot('c'), alt: 'x' }, spot('d')] };
+    const info = routeView.dayRoutes(day, PA, ALT_CACHE, SITE);
+    assert.deepEqual(Object.keys(info.autoByRow), ['1']);
+    const auto = info.autoByRow[1];
+    assert.deepEqual([auto.scheduled, auto.needed, auto.short], [40, 50, true]);
+    assert.deepEqual(auto.paths.map(p => [p.label, p.needed, p.short]), [['→ B', 50, true], ['→ C', 25, false]]);
+    assert.equal(auto.paths[0].text, '約 50 分・40.0 km');
+});
+
+test('dayRoutes：兩條路徑都足夠時沒有任何不足；缺快取的路徑不判斷、不出現', () => {
+    const day = { items: [spot('a'), { type: 'drive', time: '08:00 - 09:00', text: '開車' }, { ...spot('b'), alt: 'x', time: '09:00 - 10:00' }, { ...spot('c'), alt: 'x' }, spot('d')] };
+    const ok = routeView.dayRoutes(day, PA, ALT_CACHE, SITE).autoByRow[1];
+    assert.deepEqual([ok.short, ...ok.paths.map(p => p.short)], [false, false, false]);
+    const partial = routeView.dayRoutes(day, PA, routes({ [key('a', 'c')]: ALT_CACHE.legs[key('a', 'c')] }), SITE).autoByRow[1];
+    assert.deepEqual(partial.paths.map(p => [p.label, p.short]), [['→ C', false]]);
+    assert.equal(partial.short, false);
+});
+
+test('dayRoutes：沒有交通列時，組前一條、組後一條連接列（不是每個成員各一條），排定時間用整組共用的 time', () => {
+    const day = { items: altItems({ ...spot('a'), time: '09:00 - 10:00' }, { time: '10:30 - 11:30' }, {}, { ...spot('d'), time: '11:50 - 13:00' }) };
+    const info = routeView.dayRoutes(day, PA, ALT_CACHE, SITE);
+    assert.deepEqual(Object.keys(info.autoAfter).sort(), ['0', '1']);
+    const before = info.autoAfter[0], after = info.autoAfter[1];
+    assert.deepEqual(before.paths.map(p => [p.label, p.needed, p.short]), [['→ B', 50, true], ['→ C', 25, false]]);
+    assert.equal(before.scheduled, 30);
+    assert.deepEqual(after.paths.map(p => [p.label, p.needed, p.short]), [['B →', 10, false], ['C →', 60, true]]);
+    assert.equal(after.scheduled, 20);
+    assert.deepEqual([after.needed, after.short], [60, true]);
+});
+
+test('dayRoutes：總車程在有擇一組時取較長的那條路徑，並標註「含擇一組取較長」；沒有擇一組不標', () => {
+    const day = { items: altItems(spot('a'), {}, {}, spot('d')) };
+    const info = routeView.dayRoutes(day, PA, ALT_CACHE, SITE);
+    // 經 b：50 + 10 = 60；經 c：25 + 60 = 85
+    assert.deepEqual(info.summary, { minutes: 85, meters: 68000, missing: 0 });
+    assert.equal(info.summaryText, '總車程 約 1 小時 25 分・總里程 68.0 km（含擇一組取較長）');
+    const plain = routeView.dayRoutes({ items: [spot('a'), spot('b')] }, PA, ALT_CACHE, SITE);
+    assert.ok(!plain.summaryText.includes('擇一組'));
+});
+
+test('dayRoutes：擇一組缺路段時總車程沿用「（部分路段未計算）」，只加總有快取的路徑', () => {
+    const day = { items: altItems(spot('a'), {}, {}, spot('d')) };
+    const cache = routes({ ...ALT_CACHE.legs });
+    delete cache.legs[key('c', 'd')];
+    const info = routeView.dayRoutes(day, PA, cache, SITE);
+    assert.deepEqual(info.summary, { minutes: 60, meters: 48000, missing: 1 });
+    assert.equal(info.summaryText, '總車程 約 1 小時・總里程 48.0 km（含擇一組取較長）（部分路段未計算）');
+});
+
+test('dayRoutes：沒有擇一組、中間一段沒有快取時，總車程仍是有快取路段的全部加總', () => {
+    const day = { items: [spot('a'), spot('b'), spot('c'), spot('d')] };
+    const info = routeView.dayRoutes(day, PA, routes({
+        [key('a', 'b')]: { distance: 1000, duration: 10 * MIN },
+        [key('c', 'd')]: { distance: 2000, duration: 20 * MIN }
+    }), SITE);
+    assert.deepEqual(info.summary, { minutes: 38, meters: 3000, missing: 1 });   // 13 + 25
+});
+
 // ───────── midpoint ─────────
 
 test('midpoint：沒有路線座標時取起終點中點；有座標時取沿路線一半長度處', () => {

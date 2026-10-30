@@ -159,6 +159,63 @@ test('擇一組：相鄰同 alt 的 spot 畫在一個「二選一」外框內，
     assert.match(g, /grid-cols-1[^"]*md:grid-cols-2/);
 });
 
+// ───────── 擇一組前後的交通列：並列路徑、單獨標紅 ─────────
+P.d = { name: 'D 景點', lat: 24.4, lng: 121.4 };
+const legKey = (a, b) => Trip.model.legKey(P[a], P[b]);
+const MIN = 60;
+// 查詢時間（×1.25）：a→b 50、a→c 25、b→d 10、c→d 60
+const ALT_CACHE = { legs: {
+    [legKey('a', 'b')]: { distance: 40000, duration: 40 * MIN },
+    [legKey('a', 'c')]: { distance: 20000, duration: 20 * MIN },
+    [legKey('b', 'd')]: { distance: 8000, duration: 8 * MIN },
+    [legKey('c', 'd')]: { distance: 48000, duration: 48 * MIN }
+} };
+const group = (time, extra) => [{ ...card('b'), alt: 'x', time }, { ...card('c'), alt: 'x', ...extra }];
+// 每條路徑從 leg-path 標記起算到下一條路徑之前（紅字與說明要寫在該路徑之內）
+const paths = html => html.split('class="leg-path').slice(1);
+
+test('擇一組前的綁定交通列：同一列並列每條路徑的查詢時間，只有不足的那條紅字', () => {
+    // 排定 40 分：→ B 需要 50 分（不足）、→ C 需要 25 分（足夠）
+    const html = render(day([card('a'), drive({ time: '08:00 - 08:40' }), ...group('09:00 - 10:00'), card('d')]), ALT_CACHE);
+    const row = html.slice(html.indexOf('開車前往'), html.indexOf('data-alt-group'));
+    assert.equal(count(row, /leg-path/g), 2);
+    assert.equal(count(row, /leg-short/g), 1);
+    assert.equal(count(row, /leg-scheduled/g), 1);   // 共用的排定時間只寫一次
+    const [pb, pc] = paths(row);
+    assert.ok(pb.includes('→ B 景點') && pb.includes('查詢 約 50 分') && pb.includes('⚠ 排定不足（排定 40 分、查詢 約 50 分）'), pb);
+    assert.ok(pc.includes('→ C 景點') && pc.includes('查詢 約 25 分') && !pc.includes('排定不足'), pc);
+    assert.ok(row.indexOf('→ B 景點') < row.indexOf('／') && row.indexOf('／') < row.indexOf('→ C 景點'));
+});
+
+test('擇一組兩條路徑都足夠：沒有任何紅字', () => {
+    const html = render(day([card('a'), drive({ time: '08:00 - 09:00' }), ...group('09:00 - 10:00'), card('d')]), ALT_CACHE);
+    assert.equal(count(html, /leg-short|排定不足/g), 0);
+    assert.equal(count(html, /leg-path/g), 2 + 2);   // 組前的交通列 2 條；組後沒有交通列的連接列 2 條
+});
+
+test('擇一組沒有交通列：組前、組後各一條連接列（不是每個成員各一條），並列路徑、各自判斷', () => {
+    const html = render(day([{ ...card('a'), time: '09:00 - 10:00' }, ...group('10:30 - 11:30'), { ...card('d'), time: '11:50 - 13:00' }]), ALT_CACHE);
+    assert.equal(count(html, /auto-leg-row/g), 2);
+    const rows = html.match(/<div class="auto-leg-row[\s\S]*?\n<\/div>/g);
+    assert.ok(html.indexOf('A 景點') < html.indexOf(rows[0]) && html.indexOf(rows[0]) < html.indexOf('data-alt-group'));
+    assert.ok(html.indexOf(rows[1]) > html.indexOf('C 景點'));
+    // 組前排定 30：→ B（50）紅、→ C（25）正常
+    assert.ok(rows[0].includes('排定 30 分') && count(rows[0], /leg-short/g) === 1);
+    assert.ok(paths(rows[0])[0].includes('⚠ 排定不足') && !paths(rows[0])[1].includes('排定不足'));
+    // 組後排定 20：B →（10）正常、C →（60）紅
+    assert.ok(rows[1].includes('排定 20 分') && count(rows[1], /leg-short/g) === 1);
+    assert.ok(!paths(rows[1])[0].includes('排定不足') && paths(rows[1])[1].includes('⚠ 排定不足（排定 20 分、查詢 約 1 小時）'));
+});
+
+test('擇一組的當天總車程取較長的路徑並標註；缺快取的路徑不誤報', () => {
+    const html = render(day([card('a'), ...group('09:00 - 10:00'), card('d')]), ALT_CACHE);
+    assert.ok(html.includes('總車程 約 1 小時 25 分・總里程 68.0 km（含擇一組取較長）'), html);
+    const partial = render(day([{ ...card('a'), time: '09:00 - 10:00' }, ...group('10:30 - 11:30'), { ...card('d'), time: '11:50 - 13:00' }]),
+        { legs: { [legKey('a', 'c')]: ALT_CACHE.legs[legKey('a', 'c')] } });
+    assert.equal(count(partial, /leg-short/g), 0);
+    assert.equal(count(partial, /leg-path/g), 1);
+});
+
 test('沒有 alt 的行程：不出現擇一組外框', () => {
     assert.equal(count(render(day([card('a'), card('b')])), /data-alt-group|二選一/g), 0);
 });

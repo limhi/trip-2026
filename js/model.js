@@ -246,6 +246,12 @@
     function getLegSchedule(day, places, routes, site) {
         const cache = (routes && routes.legs) || {};
         const factor = getTrafficFactor(day, site);
+        // 擇一組的成員沒有自己的 time：整組共用第一項的 time
+        const groups = getAltGroups(day);
+        const timeOf = index => {
+            const group = groups.find(g => index >= g.start && index <= g.end);
+            return day.items[group ? group.start : index].time;
+        };
         return getLegs(day, places).map((leg, legIndex) => {
             const cached = cache[leg.key];
             const needed = cached && Number.isFinite(cached.duration) ? displayMinutes(cached.duration, factor) : null;
@@ -255,8 +261,8 @@
                     const range = parseTimeRange(day.items[leg.rowIndex].time);
                     if (range) scheduled = range.end - range.start;
                 } else if (leg.needsRow) {
-                    const prev = parseTimeRange(day.items[leg.fromItemIndex].time);
-                    const next = parseTimeRange(day.items[leg.toItemIndex].time);
+                    const prev = parseTimeRange(timeOf(leg.fromItemIndex));
+                    const next = parseTimeRange(timeOf(leg.toItemIndex));
                     if (prev && next) scheduled = next.start - prev.end;
                 }
             }
