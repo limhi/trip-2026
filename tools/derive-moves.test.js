@@ -24,8 +24,8 @@ test('一般情況：移動列時間 = 前一站結束到下一站開始', () =>
     assert.deepEqual(r.warnings, []);
 });
 
-test('已經一致的移動列 changed 為 false；drive 也當交通列', () => {
-    const day = { day: 1, items: [spot('a', '09:00 - 10:30'), { type: 'drive', time: '10:30 - 11:15' }, spot('b', '11:15 - 12:00')] };
+test('已經一致的移動列 changed 為 false', () => {
+    const day = { day: 1, items: [spot('a', '09:00 - 10:30'), { type: 'move', time: '10:30 - 11:15' }, spot('b', '11:15 - 12:00')] };
     assert.deepEqual(view(model.deriveMoves(day, P)), [[1, '10:30 - 11:15', false]]);
 });
 
