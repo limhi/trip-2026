@@ -24,7 +24,7 @@ const KEY_AB = '121.10000,24.10000>121.20000,24.20000';
 const KEY_BC = '121.20000,24.20000>121.30000,24.30000';
 const SITE = { routing: { trafficFactor: 1.25, maxLegMinutes: 180 } };
 const card = place => ({ type: 'spot', tag: '景點', place });
-const drive = extra => ({ type: 'drive', time: '08:00 - 09:00', text: '開車前往', ...extra });
+const drive = extra => ({ type: 'move', time: '08:00 - 09:00', text: '開車前往', ...extra });
 const day = (items, extra) => ({ day: 1, date: '11/15', title: '測試', items, ...extra });
 const CACHE = { legs: { [KEY_AB]: { distance: 75323, duration: 3900 }, [KEY_BC]: { distance: 20000, duration: 1200 } } };
 const render = (d, routes) => Trip.blocks.dayCard(d, { places: P, routes, site: SITE }, '');

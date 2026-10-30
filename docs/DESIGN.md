@@ -86,7 +86,7 @@
 | `tools/editor/test-helpers.js`、`tools/*.test.js`、`tools/editor/*.test.js`、`tools/routing/*.test.js` | `node:test` 測試（假路線服務、暫存 git repo、假 DOM） | 見第 10.3 節 |
 | `js/model.js` | 資料處理與檢查 | 純函式，`tools/check.js` 會載入它 |
 | `js/route-view.js` | 路線快取套到某一天的路段（顯示分鐘、是否超過門檻、當天總車程）、polyline 解碼、中點 | 純函式；`blocks.js` 與 `map.js` 共用，路段規則仍在 `model.getLegs`。測試：`tools/route-view.test.js` |
-| `js/blocks.js` | 各類區塊的 HTML 樣板與 Tailwind 顏色表 | 統一改顏色改最上方的表。有路線快取時：綁定的 `drive`／`move` 列一律顯示查詢時間與排定時間（`note` 只是備註）；相鄰標記間沒有交通列就補唯讀連接列；標題列顯示總車程。沒有快取時畫面與沒有這個功能時相同。測試：`tools/public-blocks.test.js` |
+| `js/blocks.js` | 各類區塊的 HTML 樣板與 Tailwind 顏色表 | 統一改顏色改最上方的表。有路線快取時：綁定的 `move` 列一律顯示查詢時間與排定時間（`note` 只是備註）；相鄰標記間沒有交通列就補唯讀連接列；標題列顯示總車程。沒有快取時畫面與沒有這個功能時相同。測試：`tools/public-blocks.test.js` |
 | `js/modal.js` | 聯絡／導航彈窗 | 事件委派：任何有 `data-place` 的元素都能開彈窗 |
 | `js/map.js` | 每日地圖（Leaflet + OpenStreetMap 圖磚） | `MAP_TYPES` 是標記顏色／圖示／圖例。有路線快取時：道路路線（沒有 geo 的段落退回虛線）、路段中點「時間・距離」標示、超過 `maxLegMinutes` 紅色；載入 `routes-geo.js` 失敗就維持虛線。沒有快取時維持單一灰色虛線。測試：`tools/public-map.test.js`（假 Leaflet） |
 | `js/guides.js` | 彈窗內的景點攻略（折疊區塊） | `SECTIONS` 設定順序與預設展開 |
@@ -120,7 +120,7 @@
 
 每一天：`{ day, date, title, stay|badge, theme?, closeLoop?, items[] }`。`items` 的 `type`：
 
-項目類型（`drive`、`move`、`spot`、`meal`、`stay`、`end`、`notice`、`brief`、`waypoint`）與各自可填的欄位見 [`EDIT-GUIDE.md`](EDIT-GUIDE.md) 第 2 節（欄位表只維護那一份）。外觀：`drive` 深灰列、`move` 淺灰列、卡片類藍／琥珀／紫／綠／琥珀、`brief` 琥珀淡底小框、`waypoint` 虛線小列。
+項目類型（`move`、`spot`、`meal`、`stay`、`end`、`notice`、`brief`、`waypoint`）與各自可填的欄位見 [`EDIT-GUIDE.md`](EDIT-GUIDE.md) 第 2 節（欄位表只維護那一份）。外觀：`move` 淺灰列（路線圖示；`drive` 類型已移除，殘留會被 `validate` 報錯並提示改用 `move`）、卡片類藍／琥珀／紫／綠／琥珀、`brief` 琥珀淡底小框、`waypoint` 虛線小列。
 
 共通欄位：
 - `place`：引用地點 id。卡片標題預設用地點名稱（要改標題就寫 `title`）；該地點有 `infoType` 時，卡片可點開聯絡與導航彈窗；該項目會依出現順序自動成為當天地圖的標記。
@@ -135,7 +135,7 @@
 
 編號：每天的地圖標記由上而下自動編號（1、2、3…），左邊對應的卡片／起訖點列顯示同一個編號。調整順序就是在 `items` 裡上下搬移那一項，卡片與地圖會一起更新。
 
-> **規劃中（尚未實作，見 `docs/adr/0007`）**：移除 `drive`；`move` 的 `time` 由前後標記推導並存進資料，編輯器唯讀並自動補列。實作完成後這裡改寫成現況。
+> **規劃中（見 `docs/adr/0007`）**：`drive` 已移除（只剩 `move`）；尚未實作的是 `move` 的 `time` 由前後標記推導並存進資料，編輯器唯讀並自動補列。實作完成後這裡改寫成現況。
 
 ### 4.3 地圖標記與編號是「推導」出來的
 `model.getMapPoints(day, places)` 依 `items` 的順序，把有 `place` 且該地點有座標的項目變成標記：
@@ -405,7 +405,7 @@ node tools/e2e.js
 - 不算：`backup:true` 的標記、`map:false` 的項目、沒有座標的地點；不跨天。
 - `day.closeLoop` 時，最後一個標記回到第一個的**回程段**也算。
 - 每段含 `fromItemIndex`、`toItemIndex`、`fromId`、`toId`、`from`、`to`、`key`、`rowIndex`、`needsRow`、`closeLoop`。
-- **綁定交通列**：兩標記之間恰好一個 `drive` 或 `move` → `rowIndex` 是它的索引；一個都沒有 → `needsRow: true`（公開頁面補一條唯讀連接列）；超過一個 → 不綁定（保留手寫文字，路段仍畫在地圖上）；`closeLoop` 回程段不綁定任何列。
+- **綁定交通列**：兩標記之間恰好一個 `move` → `rowIndex` 是它的索引；一個都沒有 → `needsRow: true`（公開頁面補一條唯讀連接列）；超過一個 → 不綁定（保留手寫文字，路段仍畫在地圖上）；`closeLoop` 回程段不綁定任何列。
 - 只算開車（`driving`），`move` 也用開車算。
 - 快取 key：`legKey(from, to)` = `經度,緯度>經度,緯度`，各取 5 位小數。座標一改就是新的 key，自動重算。
 
@@ -463,8 +463,8 @@ node tools/e2e.js
 ### 15.6 公開頁面行為（`js/route-view.js`、`js/blocks.js`、`js/map.js`）
 - 地圖：有快取的段落畫道路路線（`geometry` 解碼）取代灰色虛線；沒有 geo 或沒有快取的段落仍畫虛線直線；每段中點（沿路線一半長度處）標示「時間・距離」，並一律帶「查詢 ×係數」（title 為完整的「查詢・含路況緩衝 ×係數」）；超過門檻的段落紅色。完全沒有快取時維持原本單一灰色虛線。
 - 當天標題列顯示「總車程・總里程」（有快取的路段加總；缺段時加「（部分路段未計算）」）。有擇一組時，擇一組取較長的那條路徑加總，並標註「（含擇一組取較長）」（`routeView.dayRoutes` 沿站點累計各成員的最大值）。
-- 擇一組前後的交通列（綁定的 `drive`／`move` 與自動連接列）各只有一列，同一列並列每條路徑的查詢時間（「→ 大坡池 約 X 分／→ 伯朗大道 約 Y 分」），各路徑分別與同一個排定時間比對，只有不足的那條帶「⚠ 排定不足」。`autoByRow`／`autoAfter` 的值多一個 `paths: [{ label, text, needed, short }]`（沒有擇一組時沒有 `paths`）；整組的排定時間用組內第一項的 `time`（`getLegSchedule`）。
-- 綁定的 `drive`／`move` 列：**一律並列顯示查詢時間與排定時間**（有快取且 `time` 是完整區間時才有排定時間）；`note` 只是備註文字，不參與計算；`text` 不變。排定時間 < 查詢時間時該列（含自動連接列）紅字加「⚠ 排定不足」；地圖標籤的紅色仍只代表單段超過門檻，兩者不合併。
+- 擇一組前後的交通列（綁定的 `move` 與自動連接列）各只有一列，同一列並列每條路徑的查詢時間（「→ 大坡池 約 X 分／→ 伯朗大道 約 Y 分」），各路徑分別與同一個排定時間比對，只有不足的那條帶「⚠ 排定不足」。`autoByRow`／`autoAfter` 的值多一個 `paths: [{ label, text, needed, short }]`（沒有擇一組時沒有 `paths`）；整組的排定時間用組內第一項的 `time`（`getLegSchedule`）。
+- 綁定的 `move` 列：**一律並列顯示查詢時間與排定時間**（有快取且 `time` 是完整區間時才有排定時間）；`note` 只是備註文字，不參與計算；`text` 不變。排定時間 < 查詢時間時該列（含自動連接列）紅字加「⚠ 排定不足」；地圖標籤的紅色仍只代表單段超過門檻，兩者不合併。
 - 兩個標記之間沒有交通列時，自動補一條唯讀連接列「車程約 …（自動）」。
 - 圖例下方的說明文字有快取時改寫：實線為道路查詢路線、虛線為尚未計算、紅色表示單段超過門檻、附係數說明，並寫「實際請以導航為準」。
 - 載入失敗或沒有快取時整個功能靜默退回現狀，不出現紅色提示列或 JS 錯誤。

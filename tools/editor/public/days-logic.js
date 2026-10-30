@@ -9,7 +9,6 @@
 
     // 每種項目類型可填的欄位（與 docs/DESIGN.md 4.2 一致）；label／chip 給畫面用
     const TYPES = {
-        drive:    { label: '交通',   chip: 'bg-slate-700 text-white',         fields: ['time', 'text', 'note'] },
         move:     { label: '移動',   chip: 'bg-slate-200 text-slate-800',     fields: ['time', 'text', 'note'] },
         spot:     { label: '景點',   chip: 'bg-blue-100 text-blue-800',       fields: CARD },
         meal:     { label: '用餐',   chip: 'bg-amber-100 text-amber-800',     fields: CARD },
@@ -128,7 +127,7 @@
     }
 
     function newItem(type, placeIds) {
-        if (type === 'drive' || type === 'move') return { type, text: '新項目' };
+        if (type === 'move') return { type, text: '新項目' };
         if (type === 'waypoint') return { type, place: placeIds[0] };
         if (type === 'brief') return { type, title: '新項目' };
         return { type, tag: '新項目', title: '新項目' };

@@ -5,7 +5,7 @@
     const Trip = root.Trip = root.Trip || {};
 
     const CARD_TYPES = ['spot', 'meal', 'stay', 'end', 'notice'];
-    const ROW_TYPES = ['drive', 'move'];
+    const ROW_TYPES = ['move'];
     const ALL_TYPES = [...CARD_TYPES, ...ROW_TYPES, 'brief', 'waypoint'];
 
     // 地點的聯絡資訊（彈窗用）；沒有 infoType 的地點沒有彈窗
@@ -119,7 +119,8 @@
             day.items.forEach((item, index) => {
                 const where = `DAY ${day.day} 第 ${index + 1} 項`;
                 if ('duration' in item) errors.push(`${where}：項目的 duration 已改名為 note，請改用 note`);
-                if (!ALL_TYPES.includes(item.type)) errors.push(`${where}：不認得的類型「${item.type}」`);
+                if (item.type === 'drive') errors.push(`${where}：項目類型 drive 已移除，請改用 move`);
+                else if (!ALL_TYPES.includes(item.type)) errors.push(`${where}：不認得的類型「${item.type}」`);
                 if (item.type === 'waypoint' && !item.place) errors.push(`${where}：waypoint 必須指定 place`);
                 if (CARD_TYPES.includes(item.type) && !item.title && !item.place) errors.push(`${where}：卡片需要 place 或 title`);
                 if (lacksCoords(item, places[item.place])) errors.push(`${where}：地點「${item.place}」沒有座標，不會出現在地圖上`);
@@ -170,7 +171,7 @@
     // closeLoop 的回程段（最後一個標記 → 第一個）也算。
     // 擇一組的成員視為同一站：前一站 → 每個成員、每個成員 → 下一站各一段（分岔再合流），成員之間不連線；
     // fromAlt／toAlt 是起點／終點所屬的擇一組 alt（沒有就 null），要並列「同一組的多條路徑」時用它們歸類。
-    // rowIndex：兩標記之間恰好一個 drive／move 時是該項目的索引，否則 null；
+    // rowIndex：兩標記之間恰好一個 move 時是該項目的索引，否則 null；
     // needsRow：兩標記之間沒有交通列（需要補自動連接列）。closeLoop 的回程段不綁定任何列。
     function getLegs(day, places) {
         const points = getMapPoints(day, places).filter(p => !p.excludeFromRoute);
