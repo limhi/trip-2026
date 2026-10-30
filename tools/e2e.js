@@ -184,11 +184,15 @@ async function guard(label, fn) {
         const p = await newPage();
         const geoRequests = [];
         p.on('request', r => { if (/\/data\/routes-geo\.js/.test(r.url())) geoRequests.push(r.url()); });
+        // 這項測的是「沒有路線快取」的退回行為，不依賴 repo 目前實際的快取內容
+        await p.route('**/data/routes.js', r => r.fulfill({ contentType: 'text/javascript', body: 'window.TRIP_ROUTES = { legs: {} };' }));
         await openIndex(p);
         let bad = [];
         for (const day of TRIP.days) {
             const points = model.getMapPoints(day, PLACES);
-            const wantPoly = points.filter(x => !x.excludeFromRoute).length + (day.closeLoop && points.filter(x => !x.excludeFromRoute).length > 1 ? 1 : 0);
+            // 有擇一組的天沒有快取時逐段畫虛線（分岔再合流），最後一次畫的是 2 點的一段；其餘天是單一條連線
+            const wantPoly = model.getAltGroups(day).length ? 2
+                : points.filter(x => !x.excludeFromRoute).length + (day.closeLoop && points.filter(x => !x.excludeFromRoute).length > 1 ? 1 : 0);
             await p.evaluate(() => { window.__map.markers = 0; window.__map.poly = null; });
             await p.locator(`#day-${day.day} .map-toggle-button`).click();
             await p.waitForTimeout(150);
@@ -271,6 +275,8 @@ async function guard(label, fn) {
                 return { summary: sum ? sum.textContent : null, autoRows: el.querySelectorAll('.auto-leg-row').length, autoDur: el.querySelectorAll('.auto-leg-duration').length,
                     autoRowText: [...el.querySelectorAll('.auto-leg-row')].map(r => r.textContent) };
             }, `#day-${day.day}`);
+            // 有擇一組的天：連接列只出現一條、總車程取較長的路徑，這些由 route-view 與 blocks 的單元測試與 T11 驗證
+            if (model.getAltGroups(day).length) continue;
             const wantAuto = cached.filter(l => l.needsRow).length;
             const wantDur = cached.filter(l => l.rowIndex != null).length;   // duration 只是備註，不再隱藏查詢時間
             if (dom.autoRows !== wantAuto) bad.push(`DAY ${day.day}：自動連接列 ${dom.autoRows}，應為 ${wantAuto}`);
