@@ -4,7 +4,7 @@ window.TRIP = {
         "documentTitle": "2026 親子順時針環島之旅 (6天5夜)",
         "brand": "環島之旅 2026",
         "version": {
-            "number": "v2.5",
+            "number": "v2.6",
             "date": "2026/10/30"
         },
         "navLinks": [

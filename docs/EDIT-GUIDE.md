@@ -18,13 +18,14 @@
 
 | type | 外觀 | 必填 | 選填 |
 |---|---|---|---|
-| `move` | 交通列 | `time`, `text` | `note`（備註文字，不參與計算） |
+| `move` | 移動列 | `text` | `time`（**由系統推導，不手寫**）, `note`（備註文字，不參與計算） |
 | `spot` / `meal` | 卡片 | `place` 或 `title` | `tag`, `time`, `desc`, `alt`（只限 `spot`）, `map:false` |
 | `stay` / `end` / `notice` | 卡片 | `place` 或 `title` | `tag`, `time`, `desc` |
 | `brief` | 小框 | `time`, `title` | `place`, `icon`, `desc` |
 | `waypoint` | 起訖點列 | `place` | `text`, `backup`, `mapName`, `numbered:false` |
 
 - `time`：完整區間寫 `"12:20 - 14:00"`（半形空格、連字號）；`"15:30 後"` 這類不完整的也可以，但不會有排定時間與停留時間。
+- `move` 的 `time` = 前一個標記的結束時間 - 下一個標記的開始時間（擇一組用共用時間框）；`text`、`note` 可自由寫。兩標記之間沒有 `move` 時，`sync-moves.js` 與編輯器會補一個（`text` 預設「前一站 ➔ 下一站」），**只補不刪**。
 - 停留時間由 `spot`／`meal` 的完整區間自動算出並顯示，**不要寫進資料**。
 - `place` 是 `places.json` 的 id；有座標的項目依順序自動成為地圖標記與編號，**不用維護地圖資料**。
 - 每天另有：`stay: {place, note}`（標題列住宿）、`badge: {icon, text}`（沒住宿時）、`closeLoop`、`trafficFactor`（正數）、`theme`。
@@ -47,7 +48,7 @@
 ```json
 { "type": "spot", "tag": "池上景點", "time": "14:10 - 15:00", "place": "test-spot", "desc": "說明文字。" }
 ```
-前後沒有交通列時，頁面會自動補一列唯讀車程；有座標才會出現在地圖。
+有座標才會出現在地圖。相鄰標記之間要有一個 `move`：直接改 JSON 時，加完後執行 `node tools/sync-moves.js` 自動補列並算好時間（見第 4 節）。
 
 ### 3.2 兩個景點二選一（`alt`）
 兩項緊鄰、`alt` 字串相同；共用時間只寫在**第一項**，第二項不寫 `time`；成員只能是 `spot`，至少 2 項：
@@ -58,7 +59,7 @@
 地圖編號變成 3a、3b；前後站各自與每個成員連一段，路線快取要重算（第 5 節）。
 
 ### 3.3 調整時間
-改該項目的 `time`；有交通列（`move`）也要同步改它的 `time`。排定時間比查詢時間短時，頁面會顯示紅字「⚠ 排定不足」，`check.js` 不會失敗，改完要看一下警告。
+只改景點的 `time`；前後的移動列（`move`）時間由前後標記推導，**不要手改**，改完執行 `node tools/sync-moves.js` 同步（編輯器裡會自動同步）。排定時間比查詢時間短時，頁面會顯示紅字「⚠ 排定不足」，`check.js` 不會失敗，改完要看一下警告。
 ```json
 { "type": "meal", "tag": "午餐", "time": "11:15 - 12:30", "place": "chishang-bento", "desc": "…" }
 ```
@@ -86,11 +87,12 @@
 ## 4. 改完必跑
 
 ```bash
+node tools/sync-moves.js    # 改了景點時間、順序或地點後：同步移動列的時間並補列（--dry-run 只看不寫）
 node tools/build-data.js    # 由 data/*.json 產生 data/*.js
 node tools/check.js         # 看結束碼，0 才算過；不要接 | tail
 node --test                 # 只有動到 js/ 或 tools/ 才跑
 ```
-「N 段沒有路線快取」只是警告，不算失敗。commit 前先看結束碼。
+「N 段沒有路線快取」、移動列時間不一致或缺列都只是警告，不算失敗，但要處理。commit 前先看結束碼。
 
 ## 5. 路線快取
 
