@@ -305,6 +305,15 @@ test('getAltGroups：相鄰、同名 alt 的項目組成一組；沒有 alt 的�
     assert.deepEqual(model.getAltGroups({ items: [place('a'), place('b')] }), []);
 });
 
+test('getAltGroupAt：回傳項目所屬的擇一組（含頭尾），不在組內為 undefined', () => {
+    const items = [place('a'), { ...place('b'), alt: 'x' }, { ...place('c'), alt: 'x' }, place('a')];
+    const day = { items };
+    assert.equal(model.getAltGroupAt(day, 0), undefined);
+    assert.deepEqual(model.getAltGroupAt(day, 1), { alt: 'x', start: 1, end: 2 });
+    assert.deepEqual(model.getAltGroupAt(day, 2), { alt: 'x', start: 1, end: 2 });
+    assert.equal(model.getAltGroupAt(day, 3), undefined);
+});
+
 test('validate：擇一組合法時沒有問題；成員不是 spot、不相鄰、少於 2 項、非第一項寫 time 都會被擋下', () => {
     const trip = items => ({ days: [{ day: 1, items }], hotels: [] });
     const errs = items => model.validate(trip(items), P).join('\n');

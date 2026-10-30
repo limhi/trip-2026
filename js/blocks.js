@@ -176,11 +176,9 @@ ${members.filter(Boolean).join('\n')}
             ? `<p class="day-drive-summary text-xs font-bold text-white/90"><i class="fa-solid fa-car mr-1"></i>${esc(routeInfo.summaryText)}<span class="block text-[10px] font-medium text-white/70">${esc(routeInfo.factorNote)}</span></p>`
             : '';
         // 擇一組（相鄰同 alt 的 spot）合成一個外框；其餘項目照舊一項一塊。連接列（autoAfter）放在項目或整組之後
-        const groupAt = {};
-        Trip.model.getAltGroups(day).forEach(group => { groupAt[group.start] = group; });
         const blocks = [];
         for (let index = 0; index < day.items.length; index++) {
-            const group = groupAt[index];
+            const group = Trip.model.getAltGroupAt(day, index);   // 跳過整組後，走到的組內項目一定是該組的第一項
             const last = group ? group.end : index;
             if (group) {
                 const members = [];

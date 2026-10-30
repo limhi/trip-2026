@@ -103,6 +103,11 @@
         return groups;
     }
 
+    // 項目所屬的擇一組（{ alt, start, end }）；不在任何擇一組內回傳 undefined。三處「項目屬於哪個擇一組」共用這一個查找
+    function getAltGroupAt(day, index) {
+        return getAltGroups(day).find(g => index >= g.start && index <= g.end);
+    }
+
     // 檢查資料，回傳問題清單（空陣列代表沒問題）
     function validate(trip, places) {
         const errors = [];
@@ -250,9 +255,8 @@
         const cache = (routes && routes.legs) || {};
         const factor = getTrafficFactor(day, site);
         // 擇一組的成員沒有自己的 time：整組共用第一項的 time
-        const groups = getAltGroups(day);
         const timeOf = index => {
-            const group = groups.find(g => index >= g.start && index <= g.end);
+            const group = getAltGroupAt(day, index);
             return day.items[group ? group.start : index].time;
         };
         return getLegs(day, places).map((leg, legIndex) => {
@@ -284,7 +288,7 @@
     }
 
     Trip.model = {
-        getContact, getMapPoints, getAltGroups, validate, forEachPlaceRef, lacksCoords, CARD_TYPES, ROW_TYPES,
+        getContact, getMapPoints, getAltGroups, getAltGroupAt, validate, forEachPlaceRef, lacksCoords, CARD_TYPES, ROW_TYPES,
         DEFAULT_ROUTING, formatCoord, legKey, getLegs, getTrafficFactor, displayMinutes,
         formatDuration, formatDistance, formatLeg, formatFactorNote, parseTimeRange, isUsableLeg, getLegSchedule, getTimeWarnings
     };

@@ -52,11 +52,10 @@
     }
 
     // ---- 擇一組（ADR 0006）：只改 alt 與 time，合法性由 model.validate 檢查 ----
-    const groupOf = (day, ii) => M.getAltGroups(day).find(g => ii >= g.start && ii <= g.end);
 
     // 項目在擇一組裡的位置：'first'／'middle'／'last'；不在組內（或單獨一項）回傳 null。畫外框用
     function altPosition(day, ii) {
-        const g = groupOf(day, ii);
+        const g = M.getAltGroupAt(day, ii);
         if (!g || g.end === g.start) return null;
         return ii === g.start ? 'first' : ii === g.end ? 'last' : 'middle';
     }
@@ -96,13 +95,13 @@
             mate.alt = `alt${n}`;
         }
         day.items[ii].alt = mate.alt;
-        normalizeAltTime(day, groupOf(day, ii));
+        normalizeAltTime(day, M.getAltGroupAt(day, ii));
         return true;
     }
 
     // 移出擇一組：移掉 alt；剩不到 2 項整組解除。中間成員會被搬到組後面，避免把組切開。回傳是否有改動
     function leaveAlt(day, ii) {
-        const g = groupOf(day, ii);
+        const g = M.getAltGroupAt(day, ii);
         const it = day.items[ii];
         if (!g || !it.alt) return false;
         const sharedTime = day.items[g.start].time;
