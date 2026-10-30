@@ -43,19 +43,53 @@ test('沒有快取（routes 為 undefined 或空）：沒有自動連接列、�
 test('綁定的交通列沒有 duration：顯示計算結果與係數說明；text 不變', () => {
     const html = render(day([card('a'), drive(), card('b')]), CACHE);
     assert.ok(html.includes('開車前往'));
-    assert.ok(html.includes('(約 1 小時 21 分・75.3 km)'), html);
-    assert.ok(html.includes('預估・含路況緩衝 ×1.25'));
+    assert.ok(html.includes('(查詢 約 1 小時 21 分・75.3 km)'), html);
+    assert.ok(html.includes('查詢・含路況緩衝 ×1.25'));
 });
 
-test('綁定的交通列有手寫 duration：用手寫的，不顯示計算結果', () => {
-    const html = render(day([card('a'), drive({ duration: '約 2 小時' }), card('b')]), CACHE);
-    assert.ok(html.includes('(約 2 小時)'));
-    assert.equal(count(html, /auto-leg-duration/g), 0);
+test('綁定的交通列有手寫 duration：當備註顯示，查詢時間照樣顯示，不參與計算', () => {
+    const html = render(day([card('a'), drive({ time: '08:00 - 10:00', duration: '約 5 分' }), card('b')]), CACHE);
+    assert.ok(html.includes('(約 5 分)'));
+    assert.equal(count(html, /auto-leg-duration/g), 1);
+    assert.ok(html.includes('查詢 約 1 小時 21 分'));
+    assert.ok(html.includes('排定 120 分'));
+    assert.equal(count(html, /leg-short/g), 0);     // 排定 120 ≥ 查詢 81，備註再短也不紅字
 });
 
-test('move 列也一樣：沒有 duration 才顯示計算結果', () => {
+test('排定時間 < 查詢時間：該列紅字並帶「⚠ 排定不足」與分鐘數；夠長的列沒有', () => {
+    const tight = render(day([card('a'), drive({ time: '08:00 - 08:30' }), card('b')]), CACHE);
+    assert.equal(count(tight, /leg-short/g), 1);
+    assert.ok(tight.includes('⚠ 排定不足'));
+    assert.match(tight, /leg-short[^>]*text-rose-600/);
+    assert.ok(tight.includes('排定 30 分'));
+    assert.ok(tight.includes('查詢 約 1 小時 21 分'));
+    const roomy = render(day([card('a'), drive({ time: '08:00 - 09:30' }), card('b')]), CACHE);
+    assert.equal(count(roomy, /leg-short|排定不足/g), 0);
+});
+
+test('time 不是完整區間：只顯示查詢時間，不判斷紅字', () => {
+    const html = render(day([card('a'), drive({ time: '15:30 後' }), card('b')]), CACHE);
+    assert.ok(html.includes('查詢 約 1 小時 21 分'));
+    assert.equal(count(html, /排定/g), 0);
+});
+
+test('沒有交通列的自動連接列：排定不足同樣紅字（前一項結束到後一項開始）', () => {
+    const items = [{ ...card('a'), time: '09:00 - 10:00' }, { ...card('b'), time: '10:30 - 11:00' }];
+    const tight = render(day(items), CACHE);
+    assert.equal(count(tight, /auto-leg-row[\s\S]*leg-short/g), 1);
+    assert.ok(tight.includes('⚠ 排定不足'));
+    items[1].time = '12:00 - 13:00';
+    assert.equal(count(render(day(items), CACHE), /排定不足/g), 0);
+});
+
+test('沒有快取：不出現紅字，也不出現排定時間', () => {
+    const html = render(day([card('a'), drive({ time: '08:00 - 08:05' }), card('b')]), undefined);
+    assert.equal(count(html, /排定|leg-short/g), 0);
+});
+
+test('move 列也一樣：顯示查詢時間', () => {
     const html = render(day([card('a'), { type: 'move', time: '09:00', text: '移動' }, card('b')]), CACHE);
-    assert.ok(html.includes('(約 1 小時 21 分・75.3 km)'));
+    assert.ok(html.includes('(查詢 約 1 小時 21 分・75.3 km)'));
 });
 
 test('兩個標記之間沒有交通列：在前一個標記後補唯讀連接列「車程約 …（自動）」', () => {
@@ -96,7 +130,7 @@ test('標題列：有快取時顯示總車程與總里程；缺段時標示部�
     assert.ok(part.includes('部分路段未計算'));
 });
 
-test('mapPanelHtml：有快取時說明文字改為道路預估路線；沒有快取時維持原文字', () => {
+test('mapPanelHtml：有快取時說明文字改為道路查詢路線；沒有快取時維持原文字', () => {
     const d = day([card('a'), card('b')]);
     const plain = Trip.mapPanelHtml(d, P, { routes: undefined, site: SITE });
     const withRoutes = Trip.mapPanelHtml(d, P, { routes: CACHE, site: SITE });

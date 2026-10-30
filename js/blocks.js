@@ -50,24 +50,31 @@
     }
 
     // ───────── 行程區塊 ─────────
-    // auto：路線快取算出的 { text, note }（綁定的交通列沒有手寫 duration 時才會傳入）
+    // auto：路線快取算出的 { text, note, scheduled, needed, short }（有快取的路段才會傳入）。
+    // 查詢時間一律顯示；排定時間只在 time 是完整區間時有值；排定時間 < 查詢時間時紅字加「⚠ 排定不足」（文字，不只靠顏色）
     const autoNote = auto => `<span class="auto-leg-note block text-[10px] font-medium text-slate-500">${esc(auto.note)}</span>`;
+    const scheduledText = auto => auto.scheduled == null ? '' : ` <span class="leg-scheduled text-slate-500 font-bold">排定 ${auto.scheduled} 分</span>`;
+    const shortText = auto => auto.short
+        ? ` <span class="leg-short text-rose-600 font-extrabold block sm:inline">⚠ 排定不足（排定 ${auto.scheduled} 分、查詢 ${esc(Trip.model.formatDuration(auto.needed))}）</span>` : '';
+
+    // duration 只是備註文字；查詢時間（auto）與備註並列
+    function legExtras(item, auto, weight) {
+        const note = item.duration ? ` <span class="text-amber-600 ${weight}">(${esc(item.duration)})</span>` : '';
+        if (!auto) return note;
+        return `${note} <span class="auto-leg-duration text-amber-600 ${weight}">(查詢 ${esc(auto.text)})</span>${scheduledText(auto)}${shortText(auto)}${autoNote(auto)}`;
+    }
 
     function driveRow(item, auto) {
-        const duration = item.duration ? ` <span class="text-amber-600 font-extrabold block sm:inline">(${esc(item.duration)})</span>`
-            : auto ? ` <span class="auto-leg-duration text-amber-600 font-extrabold block sm:inline">(${esc(auto.text)})</span>${autoNote(auto)}` : '';
         return `<div class="flex items-center gap-3 p-3 rounded-xl bg-slate-100/80 border border-slate-200 text-xs md:text-sm">
     <span class="font-extrabold text-slate-600 w-28 shrink-0"><i class="fa-solid fa-car text-amber-500 mr-1"></i> ${esc(item.time)}</span>
-    <div class="font-bold text-slate-800">${esc(item.text)}${duration}</div>
+    <div class="font-bold text-slate-800">${esc(item.text)}${legExtras(item, auto, 'font-extrabold')}</div>
 </div>`;
     }
 
     function moveRow(item, auto) {
-        const duration = item.duration ? ` <span class="text-amber-600 font-bold">(${esc(item.duration)})</span>`
-            : auto ? ` <span class="auto-leg-duration text-amber-600 font-bold">(${esc(auto.text)})</span>${autoNote(auto)}` : '';
         return `<div class="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 text-xs md:text-sm border border-slate-200">
     <span class="font-bold text-slate-500 w-28 shrink-0"><i class="fa-solid fa-route mr-1"></i> ${esc(item.time)}</span>
-    <div class="text-slate-700">${esc(item.text)}${duration}</div>
+    <div class="text-slate-700">${esc(item.text)}${legExtras(item, auto, 'font-bold')}</div>
 </div>`;
     }
 
@@ -75,7 +82,7 @@
     function autoLegRow(auto) {
         return `<div class="auto-leg-row flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 text-xs md:text-sm border border-dashed border-slate-300">
     <i class="fa-solid fa-car text-amber-500 w-4 shrink-0 text-center"></i>
-    <div class="text-slate-700"><span class="font-bold">車程${esc(auto.text)}（自動）</span>${autoNote(auto)}</div>
+    <div class="text-slate-700"><span class="font-bold">車程${esc(auto.text)}（自動）</span>${scheduledText(auto)}${shortText(auto)}${autoNote(auto)}</div>
 </div>`;
     }
 

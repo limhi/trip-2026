@@ -86,7 +86,7 @@
 | `tools/editor/test-helpers.js`、`tools/*.test.js`、`tools/editor/*.test.js`、`tools/routing/*.test.js` | `node:test` 測試（假路線服務、暫存 git repo、假 DOM） | 見第 10.3 節 |
 | `js/model.js` | 資料處理與檢查 | 純函式，`tools/check.js` 會載入它 |
 | `js/route-view.js` | 路線快取套到某一天的路段（顯示分鐘、是否超過門檻、當天總車程）、polyline 解碼、中點 | 純函式；`blocks.js` 與 `map.js` 共用，路段規則仍在 `model.getLegs`。測試：`tools/route-view.test.js` |
-| `js/blocks.js` | 各類區塊的 HTML 樣板與 Tailwind 顏色表 | 統一改顏色改最上方的表。有路線快取時：綁定的 `drive`／`move` 列沒有 `duration` 就顯示計算時間；相鄰標記間沒有交通列就補唯讀連接列；標題列顯示總車程。沒有快取時畫面與沒有這個功能時相同。測試：`tools/public-blocks.test.js` |
+| `js/blocks.js` | 各類區塊的 HTML 樣板與 Tailwind 顏色表 | 統一改顏色改最上方的表。有路線快取時：綁定的 `drive`／`move` 列一律顯示查詢時間與排定時間（`duration` 只是備註）；相鄰標記間沒有交通列就補唯讀連接列；標題列顯示總車程。沒有快取時畫面與沒有這個功能時相同。測試：`tools/public-blocks.test.js` |
 | `js/modal.js` | 聯絡／導航彈窗 | 事件委派：任何有 `data-place` 的元素都能開彈窗 |
 | `js/map.js` | 每日地圖（Leaflet + OpenStreetMap 圖磚） | `MAP_TYPES` 是標記顏色／圖示／圖例。有路線快取時：道路路線（沒有 geo 的段落退回虛線）、路段中點「時間・距離」標示、超過 `maxLegMinutes` 紅色；載入 `routes-geo.js` 失敗就維持虛線。沒有快取時維持單一灰色虛線。測試：`tools/public-map.test.js`（假 Leaflet） |
 | `js/guides.js` | 彈窗內的景點攻略（折疊區塊） | `SECTIONS` 設定順序與預設展開 |
@@ -469,7 +469,7 @@ node tools/e2e.js
 
 - 當天使用的係數：`day.trafficFactor` > `site.routing.trafficFactor` > 預設 1.25（`model.getTrafficFactor`）。
 - 門檻判斷與「排太緊」警告都用**顯示分鐘**，不是原始時間。
-- 顯示格式：`約 1 小時 5 分・75.3 km`；不滿 1 小時寫 `約 45 分`；整點寫 `約 2 小時`；距離取一位小數公里。標示文字：`預估・含路況緩衝 ×1.25`（係數用實際值）。
+- 顯示格式：`約 1 小時 5 分・75.3 km`；不滿 1 小時寫 `約 45 分`；整點寫 `約 2 小時`；距離取一位小數公里。標示文字：`查詢・含路況緩衝 ×1.25`（係數用實際值）。
 - 因為快取存原始時間，**調係數與門檻不需要重算路線**。
 
 ### 15.4 計算服務與 OSRM 使用限制（`tools/routing/provider.js`）
@@ -487,14 +487,15 @@ node tools/e2e.js
 - 同一段同時只算一次（`inflight`），避免重複呼叫。
 
 ### 15.6 公開頁面行為（`js/route-view.js`、`js/blocks.js`、`js/map.js`）
-- 地圖：有快取的段落畫道路路線（`geometry` 解碼）取代灰色虛線；沒有 geo 或沒有快取的段落仍畫虛線直線；每段中點（沿路線一半長度處）標示「時間・距離」，並一律帶「預估 ×係數」（title 為完整的「預估・含路況緩衝 ×係數」）；超過門檻的段落紅色。完全沒有快取時維持原本單一灰色虛線。
+- 地圖：有快取的段落畫道路路線（`geometry` 解碼）取代灰色虛線；沒有 geo 或沒有快取的段落仍畫虛線直線；每段中點（沿路線一半長度處）標示「時間・距離」，並一律帶「查詢 ×係數」（title 為完整的「查詢・含路況緩衝 ×係數」）；超過門檻的段落紅色。完全沒有快取時維持原本單一灰色虛線。
 - 當天標題列顯示「總車程・總里程」（有快取的路段加總；缺段時加「（部分路段未計算）」）。
-- 綁定的 `drive`／`move` 列：**沒有 `duration` 時顯示計算結果**；有 `duration` 就用手寫的（手動覆寫）；`text` 不變。
+- 綁定的 `drive`／`move` 列：**一律並列顯示查詢時間與排定時間**（有快取且 `time` 是完整區間時才有排定時間）；`duration` 只是備註文字，不參與計算；`text` 不變。排定時間 < 查詢時間時該列（含自動連接列）紅字加「⚠ 排定不足」；地圖標籤的紅色仍只代表單段超過門檻，兩者不合併。
 - 兩個標記之間沒有交通列時，自動補一條唯讀連接列「車程約 …（自動）」。
-- 圖例下方的說明文字有快取時改寫：實線為道路預估路線、虛線為尚未計算、紅色表示單段超過門檻、附係數說明，並寫「實際請以導航為準」。
+- 圖例下方的說明文字有快取時改寫：實線為道路查詢路線、虛線為尚未計算、紅色表示單段超過門檻、附係數說明，並寫「實際請以導航為準」。
 - 載入失敗或沒有快取時整個功能靜默退回現狀，不出現紅色提示列或 JS 錯誤。
 
-### 15.7 「排太緊」警告（`model.getTimeWarnings(day, places, routes, site)`，只在編輯器，不擋存檔與發布）
+### 15.7 「排太緊」判斷（`model.getLegSchedule(day, places, routes, site)`；公開頁面紅字與編輯器警告列表共用，不擋存檔與發布）
+- `getLegSchedule` 回傳每段 `{ leg, legIndex, scheduled, needed, short }`；`model.getTimeWarnings` 與 `Trip.routeView.dayRoutes` 都由它而來（`dayRoutes` 的 `legs[i].scheduled／short`、`autoByRow／autoAfter` 的 `scheduled／needed／short`）。
 - 只在兩端都有可解析的 `HH:MM` 時比對；「17:10 後」「12:15」這類不完整時間不比對。
 - 有綁定交通列、且其 `time` 是區間（`07:30 - 09:20`）：區間長度 < 顯示時間就警告。
 - 沒有交通列：「前一項結束時間」與「後一項開始時間」之差 < 顯示時間就警告（前後項的 `time` 都要是區間）。
