@@ -7,8 +7,6 @@
     const Trip = root.Trip = root.Trip || {};
     const model = Trip.model || (typeof require !== 'undefined' ? require('./model.js') : null);
 
-    const isNum = v => typeof v === 'number' && Number.isFinite(v);
-
     // 解碼 polyline（精度 5）→ [[lat, lng], …]
     function decodePolyline(str) {
         if (typeof str !== 'string') return [];
@@ -59,7 +57,7 @@
         const legs = model.getLegSchedule(day, places, routes, site).map(({ leg, scheduled, short }) => {
             const c = cache[leg.key];
             // 排定時間與是否不足由 model.getLegSchedule 判斷（編輯器的警告列表用同一個）
-            if (!c || !isNum(c.distance) || !isNum(c.duration)) return { leg, cached: null, minutes: null, over: false, text: '', scheduled, short: false };
+            if (!model.isUsableLeg(c)) return { leg, cached: null, minutes: null, over: false, text: '', scheduled, short: false };
             const minutes = model.displayMinutes(c.duration, factor);
             return { leg, cached: c, minutes, over: minutes > max, text: model.formatLeg(c, factor), scheduled, short };
         });

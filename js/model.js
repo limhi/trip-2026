@@ -236,6 +236,9 @@
         return end >= start ? { start, end } : null;
     }
 
+    // 路段快取的一筆是否可用：distance 與 duration 都是有限數字（getLegSchedule 與公開頁面的 dayRoutes 共用這一個判斷）
+    const isUsableLeg = c => !!c && [c.distance, c.duration].every(v => typeof v === 'number' && Number.isFinite(v));
+
     // 每一段的排定時間與查詢時間（公開頁面的紅字與編輯器的警告列表共用這一個判斷）。
     // 回傳 [{ leg, legIndex, scheduled, needed, short }]，順序同 getLegs：
     //   scheduled：排定時間（分）。有綁定交通列：該列 time 的完整區間長度；沒有交通列：前一項結束到後一項開始之差；
@@ -254,7 +257,7 @@
         };
         return getLegs(day, places).map((leg, legIndex) => {
             const cached = cache[leg.key];
-            const needed = cached && Number.isFinite(cached.duration) ? displayMinutes(cached.duration, factor) : null;
+            const needed = isUsableLeg(cached) ? displayMinutes(cached.duration, factor) : null;
             let scheduled = null;
             if (!leg.closeLoop) {
                 if (leg.rowIndex != null) {
@@ -283,7 +286,7 @@
     Trip.model = {
         getContact, getMapPoints, getAltGroups, validate, forEachPlaceRef, lacksCoords, CARD_TYPES, ROW_TYPES,
         DEFAULT_ROUTING, formatCoord, legKey, getLegs, getTrafficFactor, displayMinutes,
-        formatDuration, formatDistance, formatLeg, formatFactorNote, parseTimeRange, getLegSchedule, getTimeWarnings
+        formatDuration, formatDistance, formatLeg, formatFactorNote, parseTimeRange, isUsableLeg, getLegSchedule, getTimeWarnings
     };
     if (typeof module !== 'undefined') module.exports = Trip.model;
 })(typeof window !== 'undefined' ? window : globalThis);
