@@ -11,7 +11,7 @@ const places = {
     nocoord: { name: '沒座標' }
 };
 const day = (items, extra) => ({ day: 1, items, ...extra });
-const trip = { site: {}, days: [day([{ type: 'spot', place: 'a' }, { type: 'drive', text: '開車' }, { type: 'spot', place: 'b' }, { type: 'spot', place: 'c' }])] };
+const trip = { site: {}, days: [day([{ type: 'spot', place: 'a' }, { type: 'move', text: '開車' }, { type: 'spot', place: 'b' }, { type: 'spot', place: 'c' }])] };
 const [ab, bc] = M.getLegs(trip.days[0], places);
 
 test('pendingLegs：只挑快取沒有的段落，並排除計算中／已失敗的', () => {
@@ -66,7 +66,7 @@ test('missingCoords：有地點但沒座標的項目（map:false 與找不到地
         { type: 'spot', place: 'nocoord' },
         { type: 'spot', place: 'nocoord', map: false },
         { type: 'spot', place: 'ghost' },
-        { type: 'drive', text: 'x' }
+        { type: 'move', text: 'x' }
     ])] };
     assert.deepEqual(R.missingCoords(t, places), [{ day: 1, itemIndex: 1, placeId: 'nocoord', name: '沒座標' }]);
 });

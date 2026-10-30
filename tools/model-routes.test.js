@@ -40,7 +40,7 @@ test('getLegs：只有一個標記或沒有標記時沒有路段', () => {
 });
 
 test('getLegs：closeLoop 的回程段（最後 → 第一個）要算，且不綁定交通列', () => {
-    const items = [place('a'), { type: 'drive' }, place('b'), { type: 'move' }];
+    const items = [place('a'), { type: 'move' }, place('b'), { type: 'move' }];
     const legs = model.getLegs({ items, closeLoop: true }, P);
     assert.deepEqual(summary(legs), [[0, 2, 'a', 'b', 1, false], [2, 0, 'b', 'a', null, false]]);
     assert.equal(legs[1].closeLoop, true);
@@ -60,7 +60,7 @@ test('getLegs：交通列綁定規則（0 個、1 個、多個）', () => {
     const one = model.getLegs({ items: [place('a'), { type: 'notice', title: 'n' }, { type: 'move' }, place('b')] }, P);
     assert.deepEqual([one[0].rowIndex, one[0].needsRow], [2, false]);
 
-    const many = model.getLegs({ items: [place('a'), { type: 'drive' }, { type: 'drive' }, place('b')] }, P);
+    const many = model.getLegs({ items: [place('a'), { type: 'move' }, { type: 'move' }, place('b')] }, P);
     assert.deepEqual([many.length, many[0].rowIndex, many[0].needsRow], [1, null, false]);
 });
 
@@ -85,11 +85,11 @@ test('固定行程：各種形狀的路段與交通列綁定', () => {
     const wp = (id, extra) => ({ type: 'waypoint', place: id, ...extra });
     const days = {
         // 起點的交通列綁定第一段；之後相鄰景點之間沒有交通列
-        A: { items: [wp('a'), { type: 'drive' }, place('b'), { type: 'meal', place: 'c' }, place('d'), { type: 'stay', place: 'h' }] },
+        A: { items: [wp('a'), { type: 'move' }, place('b'), { type: 'meal', place: 'c' }, place('d'), { type: 'stay', place: 'h' }] },
         // closeLoop：返程住宿 map:false 不算標記，回程段不綁定任何列
-        B: { closeLoop: true, items: [wp('h'), { type: 'drive' }, place('b'), { type: 'move' }, { type: 'stay', place: 'h', map: false }] },
+        B: { closeLoop: true, items: [wp('h'), { type: 'move' }, place('b'), { type: 'move' }, { type: 'stay', place: 'h', map: false }] },
         // 提醒卡片不算交通列；備案不算標記；兩個交通列之間不綁定
-        C: { items: [wp('h'), { type: 'notice', title: 'n' }, place('b'), wp('k', { backup: true }), { type: 'drive' }, { type: 'drive' }, { type: 'brief', place: 'e' }] },
+        C: { items: [wp('h'), { type: 'notice', title: 'n' }, place('b'), wp('k', { backup: true }), { type: 'move' }, { type: 'move' }, { type: 'brief', place: 'e' }] },
         // 只有一個有座標的標記
         D: { items: [place('a'), place('nocoord')] }
     };
@@ -154,7 +154,7 @@ const warn = (day, site = SITE) => model.getTimeWarnings(day, P, routesFor(day, 
 const dayOf = (items, extra) => ({ day: 3, items, ...extra });
 
 test('getTimeWarnings：交通列的時間區間比顯示時間短 → 警告，並寫明天數、段落、排定與需要', () => {
-    const day = dayOf([place('a'), { type: 'drive', time: '08:00 - 08:30' }, place('b')]);
+    const day = dayOf([place('a'), { type: 'move', time: '08:00 - 08:30' }, place('b')]);
     const w = warn(day);
     assert.equal(w.length, 1);
     assert.match(w[0].message, /DAY 3/);
@@ -166,13 +166,13 @@ test('getTimeWarnings：交通列的時間區間比顯示時間短 → 警告，
 });
 
 test('getTimeWarnings：區間足夠（含剛好相等）不警告', () => {
-    assert.deepEqual(warn(dayOf([place('a'), { type: 'drive', time: '08:00 - 08:50' }, place('b')])), []);
+    assert.deepEqual(warn(dayOf([place('a'), { type: 'move', time: '08:00 - 08:50' }, place('b')])), []);
     assert.deepEqual(warn(dayOf([place('a'), { type: 'move', time: '08:00 - 09:30' }, place('b')])), []);
 });
 
 test('getTimeWarnings：交通列時間不是區間（單一時間、「17:10 後」、空）不比對', () => {
     for (const time of ['12:15', '17:10 後', '約 30 分', undefined, '08:00 -']) {
-        assert.deepEqual(warn(dayOf([place('a'), { type: 'drive', time }, place('b')])), [], String(time));
+        assert.deepEqual(warn(dayOf([place('a'), { type: 'move', time }, place('b')])), [], String(time));
     }
 });
 
@@ -197,17 +197,17 @@ test('getTimeWarnings：沒有交通列且任一端時間無法解析就不比�
 });
 
 test('getTimeWarnings：沒有快取的路段、有多個交通列（未綁定）、closeLoop 回程都不比對', () => {
-    const day = dayOf([place('a'), { type: 'drive', time: '08:00 - 08:10' }, place('b')]);
+    const day = dayOf([place('a'), { type: 'move', time: '08:00 - 08:10' }, place('b')]);
     assert.deepEqual(model.getTimeWarnings(day, P, { legs: {} }, SITE), []);
     assert.deepEqual(model.getTimeWarnings(day, P, undefined, SITE), []);
-    const multi = dayOf([place('a'), { type: 'drive', time: '08:00 - 08:10' }, { type: 'drive', time: '08:10 - 08:20' }, place('b')]);
+    const multi = dayOf([place('a'), { type: 'move', time: '08:00 - 08:10' }, { type: 'move', time: '08:10 - 08:20' }, place('b')]);
     assert.deepEqual(warn(multi), []);
-    const loop = dayOf([{ ...place('a'), time: '09:00 - 10:00' }, { type: 'drive', time: '10:00 - 11:00' }, { ...place('b'), time: '11:00 - 12:00' }], { closeLoop: true });
+    const loop = dayOf([{ ...place('a'), time: '09:00 - 10:00' }, { type: 'move', time: '10:00 - 11:00' }, { ...place('b'), time: '11:00 - 12:00' }], { closeLoop: true });
     assert.deepEqual(warn(loop), []);
 });
 
 test('getTimeWarnings：day.trafficFactor 覆寫係數；site.routing 缺少時用預設 1.25', () => {
-    const items = [place('a'), { type: 'drive', time: '08:00 - 08:45' }, place('b')];
+    const items = [place('a'), { type: 'move', time: '08:00 - 08:45' }, place('b')];
     assert.equal(warn(dayOf(items)).length, 1);                           // 需要 50 分，排定 45 分
     assert.equal(warn(dayOf(items, { trafficFactor: 1 })).length, 0);     // 需要 40 分
     assert.equal(warn(dayOf(items), {}).length, 1);
@@ -223,7 +223,7 @@ test('getTimeWarnings：時間文字後面接說明（如「10:00 - 11:00 午餐
 const sched = (day, routes = routesFor(day, 40 * MIN), site = SITE) => model.getLegSchedule(day, P, routes, site);
 
 test('getLegSchedule：每段輸出排定時間、查詢時間、是否不足（綁定交通列）', () => {
-    const day = dayOf([place('a'), { type: 'drive', time: '08:00 - 08:30', note: '約 2 小時' }, place('b')]);
+    const day = dayOf([place('a'), { type: 'move', time: '08:00 - 08:30', note: '約 2 小時' }, place('b')]);
     const [s] = sched(day);
     assert.equal(s.scheduled, 30);
     assert.equal(s.needed, 50);
@@ -233,13 +233,13 @@ test('getLegSchedule：每段輸出排定時間、查詢時間、是否不足（
 });
 
 test('getLegSchedule：排定夠長不得標為不足（反向）；duration 備註不參與計算', () => {
-    const day = dayOf([place('a'), { type: 'drive', time: '08:00 - 09:00', note: '約 5 分' }, place('b')]);
+    const day = dayOf([place('a'), { type: 'move', time: '08:00 - 09:00', note: '約 5 分' }, place('b')]);
     const [s] = sched(day);
     assert.deepEqual([s.scheduled, s.needed, s.short], [60, 50, false]);
 });
 
 test('getLegSchedule：time 不是完整區間時 scheduled 為 null，仍有查詢時間、不判斷不足', () => {
-    const day = dayOf([place('a'), { type: 'drive', time: '15:30 後' }, place('b')]);
+    const day = dayOf([place('a'), { type: 'move', time: '15:30 後' }, place('b')]);
     const [s] = sched(day);
     assert.deepEqual([s.scheduled, s.needed, s.short], [null, 50, false]);
 });
@@ -251,7 +251,7 @@ test('getLegSchedule：沒有交通列時用前一項結束到後一項開始之
 });
 
 test('getLegSchedule：沒有快取的路段 needed 為 null、不判斷不足；整個快取缺失也不出錯', () => {
-    const day = dayOf([place('a'), { type: 'drive', time: '08:00 - 08:05' }, place('b')]);
+    const day = dayOf([place('a'), { type: 'move', time: '08:00 - 08:05' }, place('b')]);
     for (const r of [{ legs: {} }, null]) {
         const [s] = sched(day, r);
         assert.deepEqual([s.scheduled, s.needed, s.short], [5, null, false]);
@@ -262,7 +262,7 @@ test('getLegSchedule：沒有快取的路段 needed 為 null、不判斷不足�
 
 test('forEachPlaceRef：走過住宿、項目、住宿區的每個地點引用，owner 可用來改 id', () => {
     const trip = {
-        days: [{ day: 1, stay: { place: 'a' }, items: [{ type: 'spot', place: 'b' }, { type: 'drive' }, { type: 'spot', place: 'c' }] }],
+        days: [{ day: 1, stay: { place: 'a' }, items: [{ type: 'spot', place: 'b' }, { type: 'move' }, { type: 'spot', place: 'c' }] }],
         hotels: [{ place: 'a' }]
     };
     const seen = [];
@@ -351,7 +351,7 @@ test('getLegs：擇一組分岔再合流（前一站→每個成員、每個成�
 });
 
 test('getLegs：擇一組的路段仍綁定前後的交通列；沒有交通列時 needsRow', () => {
-    const day = { items: [place('a'), { type: 'drive' }, { ...place('b'), alt: 'x' }, { ...place('c'), alt: 'x' }, { type: 'move' }, place('d')] };
+    const day = { items: [place('a'), { type: 'move' }, { ...place('b'), alt: 'x' }, { ...place('c'), alt: 'x' }, { type: 'move' }, place('d')] };
     const legs = model.getLegs(day, P);
     assert.deepEqual(legs.map(l => [l.fromId, l.toId, l.rowIndex, l.needsRow]), [['a', 'b', 1, false], ['a', 'c', 1, false], ['b', 'd', 4, false], ['c', 'd', 4, false]]);
     assert.ok(model.getLegs(altDay(), P).every(l => l.needsRow));
@@ -378,7 +378,7 @@ test('getLegSchedule：擇一組沒有交通列時，組前用組的開始時間
 });
 
 test('getLegSchedule：擇一組前後有綁定的交通列時，整組的路段共用該列的排定時間', () => {
-    const day = { items: [place('a'), { type: 'drive', time: '08:00 - 08:30' }, { ...place('b'), alt: 'x', time: '09:00 - 10:00' }, { ...place('c'), alt: 'x' }, { type: 'move', time: '10:00 - 10:20' }, place('d')] };
+    const day = { items: [place('a'), { type: 'move', time: '08:00 - 08:30' }, { ...place('b'), alt: 'x', time: '09:00 - 10:00' }, { ...place('c'), alt: 'x' }, { type: 'move', time: '10:00 - 10:20' }, place('d')] };
     const s = model.getLegSchedule(day, P, { legs: {} }, SITE);
     assert.deepEqual(s.map(x => x.scheduled), [30, 30, 20, 20]);
 });
@@ -394,7 +394,7 @@ test('getStayMinutes：完整區間且結束晚於開始才有值；不完整、
 test('getStayLabel：只有 spot／meal 且完整區間才有「停留 …」，其他類型與不完整都是空字串', () => {
     assert.equal(model.getStayLabel({ type: 'spot', time: '12:20 - 14:00' }), '停留 1 小時 40 分');
     assert.equal(model.getStayLabel({ type: 'meal', time: '11:15 - 12:00' }), '停留 45 分');
-    for (const type of ['drive', 'move', 'stay', 'end', 'notice']) assert.equal(model.getStayLabel({ type, time: '09:00 - 10:00' }), '', type);
+    for (const type of ['move', 'stay', 'end', 'notice']) assert.equal(model.getStayLabel({ type, time: '09:00 - 10:00' }), '', type);
     assert.equal(model.getStayLabel({ type: 'spot', time: '15:30 後' }), '');
     assert.equal(model.getStayLabel(undefined), '');
 });
@@ -407,7 +407,14 @@ test('formatStay：沿用 formatDuration 的寫法但不帶「約」', () => {
 
 test('validate：項目殘留 duration 要報錯並提示改用 note', () => {
     const t = JSON.parse(JSON.stringify(TRIP));
-    t.days[0].items.push({ type: 'drive', time: '08:00 - 09:00', text: 'x', duration: '約 1 小時' });
+    t.days[0].items.push({ type: 'move', time: '08:00 - 09:00', text: 'x', duration: '約 1 小時' });
     const errs = model.validate(t, PLACES);
     assert.ok(errs.some(e => e.includes('duration') && e.includes('note')), errs.join('\n'));
+});
+
+test('validate：項目殘留 drive 要報錯並提示改用 move', () => {
+    const t = JSON.parse(JSON.stringify(TRIP));
+    t.days[0].items.push({ type: 'drive', time: '08:00 - 09:00', text: 'x' });
+    const errs = model.validate(t, PLACES);
+    assert.ok(errs.some(e => e.includes('drive') && e.includes('move')), errs.join('\n'));
 });

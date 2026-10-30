@@ -68,13 +68,6 @@
         return `${note} <span class="auto-leg-duration text-amber-600 ${weight}">(查詢 ${esc(auto.text)})</span>${scheduledText(auto)}${shortText(auto)}${autoNote(auto)}`;
     }
 
-    function driveRow(item, auto) {
-        return `<div class="flex items-center gap-3 p-3 rounded-xl bg-slate-100/80 border border-slate-200 text-xs md:text-sm">
-    <span class="font-extrabold text-slate-600 w-28 shrink-0"><i class="fa-solid fa-car text-amber-500 mr-1"></i> ${esc(item.time)}</span>
-    <div class="font-bold text-slate-800">${esc(item.text)}${legExtras(item, auto, 'font-extrabold')}</div>
-</div>`;
-    }
-
     function moveRow(item, auto) {
         return `<div class="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 text-xs md:text-sm border border-slate-200">
     <span class="font-bold text-slate-500 w-28 shrink-0"><i class="fa-solid fa-route mr-1"></i> ${esc(item.time)}</span>
@@ -148,7 +141,6 @@
     // point：該項目對應的地圖標記（沒有就是 undefined），用來顯示編號
     // auto：綁定到這個交通列的路線計算結果（沒有快取就是 undefined）
     function renderItem(item, ctx, point, auto) {
-        if (item.type === 'drive') return driveRow(item, auto);
         if (item.type === 'move') return moveRow(item, auto);
         if (item.type === 'brief') return brief(item, ctx, point);
         if (item.type === 'waypoint') return waypointRow(item, ctx, point);

@@ -6,8 +6,8 @@ const L = require('./public/days-logic');
 
 const trip = () => ({
     days: [
-        { day: 1, items: [{ type: 'drive', text: 'a' }, { type: 'spot', place: 'x' }, { type: 'move', text: 'c' }] },
-        { day: 2, items: [{ type: 'drive', text: 'd' }, { type: 'spot', place: 'y' }] },
+        { day: 1, items: [{ type: 'move', text: 'a' }, { type: 'spot', place: 'x' }, { type: 'move', text: 'c' }] },
+        { day: 2, items: [{ type: 'move', text: 'd' }, { type: 'spot', place: 'y' }] },
         { day: 3, items: [] }
     ]
 });
@@ -67,8 +67,8 @@ test('stepItem：第一天第一項上移、最後一天最後一項下移，什
 
 test('changeType：清掉不屬於新類型的欄位，保留共通欄位', () => {
     const item = { type: 'spot', tag: 't', time: '09:00', place: 'x', title: 'T', desc: 'd', map: false, numbered: false };
-    L.changeType(item, 'drive');
-    assert.deepEqual(item, { type: 'drive', time: '09:00' });
+    L.changeType(item, 'move');
+    assert.deepEqual(item, { type: 'move', time: '09:00' });
 });
 
 test('changeType：waypoint 保留 place、text，丟掉 tag／desc', () => {
@@ -77,8 +77,8 @@ test('changeType：waypoint 保留 place、text，丟掉 tag／desc', () => {
     assert.deepEqual(item, { type: 'waypoint', place: 'x' });
 });
 
-test('changeType：drive 轉 move 保留 note，轉 spot 則丟掉', () => {
-    const item = { type: 'drive', time: '1', text: 't', note: '1h' };
+test('changeType：move 保留 note，轉 spot 則丟掉', () => {
+    const item = { type: 'spot', time: '1', text: 't', note: '1h' };
     L.changeType(item, 'move');
     assert.deepEqual(item, { type: 'move', time: '1', text: 't', note: '1h' });
     L.changeType(item, 'spot');
@@ -106,8 +106,13 @@ test('itemErrors：只挑出該天該項的驗證訊息（第 1 項不會誤抓�
     assert.deepEqual(L.dayErrors(errors, 1), ['DAY 1 第 1 項：a', 'DAY 1 第 10 項：b', 'DAY 1 住宿：d']);
 });
 
+test('類型選單沒有 drive', () => {
+    assert.equal('drive' in L.TYPES, false);
+    assert.ok(L.TYPES.move);
+});
+
 test('newItem：各類型給出可通過驗證的最小項目', () => {
-    assert.deepEqual(L.newItem('drive', ['p1']), { type: 'drive', text: '新項目' });
+    assert.deepEqual(L.newItem('move', ['p1']), { type: 'move', text: '新項目' });
     assert.deepEqual(L.newItem('waypoint', ['p1']), { type: 'waypoint', place: 'p1' });
     assert.deepEqual(L.newItem('brief', ['p1']), { type: 'brief', title: '新項目' });
     assert.deepEqual(L.newItem('spot', ['p1']), { type: 'spot', tag: '新項目', title: '新項目' });
@@ -127,11 +132,11 @@ const errorsOf = day => Model.validate({ days: [day] }, altPlaces);
 const alts = day => day.items.map(i => i.alt || '-');
 
 test('canJoinAlt：只有 spot 且相鄰有 spot 才能併；已在組內不能再併', () => {
-    const d = dayOf([{ type: 'drive', text: 'a' }, spot('x'), spot('y', { alt: 'g' }), spot('z', { alt: 'g' })]);
+    const d = dayOf([{ type: 'move', text: 'a' }, spot('x'), spot('y', { alt: 'g' }), spot('z', { alt: 'g' })]);
     assert.equal(L.canJoinAlt(d, 0), false);   // 不是 spot
     assert.equal(L.canJoinAlt(d, 1), true);    // 下一項是 spot
     assert.equal(L.canJoinAlt(d, 2), false);   // 已在組內
-    assert.equal(L.canJoinAlt(dayOf([{ type: 'drive' }, spot('x'), { type: 'meal', title: 'm' }]), 1), false);
+    assert.equal(L.canJoinAlt(dayOf([{ type: 'move' }, spot('x'), { type: 'meal', title: 'm' }]), 1), false);
 });
 
 test('joinAlt：與前一個 spot 併成新組，驗證通過', () => {
@@ -143,10 +148,10 @@ test('joinAlt：與前一個 spot 併成新組，驗證通過', () => {
 });
 
 test('joinAlt：前一項不是 spot 時改與下一個 spot 併；兩邊都不行回傳 false 且不改資料', () => {
-    const d = dayOf([{ type: 'drive', text: 'a' }, spot('x'), spot('y')]);
+    const d = dayOf([{ type: 'move', text: 'a' }, spot('x'), spot('y')]);
     assert.equal(L.joinAlt(d, 1), true);
     assert.deepEqual(alts(d).map(a => a === '-' ? 0 : 1), [0, 1, 1]);
-    const e = dayOf([{ type: 'drive', text: 'a' }, spot('x'), { type: 'meal', title: 'm' }]);
+    const e = dayOf([{ type: 'move', text: 'a' }, spot('x'), { type: 'meal', title: 'm' }]);
     assert.equal(L.joinAlt(e, 1), false);
     assert.equal(e.items[1].alt, undefined);
 });
@@ -307,7 +312,7 @@ test('stayHint：不完整、結束 ≤ 開始、沒時間都沒有提示', () =
 });
 
 test('stayHint：只有 spot／meal 顯示，其他類型不顯示', () => {
-    for (const type of ['drive', 'move', 'stay', 'end', 'notice', 'brief']) {
+    for (const type of ['move', 'stay', 'end', 'notice', 'brief']) {
         assert.equal(L.stayHint({ day: 1, items: [{ type, time: '09:00 - 10:00' }] }, 0), '', type);
     }
 });

@@ -54,7 +54,7 @@ test('dayRoutes：有快取的段落算出顯示分鐘、文字、是否超過�
 });
 
 test('dayRoutes：autoByRow（綁定的交通列）與 autoAfter（沒有交通列時補在前一項後面），只含有快取的路段', () => {
-    const day = { items: [spot('a'), { type: 'drive', time: '08:00 - 09:00', text: '開車' }, spot('b'), spot('c')] };
+    const day = { items: [spot('a'), { type: 'move', time: '08:00 - 09:00', text: '開車' }, spot('b'), spot('c')] };
     const info = routeView.dayRoutes(day, P, routes({
         [KEY_AB]: { distance: 75323, duration: 3900 },
         [KEY_BC]: { distance: 20000, duration: 1200 }
@@ -103,7 +103,7 @@ test('dayRoutes：summary 加總有快取路段的顯示分鐘與里程；缺段
 });
 
 test('dayRoutes：leg 帶有 rowIndex／needsRow／closeLoop，供綁定交通列與補連接列', () => {
-    const day = { closeLoop: true, items: [spot('a'), { type: 'drive', time: '1', text: 't' }, spot('b'), spot('c')] };
+    const day = { closeLoop: true, items: [spot('a'), { type: 'move', time: '1', text: 't' }, spot('b'), spot('c')] };
     const info = routeView.dayRoutes(day, P, routes({}), SITE);
     assert.deepEqual(info.legs.map(l => [l.leg.rowIndex, l.leg.needsRow, l.leg.closeLoop]),
         [[1, false, false], [null, true, false], [null, false, true]]);
@@ -137,7 +137,7 @@ const ALT_CACHE = routes({
 const altItems = (a, b, c, d) => [a, { ...spot('b'), alt: 'x', ...b }, { ...spot('c'), alt: 'x', ...c }, d];
 
 test('dayRoutes：擇一組前綁定的交通列只有一個 autoByRow，並列每條路徑、各自判斷不足（一足一不足）', () => {
-    const day = { items: [spot('a'), { type: 'drive', time: '08:00 - 08:40', text: '開車' }, { ...spot('b'), alt: 'x', time: '09:00 - 10:00' }, { ...spot('c'), alt: 'x' }, spot('d')] };
+    const day = { items: [spot('a'), { type: 'move', time: '08:00 - 08:40', text: '開車' }, { ...spot('b'), alt: 'x', time: '09:00 - 10:00' }, { ...spot('c'), alt: 'x' }, spot('d')] };
     const info = routeView.dayRoutes(day, PA, ALT_CACHE, SITE);
     assert.deepEqual(Object.keys(info.autoByRow), ['1']);
     const auto = info.autoByRow[1];
@@ -147,7 +147,7 @@ test('dayRoutes：擇一組前綁定的交通列只有一個 autoByRow，並列�
 });
 
 test('dayRoutes：兩條路徑都足夠時沒有任何不足；缺快取的路徑不判斷、不出現', () => {
-    const day = { items: [spot('a'), { type: 'drive', time: '08:00 - 09:00', text: '開車' }, { ...spot('b'), alt: 'x', time: '09:00 - 10:00' }, { ...spot('c'), alt: 'x' }, spot('d')] };
+    const day = { items: [spot('a'), { type: 'move', time: '08:00 - 09:00', text: '開車' }, { ...spot('b'), alt: 'x', time: '09:00 - 10:00' }, { ...spot('c'), alt: 'x' }, spot('d')] };
     const ok = routeView.dayRoutes(day, PA, ALT_CACHE, SITE).autoByRow[1];
     assert.deepEqual([ok.short, ...ok.paths.map(p => p.short)], [false, false, false]);
     const partial = routeView.dayRoutes(day, PA, routes({ [key('a', 'c')]: ALT_CACHE.legs[key('a', 'c')] }), SITE).autoByRow[1];
@@ -209,7 +209,7 @@ test('midpoint：沒有路線座標時取起終點中點；有座標時取沿路
 
 test('快取缺 distance（或 duration）時，getLegSchedule、編輯器警告、頁面紅字一致：都不判斷、不顯示', () => {
     const model = require('../js/model.js');
-    const day = { day: 1, items: [spot('a'), { type: 'drive', time: '08:00 - 08:10' }, spot('b')] };
+    const day = { day: 1, items: [spot('a'), { type: 'move', time: '08:00 - 08:10' }, spot('b')] };
     for (const entry of [{ duration: 3000 }, { distance: 1000 }, { distance: 1000, duration: NaN }]) {
         const r = routes({ [KEY_AB]: entry });
         assert.equal(model.getLegSchedule(day, P, r, SITE)[0].needed, null);
