@@ -16,20 +16,14 @@ function syncTrip(trip, places) {
     const out = { updated: 0, added: 0, warnings: [], changes: [] };
     for (const day of trip.days) {
         const r = model.deriveMoves(day, places);
-        for (const m of r.moves) {
-            if (!m.changed) continue;
-            const item = day.items[m.index];
+        model.applyMoves(day, r);
+        for (const m of r.moves.filter(x => x.changed)) {
             out.changes.push(`DAY ${day.day} 第 ${m.index + 1} 項：${m.current == null ? '（無）' : m.current} → ${m.time == null ? '（清空）' : m.time}`);
-            if (m.time == null) delete item.time; else item.time = m.time;
             out.updated++;
         }
-        // insertIndex 依原陣列索引計，由後往前插
-        for (const m of r.missing.slice().sort((a, b) => b.insertIndex - a.insertIndex)) {
-            const item = { type: 'move', text: m.text };
-            if (m.time != null) item.time = m.time;
-            day.items.splice(m.insertIndex, 0, item);
-            out.added++;
+        for (const m of r.missing) {
             out.changes.push(`DAY ${day.day} 補上移動列：${m.text}${m.time != null ? `（${m.time}）` : ''}`);
+            out.added++;
         }
         out.warnings.push(...r.warnings);
     }

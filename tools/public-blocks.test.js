@@ -24,14 +24,14 @@ const KEY_AB = '121.10000,24.10000>121.20000,24.20000';
 const KEY_BC = '121.20000,24.20000>121.30000,24.30000';
 const SITE = { routing: { trafficFactor: 1.25, maxLegMinutes: 180 } };
 const card = place => ({ type: 'spot', tag: '景點', place });
-const drive = extra => ({ type: 'move', time: '08:00 - 09:00', text: '開車前往', ...extra });
+const moveRow = extra => ({ type: 'move', time: '08:00 - 09:00', text: '開車前往', ...extra });
 const day = (items, extra) => ({ day: 1, date: '11/15', title: '測試', items, ...extra });
 const CACHE = { legs: { [KEY_AB]: { distance: 75323, duration: 3900 }, [KEY_BC]: { distance: 20000, duration: 1200 } } };
 const render = (d, routes) => Trip.blocks.dayCard(d, { places: P, routes, site: SITE }, '');
 const count = (html, re) => (html.match(re) || []).length;
 
 test('沒有快取（routes 為 undefined 或空）：沒有自動連接列、沒有總車程，交通列維持手寫', () => {
-    const d = day([card('a'), drive({ note: '約 1 小時' }), card('b'), card('c')]);
+    const d = day([card('a'), moveRow({ note: '約 1 小時' }), card('b'), card('c')]);
     for (const routes of [undefined, { legs: {} }]) {
         const html = render(d, routes);
         assert.equal(count(html, /auto-leg-row/g), 0);
@@ -41,14 +41,14 @@ test('沒有快取（routes 為 undefined 或空）：沒有自動連接列、�
 });
 
 test('綁定的交通列沒有 duration：顯示計算結果與係數說明；text 不變', () => {
-    const html = render(day([card('a'), drive(), card('b')]), CACHE);
+    const html = render(day([card('a'), moveRow(), card('b')]), CACHE);
     assert.ok(html.includes('開車前往'));
     assert.ok(html.includes('(查詢 約 1 小時 21 分・75.3 km)'), html);
     assert.ok(html.includes('查詢・含路況緩衝 ×1.25'));
 });
 
 test('綁定的交通列有手寫 duration：當備註顯示，查詢時間照樣顯示，不參與計算', () => {
-    const html = render(day([card('a'), drive({ time: '08:00 - 10:00', note: '約 5 分' }), card('b')]), CACHE);
+    const html = render(day([card('a'), moveRow({ time: '08:00 - 10:00', note: '約 5 分' }), card('b')]), CACHE);
     assert.ok(html.includes('(約 5 分)'));
     assert.equal(count(html, /auto-leg-duration/g), 1);
     assert.ok(html.includes('查詢 約 1 小時 21 分'));
@@ -57,18 +57,18 @@ test('綁定的交通列有手寫 duration：當備註顯示，查詢時間照�
 });
 
 test('排定時間 < 查詢時間：該列紅字並帶「⚠ 排定不足」與分鐘數；夠長的列沒有', () => {
-    const tight = render(day([card('a'), drive({ time: '08:00 - 08:30' }), card('b')]), CACHE);
+    const tight = render(day([card('a'), moveRow({ time: '08:00 - 08:30' }), card('b')]), CACHE);
     assert.equal(count(tight, /leg-short/g), 1);
     assert.ok(tight.includes('⚠ 排定不足'));
     assert.match(tight, /leg-short[^>]*text-rose-600/);
     assert.ok(tight.includes('排定 30 分'));
     assert.ok(tight.includes('查詢 約 1 小時 21 分'));
-    const roomy = render(day([card('a'), drive({ time: '08:00 - 09:30' }), card('b')]), CACHE);
+    const roomy = render(day([card('a'), moveRow({ time: '08:00 - 09:30' }), card('b')]), CACHE);
     assert.equal(count(roomy, /leg-short|排定不足/g), 0);
 });
 
 test('time 不是完整區間：只顯示查詢時間，不判斷紅字', () => {
-    const html = render(day([card('a'), drive({ time: '15:30 後' }), card('b')]), CACHE);
+    const html = render(day([card('a'), moveRow({ time: '15:30 後' }), card('b')]), CACHE);
     assert.ok(html.includes('查詢 約 1 小時 21 分'));
     assert.equal(count(html, /排定/g), 0);
 });
@@ -83,7 +83,7 @@ test('沒有交通列的自動連接列：排定不足同樣紅字（前一項�
 });
 
 test('沒有快取：不出現紅字，也不出現排定時間', () => {
-    const html = render(day([card('a'), drive({ time: '08:00 - 08:05' }), card('b')]), undefined);
+    const html = render(day([card('a'), moveRow({ time: '08:00 - 08:05' }), card('b')]), undefined);
     assert.equal(count(html, /排定|leg-short/g), 0);
 });
 
@@ -111,7 +111,7 @@ test('兩標記之間有沒有交通的項目（例如提醒卡）：連接列�
 test('連接列只在有快取時補；兩標記之間有多個交通列時不補也不綁定', () => {
     const partial = render(day([card('a'), card('b'), card('c')]), { legs: { [KEY_AB]: CACHE.legs[KEY_AB] } });
     assert.equal(count(partial, /class="[^"]*auto-leg-row/g), 1);
-    const two = render(day([card('a'), drive(), drive({ text: '再開車' }), card('b')]), CACHE);
+    const two = render(day([card('a'), moveRow(), moveRow({ text: '再開車' }), card('b')]), CACHE);
     assert.equal(count(two, /auto-leg-row/g), 0);
     assert.equal(count(two, /auto-leg-duration/g), 0);
     assert.ok(two.includes('總車程'));   // 路段仍計入當天總車程
@@ -176,7 +176,7 @@ const paths = html => html.split('class="leg-path').slice(1);
 
 test('擇一組前的綁定交通列：同一列並列每條路徑的查詢時間，只有不足的那條紅字', () => {
     // 排定 40 分：→ B 需要 50 分（不足）、→ C 需要 25 分（足夠）
-    const html = render(day([card('a'), drive({ time: '08:00 - 08:40' }), ...group('09:00 - 10:00'), card('d')]), ALT_CACHE);
+    const html = render(day([card('a'), moveRow({ time: '08:00 - 08:40' }), ...group('09:00 - 10:00'), card('d')]), ALT_CACHE);
     const row = html.slice(html.indexOf('開車前往'), html.indexOf('data-alt-group'));
     assert.equal(count(row, /leg-path/g), 2);
     assert.equal(count(row, /leg-short/g), 1);
@@ -188,7 +188,7 @@ test('擇一組前的綁定交通列：同一列並列每條路徑的查詢時�
 });
 
 test('擇一組兩條路徑都足夠：沒有任何紅字', () => {
-    const html = render(day([card('a'), drive({ time: '08:00 - 09:00' }), ...group('09:00 - 10:00'), card('d')]), ALT_CACHE);
+    const html = render(day([card('a'), moveRow({ time: '08:00 - 09:00' }), ...group('09:00 - 10:00'), card('d')]), ALT_CACHE);
     assert.equal(count(html, /leg-short|排定不足/g), 0);
     assert.equal(count(html, /leg-path/g), 2 + 2);   // 組前的交通列 2 條；組後沒有交通列的連接列 2 條
 });

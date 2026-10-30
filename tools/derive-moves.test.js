@@ -124,3 +124,13 @@ test('不修改輸入', () => {
     model.deriveMoves(day, P);
     assert.equal(JSON.stringify(day), before);
 });
+
+test('真實行程資料：每個移動列都與前後標記一致，沒有缺列與警告', () => {
+    const trip = require('../data/trip.json'), places = require('../data/places.json');
+    for (const day of trip.days) {
+        const r = model.deriveMoves(day, places);
+        assert.deepEqual(r.moves.filter(m => m.changed).map(m => [day.day, m.index]), [], `DAY ${day.day} 移動列時間與推導值不同`);
+        assert.deepEqual(r.missing.map(m => [day.day, m.text]), [], `DAY ${day.day} 缺移動列`);
+        assert.deepEqual(r.warnings.map(w => w.message), []);
+    }
+});

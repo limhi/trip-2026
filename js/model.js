@@ -301,7 +301,7 @@
 
     // 移動列推導（純函式，不修改輸入；規則見 docs/adr/0007）。相鄰標記的定義與 getLegs 的連接列一致
     // （有座標、非 backup、非 map:false；擇一組視為同一站，用組內第一項的 time 當共用時間框）。
-    // 兩站之間：恰好一個交通列（ROW_TYPES，drive 與 move 都算）→ 推導；沒有 → 列入 missing；多個 → 不推導只警告。
+    // 兩站之間：恰好一個交通列（ROW_TYPES）→ 推導；沒有 → 列入 missing；多個 → 不推導只警告。
     // 開始 = 前一站結束、結束 = 下一站開始，兩端都是完整區間才推導；一端不完整保留現有 time；重疊（結束早於開始）→ null＋警告。
     // 回傳 {
     //   moves:   [{ index, fromItemIndex, toItemIndex, fromId, toId, current, time, changed }]
@@ -366,6 +366,24 @@
         return result;
     }
 
+    // 套用 deriveMoves 的結果（就地修改 day）：更新移動列時間（null＝清空）、在缺移動列處補一列（fill = false 時不補，輸入中不能動到列數）；只補不刪。
+    // r 是同一天的 deriveMoves(day, places) 結果；回傳 { updated: 被更新的 moves 項, added: 被補上的 missing 項 }。編輯器與 tools/sync-moves.js 共用
+    function applyMoves(day, r, fill = true) {
+        const out = { updated: [], added: [] };
+        r.moves.forEach(m => {
+            if (!m.changed) return;
+            if (m.time == null) delete day.items[m.index].time; else day.items[m.index].time = m.time;
+            out.updated.push(m);
+        });
+        if (fill) r.missing.slice().sort((a, b) => b.insertIndex - a.insertIndex).forEach(s => {   // 由後往前插，前面的索引才不會位移
+            const item = { type: 'move', text: s.text };
+            if (s.time != null) item.time = s.time;
+            day.items.splice(s.insertIndex, 0, item);
+            out.added.push(s);
+        });
+        return out;
+    }
+
     // 「排太緊」警告列表（編輯器顯示，不擋發布），由 getLegSchedule 判斷
     function getTimeWarnings(day, places, routes, site) {
         const factor = getTrafficFactor(day, site);
@@ -379,7 +397,7 @@
     Trip.model = {
         getContact, getMapPoints, getAltGroups, getAltGroupAt, validate, forEachPlaceRef, lacksCoords, CARD_TYPES, ROW_TYPES,
         DEFAULT_ROUTING, formatCoord, legKey, getLegs, getTrafficFactor, displayMinutes,
-        formatDuration, formatDistance, formatLeg, formatFactorNote, parseTimeRange, getStayMinutes, formatStay, getStayLabel, isUsableLeg, getLegSchedule, getTimeWarnings, deriveMoves
+        formatDuration, formatDistance, formatLeg, formatFactorNote, parseTimeRange, getStayMinutes, formatStay, getStayLabel, isUsableLeg, getLegSchedule, getTimeWarnings, deriveMoves, applyMoves
     };
     if (typeof module !== 'undefined') module.exports = Trip.model;
 })(typeof window !== 'undefined' ? window : globalThis);

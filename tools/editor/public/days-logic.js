@@ -128,22 +128,10 @@
 
     // ---- 移動列自動連動（ADR 0007）：推導規則全在 model.deriveMoves，這裡只套用結果 ----
 
-    // 套用推導：更新移動列時間（null＝清空）、在缺移動列處補一列（fill = false 時不補，輸入中不能動到列數）；只補不刪。回傳是否有變動
+    // 套用推導（fill = false 時只連動時間、不補列，輸入中不能動到列數）。回傳是否有變動
     function syncMoves(day, places, fill = true) {
-        const r = M.deriveMoves(day, places);
-        let changed = false;
-        r.moves.forEach(m => {
-            if (!m.changed) return;
-            if (m.time == null) delete day.items[m.index].time; else day.items[m.index].time = m.time;
-            changed = true;
-        });
-        if (fill) r.missing.slice().sort((a, b) => b.insertIndex - a.insertIndex).forEach(s => {   // 由後往前插，前面的索引才不會位移
-            const item = { type: 'move', text: s.text };
-            if (s.time) item.time = s.time;
-            day.items.splice(s.insertIndex, 0, item);
-            changed = true;
-        });
-        return changed;
+        const r = M.applyMoves(day, M.deriveMoves(day, places), fill);
+        return r.updated.length + r.added.length > 0;
     }
 
     // 移動列警告（重疊、多個、多餘）；不擋存檔與發布
