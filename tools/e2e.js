@@ -260,8 +260,8 @@ async function guard(label, fn) {
     const waitSolid = p => p.waitForFunction(() => window.__map.group && window.__map.group !== window.__prevGroup && window.__map.group.layers.some(l => l.kind === 'polyline' && !(l.o && l.o.dashArray)), null, { timeout: 4000 }).catch(() => {});
 
     await guard('T8', async () => {
-        check('T8 假快取有效：有一段超過門檻、有一天缺一段、有需要補連接列的路段',
-            dayLegs.some((ls, i) => ls.some(l => fakeLegs[l.key] && mins(TRIP.days[i], l) > MAX_MIN)) && partialDay >= 0 && dayLegs.some(ls => ls.some(l => l.needsRow && fakeLegs[l.key])), `partialDay=${partialDay}`);
+        check('T8 假快取有效：有一段超過門檻、有一天缺一段（資料已補齊移動列，連接列備援由單元測試涵蓋）',
+            dayLegs.some((ls, i) => ls.some(l => fakeLegs[l.key] && mins(TRIP.days[i], l) > MAX_MIN)) && partialDay >= 0, `partialDay=${partialDay}`);
         const p = await routesPage();
         await openIndex(p);
         check('T8 首頁載入時沒有請求 routes-geo.js', p.geoRequests.length === 0, `請求 ${p.geoRequests.length}`);
