@@ -72,7 +72,7 @@
 
     function createMarkerIcon(point) {
         const style = MAP_TYPES[point.type] || MAP_TYPES.transport;
-        const content = point.number == null ? `<i class="fa-solid fa-${style.icon}"></i>` : point.number;
+        const content = point.number == null ? `<i class="fa-solid fa-${style.icon}"></i>` : point.label;
         return L.divIcon({
             className: '',
             html: `<div class="map-number-marker" style="background:${style.color}">${content}</div>`,
@@ -95,10 +95,15 @@
 
     // 畫路線：有快取的段落畫道路路線（geo 還沒載入或沒有該段時退回虛線），並在中點標示時間距離；
     // 完全沒有快取時維持原本的單一灰色虛線。可重複呼叫（geo 載入完成後重畫）。
-    function drawRoutes(group, day, points, info, geo) {
+    function drawRoutes(group, day, points, info, geo, legs) {
         group.clearLayers();
         const dashed = { color: '#475569', weight: 3, opacity: .65, dashArray: '7 7' };
         if (!info) {
+            // 有擇一組時分岔再合流，逐段畫虛線；沒有時維持單一條虛線
+            if (Trip.model.getAltGroups(day).length) {
+                legs.forEach(leg => L.polyline([[leg.from.lat, leg.from.lng], [leg.to.lat, leg.to.lng]], dashed).addTo(group));
+                return;
+            }
             const routePoints = points.filter(point => !point.excludeFromRoute).map(point => [point.lat, point.lng]);
             if (day.closeLoop && routePoints.length > 1) routePoints.push(routePoints[0]);
             L.polyline(routePoints, dashed).addTo(group);
@@ -117,7 +122,7 @@
         });
     }
 
-    function renderDayMap(mapElement, day, points, info) {
+    function renderDayMap(mapElement, day, points, info, legs) {
         const esc = Trip.blocks.esc;
         const map = L.map(mapElement, { scrollWheelZoom: false, tap: true });
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -132,16 +137,16 @@
             const addressLine = point.address ? `<div class="text-xs text-slate-600">${esc(point.address)}</div>` : '';
             const navTarget = point.navigationUrl || (point.address ? Trip.mapUrl(point.address) : '');
             const navLink = navTarget ? `<a class="map-popup-link" href="${navTarget}" target="_blank" rel="noopener"><i class="fa-solid fa-location-arrow"></i>開啟導航</a>` : '';
-            const numberPrefix = point.number == null ? '' : `${point.number}. `;
+            const numberPrefix = point.number == null ? '' : `${point.label}. `;
             L.marker(latLng, { icon: createMarkerIcon(point) })
                 .addTo(map)
                 .bindPopup(`<div class="map-popup-name">${numberPrefix}${esc(point.name)}</div>${addressLine}${navLink}`);
         });
 
         const routeLayer = L.layerGroup().addTo(map);
-        drawRoutes(routeLayer, day, points, info, root.TRIP_ROUTES_GEO);
+        drawRoutes(routeLayer, day, points, info, root.TRIP_ROUTES_GEO, legs);
         // 載入失敗就維持現狀（虛線與中點標示），不顯示任何錯誤
-        if (info && !root.TRIP_ROUTES_GEO) loadGeo().then(geo => drawRoutes(routeLayer, day, points, info, geo)).catch(() => {});
+        if (info && !root.TRIP_ROUTES_GEO) loadGeo().then(geo => drawRoutes(routeLayer, day, points, info, geo, legs)).catch(() => {});
         map.fitBounds(bounds, { padding: [28, 28], maxZoom: 13 });
         L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
         setTimeout(() => map.invalidateSize(), 0);
@@ -174,7 +179,7 @@
             if (willExpand) {
                 requestAnimationFrame(() => {
                     if (!leafletMap) {
-                        leafletMap = renderDayMap(mapElement, day, points, dayRouteInfo(day, places, routeCtx));
+                        leafletMap = renderDayMap(mapElement, day, points, dayRouteInfo(day, places, routeCtx), Trip.model.getLegs(day, places));
                     } else {
                         leafletMap.invalidateSize();
                     }
