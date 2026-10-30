@@ -77,10 +77,10 @@ test('changeType：waypoint 保留 place、text，丟掉 tag／desc', () => {
     assert.deepEqual(item, { type: 'waypoint', place: 'x' });
 });
 
-test('changeType：drive 轉 move 保留 duration，轉 spot 則丟掉', () => {
-    const item = { type: 'drive', time: '1', text: 't', duration: '1h' };
+test('changeType：drive 轉 move 保留 note，轉 spot 則丟掉', () => {
+    const item = { type: 'drive', time: '1', text: 't', note: '1h' };
     L.changeType(item, 'move');
-    assert.deepEqual(item, { type: 'move', time: '1', text: 't', duration: '1h' });
+    assert.deepEqual(item, { type: 'move', time: '1', text: 't', note: '1h' });
     L.changeType(item, 'spot');
     assert.deepEqual(item, { type: 'spot', time: '1' });
 });

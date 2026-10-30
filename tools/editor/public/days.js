@@ -8,7 +8,7 @@
 
     const FIELD = {
         time: ['時間', 'text'], tag: ['標籤', 'text'], title: ['標題（空白＝用地點名稱）', 'text'], text: ['文字', 'text'],
-        duration: ['車程', 'text'], icon: ['圖示', 'text'], mapName: ['地圖上的名稱', 'text'], desc: ['說明', 'area'],
+        note: ['備註', 'text'], icon: ['圖示', 'text'], mapName: ['地圖上的名稱', 'text'], desc: ['說明', 'area'],
         place: ['地點', 'place'], map: ['顯示在地圖', 'bool'], numbered: ['地圖上編號', 'bool'], backup: ['備案（不連線）', 'bool']
     };
 

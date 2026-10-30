@@ -9,8 +9,8 @@
 
     // 每種項目類型可填的欄位（與 docs/DESIGN.md 4.2 一致）；label／chip 給畫面用
     const TYPES = {
-        drive:    { label: '交通',   chip: 'bg-slate-700 text-white',         fields: ['time', 'text', 'duration'] },
-        move:     { label: '移動',   chip: 'bg-slate-200 text-slate-800',     fields: ['time', 'text', 'duration'] },
+        drive:    { label: '交通',   chip: 'bg-slate-700 text-white',         fields: ['time', 'text', 'note'] },
+        move:     { label: '移動',   chip: 'bg-slate-200 text-slate-800',     fields: ['time', 'text', 'note'] },
         spot:     { label: '景點',   chip: 'bg-blue-100 text-blue-800',       fields: CARD },
         meal:     { label: '用餐',   chip: 'bg-amber-100 text-amber-800',     fields: CARD },
         stay:     { label: '住宿',   chip: 'bg-purple-100 text-purple-800',   fields: CARD },

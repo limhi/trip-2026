@@ -31,7 +31,7 @@ const render = (d, routes) => Trip.blocks.dayCard(d, { places: P, routes, site: 
 const count = (html, re) => (html.match(re) || []).length;
 
 test('沒有快取（routes 為 undefined 或空）：沒有自動連接列、沒有總車程，交通列維持手寫', () => {
-    const d = day([card('a'), drive({ duration: '約 1 小時' }), card('b'), card('c')]);
+    const d = day([card('a'), drive({ note: '約 1 小時' }), card('b'), card('c')]);
     for (const routes of [undefined, { legs: {} }]) {
         const html = render(d, routes);
         assert.equal(count(html, /auto-leg-row/g), 0);
@@ -48,7 +48,7 @@ test('綁定的交通列沒有 duration：顯示計算結果與係數說明；te
 });
 
 test('綁定的交通列有手寫 duration：當備註顯示，查詢時間照樣顯示，不參與計算', () => {
-    const html = render(day([card('a'), drive({ time: '08:00 - 10:00', duration: '約 5 分' }), card('b')]), CACHE);
+    const html = render(day([card('a'), drive({ time: '08:00 - 10:00', note: '約 5 分' }), card('b')]), CACHE);
     assert.ok(html.includes('(約 5 分)'));
     assert.equal(count(html, /auto-leg-duration/g), 1);
     assert.ok(html.includes('查詢 約 1 小時 21 分'));
