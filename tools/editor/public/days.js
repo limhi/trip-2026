@@ -65,7 +65,7 @@
                     const bad = errs.length > 0;
                     const isOpen = ui.openItem === it;
                     const num = point ? (point.number != null
-                        ? `<span title="地圖編號" class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">${point.number}</span>`
+                        ? `<span title="地圖編號" class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">${point.label}</span>`
                         : '<span title="在地圖上但不編號" class="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">◦</span>')
                         : '<span class="h-5 w-5 shrink-0"></span>';
                     // 擇一組：整組外面加一圈外框（首項上框、尾項下框、每項左右框），第一項標示「二選一」與共用時間
