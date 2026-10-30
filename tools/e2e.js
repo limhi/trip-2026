@@ -35,8 +35,8 @@ catch (e) { console.error('找不到 Playwright。請 npm install playwright，�
 
 // ───────── 載入資料（用來算「應該要看到什麼」）─────────
 const ctx = { window: {}, console }; ctx.globalThis = ctx; vm.createContext(ctx);
-for (const f of ['data/places.js', 'data/trip.js', 'js/model.js']) vm.runInContext(read(f), ctx, { filename: f });
-const { TRIP, TRIP_PLACES: PLACES } = ctx.window;
+for (const f of ['data/places.js', 'data/trip.js', 'data/routes.js', 'js/model.js']) vm.runInContext(read(f), ctx, { filename: f });
+const { TRIP, TRIP_PLACES: PLACES, TRIP_ROUTES: REAL_ROUTES } = ctx.window;
 const model = ctx.window.Trip.model;
 const gctx = { window: {} }; vm.createContext(gctx); vm.runInContext(read('reference/guides.js'), gctx);
 const GUIDES = gctx.window.TRIP_GUIDES;
@@ -385,6 +385,78 @@ async function guard(label, fn) {
             if (tailwindCss) check(`T11 ${width}px：${width >= 768 ? '成員並排' : '成員堆疊'}、沒有橫向溢出`, info.sideBySide === (width >= 768) && !info.overflowX, JSON.stringify(info));
             await p.close();
         }
+    });
+
+    // ───────── T12 真實資料＋真實快取：有擇一組的天，組前與組後各一條連接列、各路徑查詢時間與「排定不足」──────────
+    // 期望值由 model.getLegSchedule 對同一份快取算出（不寫死任何天的數字）；T8 對有擇一組的天直接略過，T3 只看沒有快取的退回行為，這項補上
+    const altDays = TRIP.days.filter(d => model.getAltGroups(d).length);
+    // 擇一組前後的路段，依「組前」「組後」歸成一列（一列並列多條路徑），只收有快取的
+    const altSlots = (day, routes) => {
+        const slots = new Map();
+        model.getLegSchedule(day, PLACES, routes, TRIP.site).forEach(sc => {
+            if (!(sc.leg.fromAlt || sc.leg.toAlt) || sc.needed == null) return;
+            const key = sc.leg.fromAlt ? 'after:' + sc.leg.fromAlt : 'before:' + sc.leg.toAlt;
+            if (!slots.has(key)) slots.set(key, []);
+            slots.get(key).push(sc);
+        });
+        return [...slots.values()];
+    };
+    // 開頁面後比對該天的畫面與期望，回傳問題清單（空陣列代表一致）
+    const altProblems = async (p, day, slots) => {
+        const dom = await p.evaluate(sel => {
+            const el = document.querySelector(sel);
+            const holders = [...new Set([...el.querySelectorAll('.leg-path')].map(x => x.parentElement))];
+            const sum = el.querySelector('.day-drive-summary');
+            return {
+                holders: holders.map(h => [...h.querySelectorAll('.leg-path')].map(x => ({ text: x.textContent, short: !!x.querySelector('.leg-short') }))),
+                summary: sum ? sum.textContent : ''
+            };
+        }, `#day-${day.day}`);
+        const bad = [];
+        if (dom.holders.length !== slots.length) bad.push(`連接列 ${dom.holders.length} 條，應為 ${slots.length} 條（組前、組後各一）`);
+        slots.forEach((paths, i) => {
+            const got = dom.holders[i] || [];
+            if (got.length !== paths.length) bad.push(`第 ${i + 1} 條連接列路徑 ${got.length}，應為 ${paths.length}`);
+            paths.forEach((sc, j) => {
+                const g = got[j];
+                if (!g) return;
+                if (!g.text.includes(`查詢 約 ${hm(sc.needed)}`)) bad.push(`第 ${i + 1} 條第 ${j + 1} 路徑沒有查詢時間「約 ${hm(sc.needed)}」：${g.text.slice(0, 60)}`);
+                if (g.short !== sc.short) bad.push(`第 ${i + 1} 條第 ${j + 1} 路徑「排定不足」應為 ${sc.short}，實際 ${g.short}`);
+                if (g.short && !g.text.includes('⚠ 排定不足')) bad.push(`第 ${i + 1} 條第 ${j + 1} 路徑紅字沒有「⚠ 排定不足」文字`);
+            });
+        });
+        if (slots.length && !dom.summary.includes('（含擇一組取較長）')) bad.push(`總車程沒有「（含擇一組取較長）」：${dom.summary.slice(0, 60)}`);
+        return bad;
+    };
+    await guard('T12', async () => {
+        check('T12 前提：repo 有擇一組的天，且組前、組後都有路線快取', altDays.length > 0 && altDays.every(d => altSlots(d, REAL_ROUTES).length >= 2), `擇一組的天 ${altDays.length}`);
+        const p = await newPage();
+        await openIndex(p);
+        for (const day of altDays) {
+            const slots = altSlots(day, REAL_ROUTES);
+            check(`T12 DAY ${day.day} 真實快取：組前、組後各一條連接列、每條路徑有查詢時間、「排定不足」只在不足的路徑、總車程取較長`, (await altProblems(p, day, slots)).length === 0, (await altProblems(p, day, slots)).slice(0, 3).join('；'));
+            // 反向：期望值被改錯時，這個比對一定要抓得到（證明斷言不是空的）
+            const flipped = slots.map((ps, i) => i === 0 ? ps.map((sc, j) => j === 0 ? { ...sc, short: !sc.short } : sc) : ps);
+            const shifted = slots.map((ps, i) => i === 0 ? ps.map((sc, j) => j === 0 ? { ...sc, needed: sc.needed + 7 } : sc) : ps);
+            check(`T12 DAY ${day.day} 反向：期望的「排定不足」被翻轉、或查詢時間被改掉，比對都會失敗`, (await altProblems(p, day, flipped)).length > 0 && (await altProblems(p, day, shifted)).length > 0 && (await altProblems(p, day, slots.slice(1))).length > 0);
+        }
+        check('T12 真實資料頁面無 JS 錯誤、沒有紅色提示列', p.errors.length === 0 && !(await p.evaluate(() => !!document.querySelector('body > div.bg-rose-600'))), p.errors.join(' | '));
+        await p.close();
+
+        // 改過的快取：組前第一條路徑拉到極長（一定不足）、第二條縮到極短（一定足夠），確認紅字落在對的路徑上
+        const day = altDays[0];
+        const mutated = JSON.parse(JSON.stringify(REAL_ROUTES));
+        const before = altSlots(day, REAL_ROUTES)[0];
+        mutated.legs[before[0].leg.key].duration = 4 * 3600;
+        mutated.legs[before[1].leg.key].duration = 60;
+        const want = altSlots(day, mutated);
+        check('T12 前提：改過的快取讓組前恰好一條路徑不足（第一條）、另一條足夠', want[0].length === before.length && want[0][0].short === true && want[0][1].short === false, JSON.stringify(want[0].map(x => [x.scheduled, x.needed, x.short])));
+        const q = await newPage();
+        await q.route('**/data/routes.js', r => r.fulfill({ contentType: 'text/javascript', body: 'window.TRIP_ROUTES = ' + JSON.stringify(mutated) + ';' }));
+        await openIndex(q);
+        const bad = await altProblems(q, day, want);
+        check(`T12 DAY ${day.day} 改過的快取：不足的那條路徑帶紅字，另一條沒有`, bad.length === 0, bad.slice(0, 3).join('；'));
+        await q.close();
     });
 
     // ───────── T4 打錯地點 id 要出現紅色提示列 ─────────

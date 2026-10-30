@@ -204,3 +204,23 @@ test('midpoint：沒有路線座標時取起終點中點；有座標時取沿路
     const m = routeView.midpoint(line, { lat: 0, lng: 0 }, { lat: 1, lng: 3 });
     assert.ok(Math.abs(m[0] - 0) < 1e-9 && Math.abs(m[1] - 2) < 1e-9, JSON.stringify(m));
 });
+
+// ───────── 快取是否可用：編輯器警告與頁面紅字用同一個判斷 ─────────
+
+test('快取缺 distance（或 duration）時，getLegSchedule、編輯器警告、頁面紅字一致：都不判斷、不顯示', () => {
+    const model = require('../js/model.js');
+    const day = { day: 1, items: [spot('a'), { type: 'drive', time: '08:00 - 08:10' }, spot('b')] };
+    for (const entry of [{ duration: 3000 }, { distance: 1000 }, { distance: 1000, duration: NaN }]) {
+        const r = routes({ [KEY_AB]: entry });
+        assert.equal(model.getLegSchedule(day, P, r, SITE)[0].needed, null);
+        assert.deepEqual(model.getTimeWarnings(day, P, r, SITE), []);
+        const info = routeView.dayRoutes(day, P, r, SITE);
+        assert.equal(info.legs[0].cached, null);
+        assert.equal(info.legs[0].short, false);
+        assert.deepEqual(info.autoByRow, {});
+    }
+    // 兩個欄位都有才判斷（反向：排定 10 分 < 查詢 63 分 → 警告與紅字都出現）
+    const ok = routes({ [KEY_AB]: { distance: 1000, duration: 3000 } });
+    assert.equal(model.getTimeWarnings(day, P, ok, SITE).length, 1);
+    assert.equal(routeView.dayRoutes(day, P, ok, SITE).legs[0].short, true);
+});

@@ -103,6 +103,11 @@
         return groups;
     }
 
+    // 項目所屬的擇一組（{ alt, start, end }）；不在任何擇一組內回傳 undefined。三處「項目屬於哪個擇一組」共用這一個查找
+    function getAltGroupAt(day, index) {
+        return getAltGroups(day).find(g => index >= g.start && index <= g.end);
+    }
+
     // 檢查資料，回傳問題清單（空陣列代表沒問題）
     function validate(trip, places) {
         const errors = [];
@@ -236,6 +241,9 @@
         return end >= start ? { start, end } : null;
     }
 
+    // 路段快取的一筆是否可用：distance 與 duration 都是有限數字（getLegSchedule 與公開頁面的 dayRoutes 共用這一個判斷）
+    const isUsableLeg = c => !!c && [c.distance, c.duration].every(v => typeof v === 'number' && Number.isFinite(v));
+
     // 每一段的排定時間與查詢時間（公開頁面的紅字與編輯器的警告列表共用這一個判斷）。
     // 回傳 [{ leg, legIndex, scheduled, needed, short }]，順序同 getLegs：
     //   scheduled：排定時間（分）。有綁定交通列：該列 time 的完整區間長度；沒有交通列：前一項結束到後一項開始之差；
@@ -247,14 +255,13 @@
         const cache = (routes && routes.legs) || {};
         const factor = getTrafficFactor(day, site);
         // 擇一組的成員沒有自己的 time：整組共用第一項的 time
-        const groups = getAltGroups(day);
         const timeOf = index => {
-            const group = groups.find(g => index >= g.start && index <= g.end);
+            const group = getAltGroupAt(day, index);
             return day.items[group ? group.start : index].time;
         };
         return getLegs(day, places).map((leg, legIndex) => {
             const cached = cache[leg.key];
-            const needed = cached && Number.isFinite(cached.duration) ? displayMinutes(cached.duration, factor) : null;
+            const needed = isUsableLeg(cached) ? displayMinutes(cached.duration, factor) : null;
             let scheduled = null;
             if (!leg.closeLoop) {
                 if (leg.rowIndex != null) {
@@ -281,9 +288,9 @@
     }
 
     Trip.model = {
-        getContact, getMapPoints, getAltGroups, validate, forEachPlaceRef, lacksCoords, CARD_TYPES, ROW_TYPES,
+        getContact, getMapPoints, getAltGroups, getAltGroupAt, validate, forEachPlaceRef, lacksCoords, CARD_TYPES, ROW_TYPES,
         DEFAULT_ROUTING, formatCoord, legKey, getLegs, getTrafficFactor, displayMinutes,
-        formatDuration, formatDistance, formatLeg, formatFactorNote, getLegSchedule, getTimeWarnings
+        formatDuration, formatDistance, formatLeg, formatFactorNote, parseTimeRange, isUsableLeg, getLegSchedule, getTimeWarnings
     };
     if (typeof module !== 'undefined') module.exports = Trip.model;
 })(typeof window !== 'undefined' ? window : globalThis);

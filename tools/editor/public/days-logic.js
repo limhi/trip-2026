@@ -52,11 +52,10 @@
     }
 
     // ---- 擇一組（ADR 0006）：只改 alt 與 time，合法性由 model.validate 檢查 ----
-    const groupOf = (day, ii) => M.getAltGroups(day).find(g => ii >= g.start && ii <= g.end);
 
     // 項目在擇一組裡的位置：'first'／'middle'／'last'；不在組內（或單獨一項）回傳 null。畫外框用
     function altPosition(day, ii) {
-        const g = groupOf(day, ii);
+        const g = M.getAltGroupAt(day, ii);
         if (!g || g.end === g.start) return null;
         return ii === g.start ? 'first' : ii === g.end ? 'last' : 'middle';
     }
@@ -69,10 +68,17 @@
         return isSpot(ii - 1) || isSpot(ii + 1);
     }
 
-    // 共用時間只留在組內第一項：第一項沒有時間時取成員裡第一個有的，其餘清掉
+    // 共用時間只留在組內第一項。所有有時間的成員都是完整區間時取聯集（最早開始到最晚結束）；
+    // 只有一個成員有時間、或有成員的時間不是完整區間（「17:10 後」等）時，保留第一個有時間的成員的原文，不亂湊
     function normalizeAltTime(day, g) {
         const members = day.items.slice(g.start, g.end + 1);
-        const time = members.map(m => m.time).find(Boolean);
+        const timed = members.map(m => m.time).filter(Boolean);
+        const ranges = timed.map(M.parseTimeRange);
+        let time = timed[0];
+        if (timed.length > 1 && ranges.every(Boolean)) {
+            const clock = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+            time = `${clock(Math.min(...ranges.map(r => r.start)))} - ${clock(Math.max(...ranges.map(r => r.end)))}`;
+        }
         members.forEach(m => delete m.time);
         if (time) members[0].time = time;
     }
@@ -89,13 +95,13 @@
             mate.alt = `alt${n}`;
         }
         day.items[ii].alt = mate.alt;
-        normalizeAltTime(day, groupOf(day, ii));
+        normalizeAltTime(day, M.getAltGroupAt(day, ii));
         return true;
     }
 
     // 移出擇一組：移掉 alt；剩不到 2 項整組解除。中間成員會被搬到組後面，避免把組切開。回傳是否有改動
     function leaveAlt(day, ii) {
-        const g = groupOf(day, ii);
+        const g = M.getAltGroupAt(day, ii);
         const it = day.items[ii];
         if (!g || !it.alt) return false;
         const sharedTime = day.items[g.start].time;
@@ -107,8 +113,8 @@
         const wasFirst = ii === g.start;
         if (wasFirst) delete it.time;
         const rest = M.getAltGroups(day).find(x => x.alt === g.alt);
+        if (rest && wasFirst && sharedTime) day.items[rest.start].time = sharedTime;   // 共用時間交給留下來的第一項（組解散時也是）
         if (rest && rest.end === rest.start) delete day.items[rest.start].alt;
-        else if (rest && wasFirst && sharedTime) day.items[rest.start].time = sharedTime;   // 共用時間交給新的第一項
         return true;
     }
 
