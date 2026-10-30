@@ -50,24 +50,25 @@
     }
 
     // 某一天每個路段的顯示資料。routes = window.TRIP_ROUTES（可為 undefined）。
-    // legs[i]：{ leg（getLegs 的結果）, cached（{distance, duration} 或 null）, minutes, over, text }
+    // legs[i]：{ leg（getLegs 的結果）, cached（{distance, duration} 或 null）, minutes（查詢時間）, over（單段超過門檻）, text, scheduled（排定時間或 null）, short（排定不足）}
     // summary：有快取的路段加總 { minutes, meters, missing }；一段都沒有快取時為 null
     function dayRoutes(day, places, routes, site) {
         const cache = (routes && routes.legs) || {};
         const factor = model.getTrafficFactor(day, site);
         const max = (site && site.routing && site.routing.maxLegMinutes) || model.DEFAULT_ROUTING.maxLegMinutes;
-        const legs = model.getLegs(day, places).map(leg => {
+        const legs = model.getLegSchedule(day, places, routes, site).map(({ leg, scheduled, short }) => {
             const c = cache[leg.key];
-            if (!c || !isNum(c.distance) || !isNum(c.duration)) return { leg, cached: null, minutes: null, over: false, text: '' };
+            // 排定時間與是否不足由 model.getLegSchedule 判斷（編輯器的警告列表用同一個）
+            if (!c || !isNum(c.distance) || !isNum(c.duration)) return { leg, cached: null, minutes: null, over: false, text: '', scheduled, short: false };
             const minutes = model.displayMinutes(c.duration, factor);
-            return { leg, cached: c, minutes, over: minutes > max, text: model.formatLeg(c, factor) };
+            return { leg, cached: c, minutes, over: minutes > max, text: model.formatLeg(c, factor), scheduled, short };
         });
         const have = legs.filter(l => l.cached);
         // 給 blocks.js 用：綁定到交通列的、沒有交通列時補在前一項後面的計算結果（key 是 day.items 的索引）
         const factorNote = model.formatFactorNote(factor);
         const autoByRow = {}, autoAfter = {};
         have.forEach(l => {
-            const auto = { text: l.text, note: factorNote };
+            const auto = { text: l.text, note: factorNote, scheduled: l.scheduled, needed: l.minutes, short: l.short };
             if (l.leg.rowIndex != null) autoByRow[l.leg.rowIndex] = auto;
             else if (l.leg.needsRow) autoAfter[l.leg.fromItemIndex] = auto;
         });

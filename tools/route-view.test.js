@@ -50,7 +50,7 @@ test('dayRoutes：有快取的段落算出顯示分鐘、文字、是否超過�
     assert.equal(info.hasCache, true);
     assert.deepEqual(info.legs.map(l => [l.minutes, l.over]), [[81, false], [188, true]]);
     assert.equal(info.legs[0].text, '約 1 小時 21 分・75.3 km');
-    assert.equal(info.factorNote, '預估・含路況緩衝 ×1.25');
+    assert.equal(info.factorNote, '查詢・含路況緩衝 ×1.25');
 });
 
 test('dayRoutes：autoByRow（綁定的交通列）與 autoAfter（沒有交通列時補在前一項後面），只含有快取的路段', () => {
@@ -59,8 +59,9 @@ test('dayRoutes：autoByRow（綁定的交通列）與 autoAfter（沒有交通�
         [KEY_AB]: { distance: 75323, duration: 3900 },
         [KEY_BC]: { distance: 20000, duration: 1200 }
     }), SITE);
-    assert.deepEqual(info.autoByRow, { 1: { text: '約 1 小時 21 分・75.3 km', note: '預估・含路況緩衝 ×1.25' } });
-    assert.deepEqual(info.autoAfter, { 2: { text: '約 25 分・20.0 km', note: '預估・含路況緩衝 ×1.25' } });
+    const note = '查詢・含路況緩衝 ×1.25';
+    assert.deepEqual(info.autoByRow, { 1: { text: '約 1 小時 21 分・75.3 km', note, scheduled: 60, needed: 81, short: true } });
+    assert.deepEqual(info.autoAfter, { 2: { text: '約 25 分・20.0 km', note, scheduled: null, needed: 25, short: false } });
     const none = routeView.dayRoutes(day, P, routes({}), SITE);
     assert.deepEqual([none.autoByRow, none.autoAfter], [{}, {}]);
 });
@@ -106,6 +107,18 @@ test('dayRoutes：leg 帶有 rowIndex／needsRow／closeLoop，供綁定交通�
     const info = routeView.dayRoutes(day, P, routes({}), SITE);
     assert.deepEqual(info.legs.map(l => [l.leg.rowIndex, l.leg.needsRow, l.leg.closeLoop]),
         [[1, false, false], [null, true, false], [null, false, true]]);
+});
+
+test('dayRoutes：每段帶排定時間與是否不足；紅色 over 只看單段門檻，與排定不足無關', () => {
+    const day = { items: [{ type: 'spot', place: 'a', time: '09:00 - 10:00' }, { type: 'spot', place: 'b', time: '10:30 - 11:00' }, spot('c')] };
+    const info = routeView.dayRoutes(day, P, routes({
+        [KEY_AB]: { distance: 1000, duration: 2400 },       // 40 × 1.25 = 50 分，排定 30 分
+        [KEY_BC]: { distance: 1000, duration: 9000 }        // 188 分 > 門檻，沒有排定時間
+    }), SITE);
+    assert.deepEqual(info.legs.map(l => [l.scheduled, l.short, l.over]), [[30, true, false], [null, false, true]]);
+    // 反向：排定足夠就不得標為不足
+    day.items[1].time = '11:30 - 12:00';
+    assert.equal(routeView.dayRoutes(day, P, routes({ [KEY_AB]: { distance: 1000, duration: 2400 } }), SITE).legs[0].short, false);
 });
 
 // ───────── midpoint ─────────

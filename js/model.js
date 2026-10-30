@@ -171,7 +171,7 @@
     }
 
     function formatFactorNote(factor) {
-        return `預估・含路況緩衝 ×${factor}`;
+        return `查詢・含路況緩衝 ×${factor}`;
     }
 
     // 「HH:MM - HH:MM」（後面可接說明文字）→ 分鐘區間；「17:10 後」「12:15」等不完整時間回傳 null
@@ -182,41 +182,48 @@
         return end >= start ? { start, end } : null;
     }
 
-    // 「排太緊」警告（只在編輯器顯示，不擋發布）。routes = { legs: { key: { distance, duration } } }。
-    // 有綁定交通列：該列時間區間 < 顯示時間；沒有交通列：前一項結束與後一項開始之差 < 顯示時間。
-    // 只在兩端都有可解析的區間時比對；沒有快取、未綁定（多個交通列）、closeLoop 回程都不比對。
-    function getTimeWarnings(day, places, routes, site) {
-        const warnings = [];
+    // 每一段的排定時間與查詢時間（公開頁面的紅字與編輯器的警告列表共用這一個判斷）。
+    // 回傳 [{ leg, legIndex, scheduled, needed, short }]，順序同 getLegs：
+    //   scheduled：排定時間（分）。有綁定交通列：該列 time 的完整區間長度；沒有交通列：前一項結束到後一項開始之差；
+    //             time 不是完整區間（「15:30 後」等）、多個交通列未綁定、closeLoop 回程都是 null。duration 欄位只是備註，不參與。
+    //   needed：查詢時間（分，含路況係數）；沒有路線快取時 null。
+    //   short：兩者都有值且 scheduled < needed（排太緊）。
+    // routes = { legs: { key: { distance, duration } } }，可為 undefined。
+    function getLegSchedule(day, places, routes, site) {
         const cache = (routes && routes.legs) || {};
         const factor = getTrafficFactor(day, site);
-        const nameOf = id => (places[id] && places[id].name) || id;
-        getLegs(day, places).forEach((leg, legIndex) => {
+        return getLegs(day, places).map((leg, legIndex) => {
             const cached = cache[leg.key];
-            if (!cached || leg.closeLoop) return;
+            const needed = cached && Number.isFinite(cached.duration) ? displayMinutes(cached.duration, factor) : null;
             let scheduled = null;
-            if (leg.rowIndex != null) {
-                const range = parseTimeRange(day.items[leg.rowIndex].time);
-                if (range) scheduled = range.end - range.start;
-            } else if (leg.needsRow) {
-                const prev = parseTimeRange(day.items[leg.fromItemIndex].time);
-                const next = parseTimeRange(day.items[leg.toItemIndex].time);
-                if (prev && next) scheduled = next.start - prev.end;
+            if (!leg.closeLoop) {
+                if (leg.rowIndex != null) {
+                    const range = parseTimeRange(day.items[leg.rowIndex].time);
+                    if (range) scheduled = range.end - range.start;
+                } else if (leg.needsRow) {
+                    const prev = parseTimeRange(day.items[leg.fromItemIndex].time);
+                    const next = parseTimeRange(day.items[leg.toItemIndex].time);
+                    if (prev && next) scheduled = next.start - prev.end;
+                }
             }
-            if (scheduled == null) return;
-            const needed = displayMinutes(cached.duration, factor);
-            if (scheduled >= needed) return;
-            warnings.push({
-                legKey: leg.key, legIndex, scheduled, needed,
-                message: `DAY ${day.day} 第 ${legIndex + 1} 段（${nameOf(leg.fromId)} → ${nameOf(leg.toId)}）：排定 ${scheduled} 分，至少需要${formatDuration(needed)}（${formatFactorNote(factor)}）`
-            });
+            return { leg, legIndex, scheduled, needed, short: scheduled != null && needed != null && scheduled < needed };
         });
-        return warnings;
+    }
+
+    // 「排太緊」警告列表（編輯器顯示，不擋發布），由 getLegSchedule 判斷
+    function getTimeWarnings(day, places, routes, site) {
+        const factor = getTrafficFactor(day, site);
+        const nameOf = id => (places[id] && places[id].name) || id;
+        return getLegSchedule(day, places, routes, site).filter(s => s.short).map(({ leg, legIndex, scheduled, needed }) => ({
+            legKey: leg.key, legIndex, scheduled, needed,
+            message: `DAY ${day.day} 第 ${legIndex + 1} 段（${nameOf(leg.fromId)} → ${nameOf(leg.toId)}）：排定 ${scheduled} 分，至少需要${formatDuration(needed)}（${formatFactorNote(factor)}）`
+        }));
     }
 
     Trip.model = {
         getContact, getMapPoints, validate, forEachPlaceRef, lacksCoords, CARD_TYPES, ROW_TYPES,
         DEFAULT_ROUTING, formatCoord, legKey, getLegs, getTrafficFactor, displayMinutes,
-        formatDuration, formatDistance, formatLeg, formatFactorNote, getTimeWarnings
+        formatDuration, formatDistance, formatLeg, formatFactorNote, getLegSchedule, getTimeWarnings
     };
     if (typeof module !== 'undefined') module.exports = Trip.model;
 })(typeof window !== 'undefined' ? window : globalThis);

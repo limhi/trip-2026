@@ -272,7 +272,7 @@ async function guard(label, fn) {
                     autoRowText: [...el.querySelectorAll('.auto-leg-row')].map(r => r.textContent) };
             }, `#day-${day.day}`);
             const wantAuto = cached.filter(l => l.needsRow).length;
-            const wantDur = cached.filter(l => l.rowIndex != null && !day.items[l.rowIndex].duration).length;
+            const wantDur = cached.filter(l => l.rowIndex != null).length;   // duration 只是備註，不再隱藏查詢時間
             if (dom.autoRows !== wantAuto) bad.push(`DAY ${day.day}：自動連接列 ${dom.autoRows}，應為 ${wantAuto}`);
             if (dom.autoDur !== wantDur) bad.push(`DAY ${day.day}：算出的交通列時間 ${dom.autoDur}，應為 ${wantDur}`);
             if (cached.length === 0) { if (dom.summary !== null) bad.push(`DAY ${day.day}：沒有快取卻有總車程`); continue; }

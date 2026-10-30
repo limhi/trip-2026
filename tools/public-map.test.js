@@ -203,7 +203,7 @@ test('兩天的地圖在 geo 載入完成前都展開：只載入一次，載入
     for (const g of env.rec.groups) assert.ok(g.layers.filter(l => l.kind === 'polyline').every(l => !l.opts.dashArray));
 });
 
-test('中點標示一律帶「預估」與係數（可見文字，title 為完整說明）', async () => {
+test('中點標示一律帶「查詢」與係數（可見文字，title 為完整說明）', async () => {
     const env = makeEnv();
     expand(env, CACHE);
     env.ctx.window.TRIP_ROUTES_GEO = GEO;
@@ -212,7 +212,21 @@ test('中點標示一律帶「預估」與係數（可見文字，title 為完�
     const ls = labels(env);
     assert.equal(ls.length, 2);
     for (const l of ls) {
-        assert.match(l.opts.icon.html, /預估\s*×1\.25/);
-        assert.match(l.opts.icon.html, /title="預估・含路況緩衝 ×1\.25"/);
+        assert.match(l.opts.icon.html, /查詢\s*×1\.25/);
+        assert.match(l.opts.icon.html, /title="查詢・含路況緩衝 ×1\.25"/);
     }
+});
+
+test('排定不足不影響地圖紅色：只有單段超過門檻才紅（A→B 排定不足但未超過門檻，仍是一般顏色）', async () => {
+    const env = makeEnv();
+    const tight = { ...DAY, items: [{ ...spot('a'), time: '09:00 - 10:00' }, { ...spot('b'), time: '10:10 - 11:00' }, spot('c')] };   // A→B 排定 10 分 < 查詢 81 分
+    const el = makeDayEl();
+    env.Trip.bindDayMap(el.dayEl, tight, P, { routes: CACHE, site: SITE });
+    el.button.listeners.click();
+    env.ctx.window.TRIP_ROUTES_GEO = GEO;
+    env.rec.scripts[0].onload();
+    await tick();
+    assert.deepEqual(polylines(env).map(l => l.opts.color), ['#334155', '#dc2626']);
+    assert.ok(!/map-leg-label-over/.test(labels(env)[0].opts.icon.html));
+    assert.ok(!/排定/.test(labels(env)[0].opts.icon.html));
 });

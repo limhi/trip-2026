@@ -140,8 +140,8 @@ test('formatLeg：「約 1 小時 5 分・75.3 km」，係數覆寫會反映在�
 });
 
 test('formatFactorNote：標示實際係數', () => {
-    assert.equal(model.formatFactorNote(1.25), '預估・含路況緩衝 ×1.25');
-    assert.equal(model.formatFactorNote(1.5), '預估・含路況緩衝 ×1.5');
+    assert.equal(model.formatFactorNote(1.25), '查詢・含路況緩衝 ×1.25');
+    assert.equal(model.formatFactorNote(1.5), '查詢・含路況緩衝 ×1.5');
 });
 
 // ───────── getTimeWarnings ─────────
@@ -216,6 +216,46 @@ test('getTimeWarnings：day.trafficFactor 覆寫係數；site.routing 缺少時�
 test('getTimeWarnings：時間文字後面接說明（如「10:00 - 11:00 午餐」）仍可解析', () => {
     const items = [{ ...place('a'), time: '10:00 - 11:00 午餐' }, { ...place('b'), time: '11:20 - 12:00' }];
     assert.equal(warn(dayOf(items)).length, 1);
+});
+
+// ───────── getLegSchedule（排定時間與查詢時間的共用判斷）─────────
+
+const sched = (day, routes = routesFor(day, 40 * MIN), site = SITE) => model.getLegSchedule(day, P, routes, site);
+
+test('getLegSchedule：每段輸出排定時間、查詢時間、是否不足（綁定交通列）', () => {
+    const day = dayOf([place('a'), { type: 'drive', time: '08:00 - 08:30', duration: '約 2 小時' }, place('b')]);
+    const [s] = sched(day);
+    assert.equal(s.scheduled, 30);
+    assert.equal(s.needed, 50);
+    assert.equal(s.short, true);
+    assert.equal(s.legIndex, 0);
+    assert.equal(s.leg.key, model.getLegs(day, P)[0].key);
+});
+
+test('getLegSchedule：排定夠長不得標為不足（反向）；duration 備註不參與計算', () => {
+    const day = dayOf([place('a'), { type: 'drive', time: '08:00 - 09:00', duration: '約 5 分' }, place('b')]);
+    const [s] = sched(day);
+    assert.deepEqual([s.scheduled, s.needed, s.short], [60, 50, false]);
+});
+
+test('getLegSchedule：time 不是完整區間時 scheduled 為 null，仍有查詢時間、不判斷不足', () => {
+    const day = dayOf([place('a'), { type: 'drive', time: '15:30 後' }, place('b')]);
+    const [s] = sched(day);
+    assert.deepEqual([s.scheduled, s.needed, s.short], [null, 50, false]);
+});
+
+test('getLegSchedule：沒有交通列時用前一項結束到後一項開始之差', () => {
+    const day = dayOf([{ ...place('a'), time: '09:00 - 10:00' }, { ...place('b'), time: '10:30 - 11:00' }]);
+    const [s] = sched(day);
+    assert.deepEqual([s.scheduled, s.needed, s.short], [30, 50, true]);
+});
+
+test('getLegSchedule：沒有快取的路段 needed 為 null、不判斷不足；整個快取缺失也不出錯', () => {
+    const day = dayOf([place('a'), { type: 'drive', time: '08:00 - 08:05' }, place('b')]);
+    for (const r of [{ legs: {} }, null]) {
+        const [s] = sched(day, r);
+        assert.deepEqual([s.scheduled, s.needed, s.short], [5, null, false]);
+    }
 });
 
 // ───────── forEachPlaceRef ─────────
