@@ -3,6 +3,7 @@
  * 驗證與地圖編號不在這裡，一律用 js/model.js。
  */
 (function (root) {
+    const M = (root.Trip && root.Trip.model) || require('../../../js/model');
     const COMMON = ['map', 'numbered'];
     const CARD = ['tag', 'time', 'place', 'title', 'desc', ...COMMON];
 
@@ -45,8 +46,70 @@
     function changeType(item, type) {
         item.type = type;
         const keep = ['type', ...TYPES[type].fields];
+        if (type === 'spot') keep.push('alt');   // 擇一組（alt）只有 spot 能用，改成其他類型就會被清掉
         Object.keys(item).forEach(k => { if (!keep.includes(k)) delete item[k]; });
         return item;
+    }
+
+    // ---- 擇一組（ADR 0006）：只改 alt 與 time，合法性由 model.validate 檢查 ----
+    const groupOf = (day, ii) => M.getAltGroups(day).find(g => ii >= g.start && ii <= g.end);
+
+    // 項目在擇一組裡的位置：'first'／'middle'／'last'；不在組內（或單獨一項）回傳 null。畫外框用
+    function altPosition(day, ii) {
+        const g = groupOf(day, ii);
+        if (!g || g.end === g.start) return null;
+        return ii === g.start ? 'first' : ii === g.end ? 'last' : 'middle';
+    }
+
+    // 可併成擇一組：是 spot、還不在組內，且前一項或後一項是 spot
+    function canJoinAlt(day, ii) {
+        const it = day.items[ii];
+        if (!it || it.type !== 'spot' || it.alt) return false;
+        const isSpot = i => day.items[i] && day.items[i].type === 'spot';
+        return isSpot(ii - 1) || isSpot(ii + 1);
+    }
+
+    // 共用時間只留在組內第一項：第一項沒有時間時取成員裡第一個有的，其餘清掉
+    function normalizeAltTime(day, g) {
+        const members = day.items.slice(g.start, g.end + 1);
+        const time = members.map(m => m.time).find(Boolean);
+        members.forEach(m => delete m.time);
+        if (time) members[0].time = time;
+    }
+
+    // 併成擇一組：優先併入前一個 spot，否則併入後一個；鄰居已有 alt 就沿用，沒有就取當天沒用過的新名稱。成功回傳 true
+    function joinAlt(day, ii) {
+        if (!canJoinAlt(day, ii)) return false;
+        const prev = day.items[ii - 1], next = day.items[ii + 1];
+        const mate = prev && prev.type === 'spot' ? prev : next;
+        if (!mate.alt) {
+            const used = new Set(day.items.map(i => i.alt));
+            let n = 1;
+            while (used.has(`alt${n}`)) n++;
+            mate.alt = `alt${n}`;
+        }
+        day.items[ii].alt = mate.alt;
+        normalizeAltTime(day, groupOf(day, ii));
+        return true;
+    }
+
+    // 移出擇一組：移掉 alt；剩不到 2 項整組解除。中間成員會被搬到組後面，避免把組切開。回傳是否有改動
+    function leaveAlt(day, ii) {
+        const g = groupOf(day, ii);
+        const it = day.items[ii];
+        if (!g || !it.alt) return false;
+        const sharedTime = day.items[g.start].time;
+        delete it.alt;
+        if (ii > g.start && ii < g.end) {
+            day.items.splice(ii, 1);
+            day.items.splice(g.end, 0, it);   // 移除一項後，原 g.end 的位置就是組的後面
+        }
+        const wasFirst = ii === g.start;
+        if (wasFirst) delete it.time;
+        const rest = M.getAltGroups(day).find(x => x.alt === g.alt);
+        if (rest && rest.end === rest.start) delete day.items[rest.start].alt;
+        else if (rest && wasFirst && sharedTime) day.items[rest.start].time = sharedTime;   // 共用時間交給新的第一項
+        return true;
     }
 
     function newItem(type, placeIds) {
@@ -76,7 +139,7 @@
     const itemErrors = (errors, dayNo, ii) => errors.filter(e => e.startsWith(`DAY ${dayNo} 第 ${ii + 1} 項：`));
     const dayErrors = (errors, dayNo) => errors.filter(e => e.startsWith(`DAY ${dayNo} `));
 
-    const api = { TYPES, moveItem, stepItem, changeType, newItem, getPath, setPath, itemErrors, dayErrors };
+    const api = { TYPES, moveItem, stepItem, changeType, newItem, altPosition, canJoinAlt, joinAlt, leaveAlt, getPath, setPath, itemErrors, dayErrors };
     root.DaysLogic = api;
     if (typeof module !== 'undefined') module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
