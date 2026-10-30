@@ -111,22 +111,7 @@
 ### 4.1 地點（`data/places.json` → `window.TRIP_PLACES`）
 以 id 為 key，**每個地點只維護一次**（行程、彈窗、地圖都引用同一份）。key 的順序就是顯示順序，要保留。除 `name` 外的欄位都可省略。
 
-| 欄位 | 說明 |
-|---|---|
-| `name` | 顯示名稱（卡片標題預設取它） |
-| `mapType` | `attraction｜hotel｜food｜other｜transport`，決定地圖標記顏色 |
-| `lat`, `lng` | 座標；**沒有座標就不會出現在地圖** |
-| `address` | 地址；導航預設用它搜尋 |
-| `infoType` | **有填才有「查看聯絡與導航」彈窗**（值是彈窗標題上的類別字：旅遊景點／餐飲資訊／住宿資訊／掃墓地點） |
-| `phone` | 顯示用字串（可含說明）；撥號號碼由 `phone` 取數字自動產生 |
-| `tel` | 覆寫撥號號碼（`phone` 有多個號碼時必填，例如七星潭） |
-| `phoneActionLabel` | 撥號按鈕文字（預設「立即撥號」；鄉公所用「撥打鄉公所」） |
-| `line` | `{label, url}` |
-| `website` | 官網（彈窗出現「官方網站」按鈕） |
-| `navigationUrl` | 自訂導航連結；沒填就用 `address` 產生 Google Maps 導航。**地址不精準或導航會出事時用座標連結**（豆腐岬、大坡池、里港公墓都這樣做） |
-| `parking` | 交通與停車提醒（字串或字串陣列），彈窗顯示藍色「交通與停車」區塊 |
-| `booking` | `{name, phone}` 訂房資料（住宿用，目前都是「待提供」） |
-| `alternate` | 備選地點卡（程式支援，目前沒有地點使用） |
+欄位清單（`name`、`mapType`、`lat`/`lng`、`address`、`infoType`、`phone`、`parking` 等）見 [`EDIT-GUIDE.md`](EDIT-GUIDE.md) 第 2 節；這裡只記設計原因：沒有座標就不會出現在地圖；有 `infoType` 才有「查看聯絡與導航」彈窗；地址不精準或導航會出事時用 `navigationUrl` 的座標連結（豆腐岬、大坡池、里港公墓都這樣做）；`parking` 顯示在彈窗的藍色「交通與停車」區塊。
 
 **慣例**：沒有官方資訊的內容要標「以現場為準」；來自部落格的內容在文字裡標「遊記」；不要把開發用語寫進會顯示的字串。
 
@@ -135,13 +120,7 @@
 
 每一天：`{ day, date, title, stay|badge, theme?, closeLoop?, items[] }`。`items` 的 `type`：
 
-| type | 外觀 | 欄位 |
-|---|---|---|
-| `drive` | 深灰列（車） | `time, text, note?` |
-| `move` | 淺灰列（路線） | `time, text, note?` |
-| `spot` / `meal` / `stay` / `end` / `notice` | 彩色卡片（藍／琥珀／紫／綠／琥珀） | `tag, time?, place` 或 `title`，`desc` |
-| `brief` | 琥珀淡底小框 | `time, title, place?, icon?, desc?` |
-| `waypoint` | 虛線小列（起訖點／休息點） | `place, text?, backup?, mapName?, numbered?` |
+項目類型（`drive`、`move`、`spot`、`meal`、`stay`、`end`、`notice`、`brief`、`waypoint`）與各自可填的欄位見 [`EDIT-GUIDE.md`](EDIT-GUIDE.md) 第 2 節（欄位表只維護那一份）。外觀：`drive` 深灰列、`move` 淺灰列、卡片類藍／琥珀／紫／綠／琥珀、`brief` 琥珀淡底小框、`waypoint` 虛線小列。
 
 共通欄位：
 - `place`：引用地點 id。卡片標題預設用地點名稱（要改標題就寫 `title`）；該地點有 `infoType` 時，卡片可點開聯絡與導航彈窗；該項目會依出現順序自動成為當天地圖的標記。
@@ -150,15 +129,7 @@
 - `map:false`：有 `place` 但不放上地圖。
 - `numbered:false`：放上地圖但不編號（`waypoint` 不會在左邊出現，地圖上以小圖示呈現）。
 
-每天的選項：
-
-| 欄位 | 說明 |
-|---|---|
-| `stay` | `{place, note}`，標題列右側顯示「宿：住宿名稱（note）」 |
-| `badge` | `{icon, text}`，沒有住宿時標題列右側顯示的文字 |
-| `theme` | `'blue'`（預設）或 `'end'`（綠色，最後一天用） |
-| `closeLoop` | `true` 時地圖路線會連回起點 |
-| `trafficFactor` | （選填）正數，覆寫當天的路況係數；沒有就用 `site.routing.trafficFactor` |
+每天的選項（`stay`、`badge`、`theme`、`closeLoop`、`trafficFactor`）見 EDIT-GUIDE 第 2 節；`closeLoop` 讓地圖路線連回起點，`trafficFactor` 覆寫當天的路況係數（沒有就用 `site.routing.trafficFactor`）。
 
 `site.routing`（選填）：`{trafficFactor: 1.25, maxLegMinutes: 180}`，路況係數預設值與「路段過長」門檻（顯示分鐘），都必須是正數。
 

@@ -100,7 +100,7 @@ node tools/editor/server.js          # 預設 http://127.0.0.1:8780/ ，只綁�
 | 改地圖標記顏色 | `js/map.js` 最上方的 `MAP_TYPES`（左邊卡片的編號圓點會跟著變） |
 | 某個起點不想編號 | `data/trip.json` 該項目加 `numbered: false` |
 
-`docs/DESIGN.md` 第 4 節有所有區塊類型（drive、move、spot、meal、stay、end、notice、brief、waypoint）、地點欄位與路線設定的說明（JSON 不能寫註解，所以說明都在那裡）。
+所有項目類型、地點欄位與每天選項的欄位速查，以及可複製的 JSON 範例，見 [`docs/EDIT-GUIDE.md`](docs/EDIT-GUIDE.md)（JSON 不能寫註解，所以說明都在那裡）；設計原因見 `docs/DESIGN.md` 第 4 節。
 
 ## 資料檢查
 

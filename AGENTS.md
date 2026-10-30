@@ -4,6 +4,8 @@
 
 ## 怎麼改行程、怎麼發布（先讀這節）
 
+改行程內容先讀 [`docs/EDIT-GUIDE.md`](docs/EDIT-GUIDE.md)（欄位速查與範例，短）。
+
 **資料來源是 `data/*.json`（`trip.json`、`places.json`、`routes.json`）。`data/trip.js`、`data/places.js`、`data/routes.js`、`data/routes-geo.js` 是 `tools/build-data.js` 產生的檔案，不要手改**（下次產生會被覆蓋，`check.js` 也會因為不同步而失敗）。
 
 兩種改法，結果相同：
