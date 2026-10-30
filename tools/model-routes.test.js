@@ -315,3 +315,47 @@ test('validate：擇一組合法時沒有問題；成員不是 spot、不相鄰�
     assert.match(errs([m('a'), m('b', { alt: 'x' })]), /alt「x」.*至少 2 項/);
     assert.match(errs([m('a', { alt: 'x' }), m('b', { alt: 'x', time: '12:00 - 13:00' })]), /第 2 項.*time/);
 });
+
+// ───────── 擇一組：地圖標記編號與路段 ─────────
+// 行程：a → [b | c]（擇一組 x）→ d
+P.d = { lat: 24.4, lng: 121.4 };
+const altDay = () => ({ items: [place('a'), { ...place('b'), alt: 'x', time: '12:00 - 13:00' }, { ...place('c'), alt: 'x' }, place('d')] });
+
+test('getMapPoints：擇一組成員共用號碼加字母（2a、2b），下一站接 3；編號不進資料', () => {
+    const points = model.getMapPoints(altDay(), P);
+    assert.deepEqual(points.map(p => [p.id, p.number, p.label]), [['a', 1, '1'], ['b', 2, '2a'], ['c', 2, '2b'], ['d', 3, '3']]);
+    assert.deepEqual(model.getMapPoints({ items: [place('a'), place('b')] }, P).map(p => p.label), ['1', '2']);
+});
+
+test('getMapPoints：沒有座標的成員不算標記，字母只編有標記的成員', () => {
+    const day = { items: [place('a'), { ...place('nocoord'), alt: 'x' }, { ...place('b'), alt: 'x' }, place('c')] };
+    assert.deepEqual(model.getMapPoints(day, P).map(p => [p.id, p.label]), [['a', '1'], ['b', '2a'], ['c', '3']]);
+});
+
+test('getLegs：擇一組分岔再合流（前一站→每個成員、每個成員→下一站），成員之間不連線', () => {
+    const legs = model.getLegs(altDay(), P);
+    assert.deepEqual(legs.map(l => [l.fromId, l.toId]), [['a', 'b'], ['a', 'c'], ['b', 'd'], ['c', 'd']]);
+    assert.deepEqual(legs.map(l => [l.fromAlt, l.toAlt]), [[null, 'x'], [null, 'x'], ['x', null], ['x', null]]);
+    // 快取 key 規則不變：起終點座標
+    assert.equal(legs[0].key, model.legKey(P.a, P.b));
+    assert.equal(legs[3].key, model.legKey(P.c, P.d));
+});
+
+test('getLegs：擇一組的路段仍綁定前後的交通列；沒有交通列時 needsRow', () => {
+    const day = { items: [place('a'), { type: 'drive' }, { ...place('b'), alt: 'x' }, { ...place('c'), alt: 'x' }, { type: 'move' }, place('d')] };
+    const legs = model.getLegs(day, P);
+    assert.deepEqual(legs.map(l => [l.fromId, l.toId, l.rowIndex, l.needsRow]), [['a', 'b', 1, false], ['a', 'c', 1, false], ['b', 'd', 4, false], ['c', 'd', 4, false]]);
+    assert.ok(model.getLegs(altDay(), P).every(l => l.needsRow));
+});
+
+test('getLegs：擇一組只剩一個有座標的成員時退化成單線；backup 不受影響', () => {
+    const day = { items: [place('a'), { ...place('nocoord'), alt: 'x' }, { ...place('b'), alt: 'x' }, { ...place('c'), backup: true }, place('d')] };
+    assert.deepEqual(model.getLegs(day, P).map(l => [l.fromId, l.toId]), [['a', 'b'], ['b', 'd']]);
+});
+
+test('getLegs：擇一組在最前面、closeLoop 回程也分岔再合流', () => {
+    const day = { closeLoop: true, items: [{ ...place('a'), alt: 'x' }, { ...place('b'), alt: 'x' }, place('c'), { ...place('d'), alt: 'y' }, { ...place('a'), alt: 'y' }] };
+    const legs = model.getLegs(day, P);
+    assert.deepEqual(legs.filter(l => !l.closeLoop).map(l => [l.fromItemIndex, l.toItemIndex]), [[0, 2], [1, 2], [2, 3], [2, 4]]);
+    assert.deepEqual(legs.filter(l => l.closeLoop).map(l => [l.fromItemIndex, l.toItemIndex]), [[3, 0], [3, 1], [4, 0], [4, 1]]);
+});
