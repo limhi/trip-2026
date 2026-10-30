@@ -9,7 +9,7 @@
     const FIELD = {
         time: ['時間', 'text'], tag: ['標籤', 'text'], title: ['標題（空白＝用地點名稱）', 'text'], text: ['文字', 'text'],
         note: ['備註', 'text'], icon: ['圖示', 'text'], mapName: ['地圖上的名稱', 'text'], desc: ['說明', 'area'],
-        place: ['地點', 'place'], map: ['顯示在地圖', 'bool'], numbered: ['地圖上編號', 'bool'], backup: ['備案（不連線）', 'bool']
+        buffer: ['緩衝（分鐘，可正負）', 'int'], place: ['地點', 'place'], map: ['顯示在地圖', 'bool'], numbered: ['地圖上編號', 'bool'], backup: ['備案（不連線）', 'bool']
     };
 
     // ctx：{ data(): {trip, places}, errors(): string[], changed(): 重新驗證並更新外框, toast(msg) }
@@ -36,6 +36,7 @@
                 return `<label class="col-span-2 block"><span class="text-xs text-slate-500">${label}（輸入名稱或 id 搜尋）</span><input list="placelist" data-f="place" value="${esc(item.place)}" class="mt-0.5 w-full rounded border p-1.5 ${ok ? '' : 'border-rose-500 bg-rose-50'}"><span class="hint text-xs ${ok ? 'text-slate-500' : 'text-rose-600'}">${item.place ? (ok ? esc(placeName(item.place)) : '找不到這個地點 id') : ''}</span></label>`;
             }
             if (name === 'time' && item.type === 'move') return `<label class="block"><span class="text-xs text-slate-500">${label}（自動，依前後景點推算）</span><input data-f="time" readonly value="${esc(item.time)}" class="mt-0.5 w-full rounded border bg-slate-100 p-1.5 text-slate-500"></label>`;
+            if (kind === 'int') return `<label class="block"><span class="text-xs text-slate-500">${label}</span><input data-f="${name}" inputmode="numeric" value="${esc(item[name])}" class="mt-0.5 w-full rounded border p-1.5"></label>`;
             return `<label class="block"><span class="text-xs text-slate-500">${label}</span><input data-f="${name}" value="${esc(item[name])}" class="mt-0.5 w-full rounded border p-1.5"></label>`;
         }
 
@@ -209,6 +210,12 @@
                     else if (el.checked) delete it[f]; else it[f] = false;
                     syncDays([di]);
                     return rerender();
+                }
+                if (FIELD[f][1] === 'int') {   // 整數欄位：空白或 0＝刪除；打到一半不是整數就先忽略
+                    const n = el.value.trim() === '' ? 0 : Number(el.value);
+                    if (!Number.isInteger(n)) return;
+                    if (n === 0) delete it[f]; else it[f] = n;
+                    return committed ? rerender() : ctx.changed();
                 }
                 if (el.value === '') delete it[f]; else it[f] = el.value;
                 if (f === 'place') {
