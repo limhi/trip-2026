@@ -391,6 +391,14 @@ test('getStayMinutes：完整區間且結束晚於開始才有值；不完整、
     for (const t of ['15:30 後', '12:15', '', undefined, '12:00 - 12:00', '23:00 - 01:00']) assert.equal(model.getStayMinutes(t), null, String(t));
 });
 
+test('getStayLabel：只有 spot／meal 且完整區間才有「停留 …」，其他類型與不完整都是空字串', () => {
+    assert.equal(model.getStayLabel({ type: 'spot', time: '12:20 - 14:00' }), '停留 1 小時 40 分');
+    assert.equal(model.getStayLabel({ type: 'meal', time: '11:15 - 12:00' }), '停留 45 分');
+    for (const type of ['drive', 'move', 'stay', 'end', 'notice']) assert.equal(model.getStayLabel({ type, time: '09:00 - 10:00' }), '', type);
+    assert.equal(model.getStayLabel({ type: 'spot', time: '15:30 後' }), '');
+    assert.equal(model.getStayLabel(undefined), '');
+});
+
 test('formatStay：沿用 formatDuration 的寫法但不帶「約」', () => {
     assert.equal(model.formatStay(100), '1 小時 40 分');
     assert.equal(model.formatStay(45), '45 分');

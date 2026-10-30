@@ -253,6 +253,12 @@
         return formatDuration(minutes).replace(/^約 /, '');
     }
 
+    // 項目的停留時間文字「停留 1 小時 40 分」：只有 spot／meal，且時間是完整區間、結束晚於開始才有，否則空字串。公開頁面與編輯器共用
+    function getStayLabel(item) {
+        const minutes = item && (item.type === 'spot' || item.type === 'meal') ? getStayMinutes(item.time) : null;
+        return minutes == null ? '' : `停留 ${formatStay(minutes)}`;
+    }
+
     // 路段快取的一筆是否可用：distance 與 duration 都是有限數字（getLegSchedule 與公開頁面的 dayRoutes 共用這一個判斷）
     const isUsableLeg = c => !!c && [c.distance, c.duration].every(v => typeof v === 'number' && Number.isFinite(v));
 
@@ -302,7 +308,7 @@
     Trip.model = {
         getContact, getMapPoints, getAltGroups, getAltGroupAt, validate, forEachPlaceRef, lacksCoords, CARD_TYPES, ROW_TYPES,
         DEFAULT_ROUTING, formatCoord, legKey, getLegs, getTrafficFactor, displayMinutes,
-        formatDuration, formatDistance, formatLeg, formatFactorNote, parseTimeRange, getStayMinutes, formatStay, isUsableLeg, getLegSchedule, getTimeWarnings
+        formatDuration, formatDistance, formatLeg, formatFactorNote, parseTimeRange, getStayMinutes, formatStay, getStayLabel, isUsableLeg, getLegSchedule, getTimeWarnings
     };
     if (typeof module !== 'undefined') module.exports = Trip.model;
 })(typeof window !== 'undefined' ? window : globalThis);

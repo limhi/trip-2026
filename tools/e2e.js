@@ -441,7 +441,7 @@ async function guard(label, fn) {
             check(`T12 DAY ${day.day} 反向：期望的「排定不足」被翻轉、或查詢時間被改掉，比對都會失敗`, (await altProblems(p, day, flipped)).length > 0 && (await altProblems(p, day, shifted)).length > 0 && (await altProblems(p, day, slots.slice(1))).length > 0);
             // 停留時間：共用時間框顯示一次，成員卡片不重複
             const stayCount = async text => p.evaluate(({ n, text }) => {
-                const g = [...document.querySelectorAll('[data-alt-group]')].find(el => el.closest('[data-day]') ? el.closest('[data-day]').dataset.day == n : true);
+                const g = [...document.querySelectorAll('[data-alt-group]')].find(el => el.closest('[data-day]')?.dataset.day == n);
                 return g ? (g.innerText.split(text).length - 1) : -1;
             }, { n: day.day, text });
             if (day.day === 4) {

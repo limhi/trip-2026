@@ -122,11 +122,9 @@
     // 擇一組的共用時間在第一成員，非第一成員不顯示。沒有提示回傳空字串
     function stayHint(day, ii) {
         const it = day.items[ii];
-        if (!it || (it.type !== 'spot' && it.type !== 'meal')) return '';
         const g = M.getAltGroupAt(day, ii);
         if (g && ii !== g.start) return '';
-        const minutes = M.getStayMinutes(it.time);
-        return minutes == null ? '' : `停留 ${M.formatStay(minutes)}`;
+        return M.getStayLabel(it);
     }
 
     function newItem(type, placeIds) {

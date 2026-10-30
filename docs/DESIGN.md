@@ -145,6 +145,7 @@
 
 共通欄位：
 - `place`：引用地點 id。卡片標題預設用地點名稱（要改標題就寫 `title`）；該地點有 `infoType` 時，卡片可點開聯絡與導航彈窗；該項目會依出現順序自動成為當天地圖的標記。
+- 停留時間（GLOSSARY）：`spot`／`meal` 的 `time` 是完整區間且結束晚於開始時，`Trip.model.getStayLabel(item)` 推導出「停留 1 小時 40 分」（`getStayMinutes`／`formatStay`），不存檔。公開頁面在時間旁顯示「（停留 …）」，擇一組只在共用時間框顯示一次（`altGroup`）；編輯器在時間文字旁顯示唯讀提示（`days-logic.js` 的 `stayHint`，擇一組只在第一成員）。只是資訊，不標紅、不進 `getTimeWarnings`。
 - `alt`（只限 `spot`）：相鄰、`alt` 字串相同的項目組成擇一組（ADR 0006）；共用時間寫在組內第一項的 `time`，其他成員不寫。`Trip.model.getAltGroups(day)` 推導出 `[{ alt, start, end }]`；`validate` 擋下非 `spot`、不相鄰、少於 2 項、非第一項寫 `time`。公開頁面（`js/blocks.js`）畫成「二選一」外框，成員卡片桌機（md 以上）並排、手機堆疊。地圖編號用同號加字母（`getMapPoints` 的 `label`：3a、3b，下一站接 4）；路段方面，`getLegs` 把相鄰同 `alt` 的標記併成一站，前一站→每個成員、每個成員→下一站各一段（分岔再合流，成員之間不連線；`leg.fromAlt`／`leg.toAlt` 標出所屬擇一組），車程顯示見第 15.6 節。
 - `map:false`：有 `place` 但不放上地圖。
 - `numbered:false`：放上地圖但不編號（`waypoint` 不會在左邊出現，地圖上以小圖示呈現）。

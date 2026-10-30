@@ -94,8 +94,8 @@
 
     // 停留時間只給 spot／meal：「（停留 1 小時 40 分）」；沒有值回空字串
     function stayText(item) {
-        const stay = item.type === 'spot' || item.type === 'meal' ? Trip.model.getStayMinutes(item.time) : null;
-        return stay ? `（停留 ${Trip.model.formatStay(stay)}）` : '';
+        const label = Trip.model.getStayLabel(item);
+        return label ? `（${label}）` : '';
     }
 
     function card(item, ctx, point) {
