@@ -80,6 +80,7 @@
                             <span class="cursor-grab select-none text-slate-400">⋮⋮</span>${num}
                             <span class="shrink-0 rounded px-1.5 py-0.5 text-[11px] font-bold ${meta.chip}">${meta.label}</span>
                             <span data-time class="w-24 shrink-0 truncate text-xs text-slate-500">${esc(it.time || '')}</span>
+                            <span data-stay class="shrink-0 text-[11px] text-emerald-700">${esc(L.stayHint(day, ii))}</span>
                             <span data-sum class="min-w-0 flex-1 truncate ${bad ? 'text-rose-700' : ''}">${bad ? '⚠ ' : ''}${esc(itemLabel(it))}</span>
                             ${altBtn}
                             <button data-act="up" class="rounded px-1.5 text-slate-500 hover:bg-slate-200" title="上移（到頂會跨到前一天）">↑</button>
@@ -192,7 +193,10 @@
                 }
                 const row = form.previousElementSibling;
                 row.querySelector('[data-sum]').textContent = itemLabel(it);
-                if (f === 'time') row.querySelector('[data-time]').textContent = it.time || '';
+                if (f === 'time') {
+                    row.querySelector('[data-time]').textContent = it.time || '';
+                    row.querySelector('[data-stay]').textContent = L.stayHint(days[+form.dataset.di], +form.dataset.ii);
+                }
                 return ctx.changed();
             }
             const dayCfg = el.closest('[data-di]');

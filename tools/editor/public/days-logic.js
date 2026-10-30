@@ -118,6 +118,17 @@
         return true;
     }
 
+    // 停留時間提示（唯讀，不寫入資料）：只有 spot／meal，time 是完整區間且結束晚於開始才有；
+    // 擇一組的共用時間在第一成員，非第一成員不顯示。沒有提示回傳空字串
+    function stayHint(day, ii) {
+        const it = day.items[ii];
+        if (!it || (it.type !== 'spot' && it.type !== 'meal')) return '';
+        const g = M.getAltGroupAt(day, ii);
+        if (g && ii !== g.start) return '';
+        const minutes = M.getStayMinutes(it.time);
+        return minutes == null ? '' : `停留 ${M.formatStay(minutes)}`;
+    }
+
     function newItem(type, placeIds) {
         if (type === 'drive' || type === 'move') return { type, text: '新項目' };
         if (type === 'waypoint') return { type, place: placeIds[0] };
@@ -145,7 +156,7 @@
     const itemErrors = (errors, dayNo, ii) => errors.filter(e => e.startsWith(`DAY ${dayNo} 第 ${ii + 1} 項：`));
     const dayErrors = (errors, dayNo) => errors.filter(e => e.startsWith(`DAY ${dayNo} `));
 
-    const api = { TYPES, moveItem, stepItem, changeType, newItem, altPosition, canJoinAlt, joinAlt, leaveAlt, getPath, setPath, itemErrors, dayErrors };
+    const api = { TYPES, moveItem, stepItem, changeType, newItem, altPosition, canJoinAlt, joinAlt, leaveAlt, stayHint, getPath, setPath, itemErrors, dayErrors };
     root.DaysLogic = api;
     if (typeof module !== 'undefined') module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

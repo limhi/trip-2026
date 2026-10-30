@@ -292,3 +292,35 @@ test('altPosition：回傳項目在擇一組裡是首／中／尾，不在組內
     const e = dayOf([spot('x', { alt: 'g' }), spot('y', { alt: 'g' }), spot('z', { alt: 'g' })]);
     assert.equal(L.altPosition(e, 1), 'middle');
 });
+
+test('stayHint：spot／meal 有完整區間時回傳停留時間，隨時間改動變化', () => {
+    const day = { day: 1, items: [{ type: 'spot', place: 'x', time: '09:00 - 10:40' }, { type: 'meal', title: 'm', time: '12:00 - 12:45' }] };
+    assert.equal(L.stayHint(day, 0), '停留 1 小時 40 分');
+    assert.equal(L.stayHint(day, 1), '停留 45 分');
+    day.items[0].time = '09:00 - 11:00';
+    assert.equal(L.stayHint(day, 0), '停留 2 小時');
+});
+
+test('stayHint：不完整、結束 ≤ 開始、沒時間都沒有提示', () => {
+    const mk = time => ({ day: 1, items: [{ type: 'spot', place: 'x', time }] });
+    for (const t of ['17:10 後', '09:00', '10:00 - 09:00', '10:00 - 10:00', '', undefined]) assert.equal(L.stayHint(mk(t), 0), '', String(t));
+});
+
+test('stayHint：只有 spot／meal 顯示，其他類型不顯示', () => {
+    for (const type of ['drive', 'move', 'stay', 'end', 'notice', 'brief']) {
+        assert.equal(L.stayHint({ day: 1, items: [{ type, time: '09:00 - 10:00' }] }, 0), '', type);
+    }
+});
+
+test('stayHint：擇一組只在持有共用時間的第一成員顯示一次，不寫入資料', () => {
+    const day = { day: 1, items: [
+        { type: 'spot', place: 'a', alt: 'alt1', time: '09:00 - 11:00' },
+        { type: 'spot', place: 'b', alt: 'alt1' },
+        { type: 'spot', place: 'c', time: '12:00 - 13:00' }
+    ] };
+    const before = JSON.stringify(day);
+    assert.deepEqual([0, 1, 2].map(i => L.stayHint(day, i)), ['停留 2 小時', '', '停留 1 小時']);
+    assert.equal(JSON.stringify(day), before);
+    day.items[1].time = '09:00 - 12:00';   // 非第一成員即使有 time 也不顯示
+    assert.equal(L.stayHint(day, 1), '');
+});
