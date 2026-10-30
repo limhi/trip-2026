@@ -8,7 +8,7 @@
     const WIDTHS = { phone: '390px', tablet: '768px', desktop: '100%' };
     const PREVIEW_URL = '/preview/index.html';
 
-    function create({ frame, onStatus = () => {}, delay = 350, fetchFn = (...a) => root.fetch(...a), timers = { setTimeout, clearTimeout } }) {
+    function create({ frame, onStatus = () => {}, delay = 350, fetchFn = (...a) => root.fetch(...a), timers = { setTimeout: (...a) => root.setTimeout(...a), clearTimeout: (...a) => root.clearTimeout(...a) } }) {
         let timer = null;
         let seq = 0;        // 只讓最後一次送出的草稿觸發重新整理
         let scroll = 0;     // 重新整理前的捲動位置

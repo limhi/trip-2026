@@ -12,7 +12,7 @@
     const M = (root.Trip && root.Trip.model) || require('../../../js/model');
 
     // data()：{ trip, places }；fetchFn(path, init)：同 fetch；onUpdate：狀態變了（重畫）；onComputed：有新結果（預覽要更新）
-    function create({ data, fetchFn = (...a) => root.fetch(...a), timers = { setTimeout, clearTimeout }, delay = 600, onUpdate = () => {}, onComputed = () => {} }) {
+    function create({ data, fetchFn = (...a) => root.fetch(...a), timers = { setTimeout: (...a) => root.setTimeout(...a), clearTimeout: (...a) => root.clearTimeout(...a) }, delay = 600, onUpdate = () => {}, onComputed = () => {} }) {
         const known = {};            // key → { distance, duration }（原始值）
         const failed = new Map();    // key → 錯誤文字
         const computing = new Set();
