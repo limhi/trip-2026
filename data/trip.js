@@ -89,7 +89,7 @@ window.TRIP = {
                     "type": "drive",
                     "time": "07:30 - 09:20",
                     "text": "土城出發 ➔ 宜蘭蘇澳；國5 週日車多，請留緩衝。",
-                    "duration": "車程約 1hr 50min（推估）"
+                    "note": "車程約 1hr 50min（推估）"
                 },
                 {
                     "type": "spot",
@@ -145,7 +145,7 @@ window.TRIP = {
                     "type": "drive",
                     "time": "08:30 - 09:00",
                     "text": "08:30 田心民宿退房出發 ➔ 宜蘭三星",
-                    "duration": "車程約 20min（推估）"
+                    "note": "車程約 20min（推估）"
                 },
                 {
                     "type": "spot",
@@ -158,7 +158,7 @@ window.TRIP = {
                     "type": "move",
                     "time": "11:00 - 11:30",
                     "text": "移動至清水地熱",
-                    "duration": "車程約 30min"
+                    "note": "車程約 30min"
                 },
                 {
                     "type": "spot",
@@ -171,7 +171,7 @@ window.TRIP = {
                     "type": "drive",
                     "time": "13:15 - 14:25",
                     "text": "清水地熱出發 ➔ 蘇澳 ➔ 蘇花改 ➔ 南澳。",
-                    "duration": "車程約 1hr 10min（推估）"
+                    "note": "車程約 1hr 10min（推估）"
                 },
                 {
                     "type": "waypoint",
@@ -182,7 +182,7 @@ window.TRIP = {
                     "type": "drive",
                     "time": "14:45 - 16:05",
                     "text": "南澳 ➔ 蘇花改 ➔ 花蓮七星潭。",
-                    "duration": "車程約 1hr 20min"
+                    "note": "車程約 1hr 20min"
                 },
                 {
                     "type": "spot",
@@ -195,7 +195,7 @@ window.TRIP = {
                     "type": "drive",
                     "time": "16:55 - 17:35",
                     "text": "七星潭 ➔ 花蓮志學（童樂會親子民宿）。",
-                    "duration": "車程約 40min（推估）"
+                    "note": "車程約 40min（推估）"
                 },
                 {
                     "type": "stay",
@@ -265,7 +265,7 @@ window.TRIP = {
                     "type": "drive",
                     "time": "08:30 - 11:10",
                     "text": "童樂會親子民宿退房出發，花蓮志學 ➔ 台東池上（台9線）。",
-                    "duration": "車程約 2hr 40min（推估）"
+                    "note": "車程約 2hr 40min（推估）"
                 },
                 {
                     "type": "meal",
@@ -293,7 +293,7 @@ window.TRIP = {
                     "type": "drive",
                     "time": "14:00 - 15:30",
                     "text": "池上出發 ➔ 台東市日安艸木公寓民宿（台9線）。",
-                    "duration": "車程約 1hr 30min（推估）"
+                    "note": "車程約 1hr 30min（推估）"
                 },
                 {
                     "type": "stay",
@@ -326,7 +326,7 @@ window.TRIP = {
                     "type": "drive",
                     "time": "09:30 - 10:25",
                     "text": "日安艸木退房出發 ➔ 太麻里多良（台9線）。",
-                    "duration": "車程約 55min（推估）"
+                    "note": "車程約 55min（推估）"
                 },
                 {
                     "type": "spot",
@@ -345,7 +345,7 @@ window.TRIP = {
                     "type": "drive",
                     "time": "11:05 - 15:05",
                     "text": "多良出發 ➔ 南迴公路 ➔ 屏東市；含午餐停留約 1 小時。",
-                    "duration": "車程約 3hr（推估，不含午餐）"
+                    "note": "車程約 3hr（推估，不含午餐）"
                 },
                 {
                     "type": "stay",

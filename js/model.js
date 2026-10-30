@@ -118,6 +118,7 @@
         trip.days.forEach(day => {
             day.items.forEach((item, index) => {
                 const where = `DAY ${day.day} 第 ${index + 1} 項`;
+                if ('duration' in item) errors.push(`${where}：項目的 duration 已改名為 note，請改用 note`);
                 if (!ALL_TYPES.includes(item.type)) errors.push(`${where}：不認得的類型「${item.type}」`);
                 if (item.type === 'waypoint' && !item.place) errors.push(`${where}：waypoint 必須指定 place`);
                 if (CARD_TYPES.includes(item.type) && !item.title && !item.place) errors.push(`${where}：卡片需要 place 或 title`);
@@ -258,7 +259,7 @@
     // 每一段的排定時間與查詢時間（公開頁面的紅字與編輯器的警告列表共用這一個判斷）。
     // 回傳 [{ leg, legIndex, scheduled, needed, short }]，順序同 getLegs：
     //   scheduled：排定時間（分）。有綁定交通列：該列 time 的完整區間長度；沒有交通列：前一項結束到後一項開始之差；
-    //             time 不是完整區間（「15:30 後」等）、多個交通列未綁定、closeLoop 回程都是 null。duration 欄位只是備註，不參與。
+    //             time 不是完整區間（「15:30 後」等）、多個交通列未綁定、closeLoop 回程都是 null。note 欄位只是備註，不參與。
     //   needed：查詢時間（分，含路況係數）；沒有路線快取時 null。
     //   short：兩者都有值且 scheduled < needed（排太緊）。
     // routes = { legs: { key: { distance, duration } } }，可為 undefined。

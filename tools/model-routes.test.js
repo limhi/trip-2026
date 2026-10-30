@@ -223,7 +223,7 @@ test('getTimeWarnings：時間文字後面接說明（如「10:00 - 11:00 午餐
 const sched = (day, routes = routesFor(day, 40 * MIN), site = SITE) => model.getLegSchedule(day, P, routes, site);
 
 test('getLegSchedule：每段輸出排定時間、查詢時間、是否不足（綁定交通列）', () => {
-    const day = dayOf([place('a'), { type: 'drive', time: '08:00 - 08:30', duration: '約 2 小時' }, place('b')]);
+    const day = dayOf([place('a'), { type: 'drive', time: '08:00 - 08:30', note: '約 2 小時' }, place('b')]);
     const [s] = sched(day);
     assert.equal(s.scheduled, 30);
     assert.equal(s.needed, 50);
@@ -233,7 +233,7 @@ test('getLegSchedule：每段輸出排定時間、查詢時間、是否不足（
 });
 
 test('getLegSchedule：排定夠長不得標為不足（反向）；duration 備註不參與計算', () => {
-    const day = dayOf([place('a'), { type: 'drive', time: '08:00 - 09:00', duration: '約 5 分' }, place('b')]);
+    const day = dayOf([place('a'), { type: 'drive', time: '08:00 - 09:00', note: '約 5 分' }, place('b')]);
     const [s] = sched(day);
     assert.deepEqual([s.scheduled, s.needed, s.short], [60, 50, false]);
 });
@@ -395,4 +395,11 @@ test('formatStay：沿用 formatDuration 的寫法但不帶「約」', () => {
     assert.equal(model.formatStay(100), '1 小時 40 分');
     assert.equal(model.formatStay(45), '45 分');
     assert.equal(model.formatStay(120), '2 小時');
+});
+
+test('validate：項目殘留 duration 要報錯並提示改用 note', () => {
+    const t = JSON.parse(JSON.stringify(TRIP));
+    t.days[0].items.push({ type: 'drive', time: '08:00 - 09:00', text: 'x', duration: '約 1 小時' });
+    const errs = model.validate(t, PLACES);
+    assert.ok(errs.some(e => e.includes('duration') && e.includes('note')), errs.join('\n'));
 });

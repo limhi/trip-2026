@@ -60,9 +60,9 @@
     // 擇一組前後：同一列並列每條路徑的查詢時間（「→ A 約 X 分／→ B 約 Y 分」），各路徑分別與同一個排定時間比對，不足的那條自己帶紅字
     const pathsText = (auto, weight) => auto.paths.map(p => `<span class="leg-path ${weight}">${esc(p.label)} <span class="auto-leg-duration text-amber-600">(查詢 ${esc(p.text)})</span>${shortText({ scheduled: auto.scheduled, needed: p.needed, short: p.short })}</span>`).join('／');
 
-    // duration 只是備註文字；查詢時間（auto）與備註並列
+    // note 只是備註文字；查詢時間（auto）與備註並列
     function legExtras(item, auto, weight) {
-        const note = item.duration ? ` <span class="text-amber-600 ${weight}">(${esc(item.duration)})</span>` : '';
+        const note = item.note ? ` <span class="text-amber-600 ${weight}">(${esc(item.note)})</span>` : '';
         if (!auto) return note;
         if (auto.paths) return `${note} ${pathsText(auto, weight)}${scheduledText(auto)}${autoNote(auto)}`;
         return `${note} <span class="auto-leg-duration text-amber-600 ${weight}">(查詢 ${esc(auto.text)})</span>${scheduledText(auto)}${shortText(auto)}${autoNote(auto)}`;
