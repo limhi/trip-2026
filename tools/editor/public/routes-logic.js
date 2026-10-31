@@ -46,6 +46,16 @@
         return { text: M.formatLeg(entry, factor), minutes, over: minutes > maxMinutes };
     }
 
+    // 一段路的三種長度文字（M.getLegSchedule 的一筆 → 畫面用字串）：查詢（原始、不含係數）、預估（× 路況係數）、排定（time 區間長度），
+    // 一律「X小時YY分」，沒有值是「—」。problem：'short'（排定 < 預估）｜'mismatch'（排定 ≠ 預估 + 緩衝）｜''；buffer：緩衝非 0 時的文字
+    function legLengths(s) {
+        return {
+            query: M.formatHM(s.query), estimate: M.formatHM(s.needed), scheduled: M.formatHM(s.scheduled),
+            buffer: s.buffer ? M.formatHM(s.buffer, true) : '',
+            problem: s.short ? 'short' : s.mismatch ? 'mismatch' : ''
+        };
+    }
+
     // 有地點、會顯示在地圖、但地點沒有座標的項目（這些不會算路線；判斷與 validate 相同，見 model.lacksCoords）
     function missingCoords(trip, places) {
         const out = [];
@@ -66,7 +76,7 @@
         return Number.isFinite(n) ? n : undefined;
     }
 
-    const api = { legKeys, pendingLegs, dayTotals, legText, missingCoords, parseNumberInput };
+    const api = { legKeys, pendingLegs, dayTotals, legText, legLengths, missingCoords, parseNumberInput };
     root.RoutesLogic = api;
     if (typeof module !== 'undefined') module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

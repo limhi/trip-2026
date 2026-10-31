@@ -50,60 +50,77 @@
     }
 
     // ───────── 行程區塊 ─────────
-    // auto：路線快取算出的 { text, note, scheduled, needed, short }（有快取的路段才會傳入）。
-    // 查詢時間一律顯示；排定時間只在 time 是完整區間時有值；排定時間 < 查詢時間時紅字加「⚠ 排定不足」（文字，不只靠顏色）
-    const autoNote = auto => `<span class="auto-leg-note block text-[10px] font-medium text-slate-500">${esc(auto.note)}</span>`;
-    const scheduledText = auto => auto.scheduled == null ? '' : ` <span class="leg-scheduled text-slate-500 font-bold">排定 ${auto.scheduled} 分</span>`;
+    // 起迄時間一律顯眼（深色、較大、粗體）；停留與各種長度用彩色標籤。所有長度文字都經 Trip.model.formatHM（X小時YY分）
+    const TIME_CLS = 'text-sm md:text-base font-black text-slate-900 tabular-nums whitespace-nowrap';
+    const CHIP_CLS = 'len-chip inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs md:text-sm font-bold whitespace-nowrap';
+    const hm = (minutes, signed) => Trip.model.formatHM(minutes, signed);
+    // 一個長度標籤：label 是名稱（查詢／預估／排定）；minutes 為 null 時顯示「—」
+    const chip = (label, minutes, cls, flag = '', extraCls = '') => `<span class="${CHIP_CLS} ${cls} ${extraCls}"><span class="font-medium opacity-70">${label}</span>${flag}${esc(hm(minutes))}</span>`;
+
+    // 移動的三種長度（各自標清楚名稱）：查詢 = 路線原始時間；預估 = 查詢 × 路況係數；排定 = 時間區間的長度（以資料 time 為準）。
+    // 排定不足（排定 < 預估）與排定和「預估 + 緩衝」不一致都標紅加 ⚠（文字，不只靠顏色）；沒有路線查詢結果時查詢、預估顯示「—」並說明
+    const queryChip = auto => chip('查詢', auto.query, 'bg-slate-200 text-slate-800');
+    const estimateChip = (auto, needed) => chip('預估', needed, 'bg-amber-100 text-amber-900');
+    const scheduledChip = auto => {
+        const bad = auto.short || auto.mismatch;
+        return chip('排定', auto.scheduled, bad ? 'bg-rose-100 text-rose-700 border border-rose-300' : 'bg-sky-100 text-sky-900', bad ? '⚠ ' : '', 'leg-scheduled');
+    };
+    const autoNote = auto => `<span class="auto-leg-note block text-[10px] font-medium text-slate-500 mt-1">${esc(auto.note)}</span>`;
     const shortText = auto => auto.short
-        ? ` <span class="leg-short text-rose-600 font-extrabold block sm:inline">⚠ 排定不足（排定 ${auto.scheduled} 分、查詢 ${esc(Trip.model.formatDuration(auto.needed))}）</span>` : '';
+        ? ` <span class="leg-short text-rose-600 font-extrabold block sm:inline">⚠ 排定不足（排定 ${esc(hm(auto.scheduled))} &lt; 預估 ${esc(hm(auto.needed))}）</span>` : '';
+    const mismatchText = (auto, item) => auto.mismatch && !auto.short
+        ? ` <span class="leg-mismatch text-rose-600 font-extrabold block sm:inline">⚠ 排定與預估不一致（預估 ${esc(hm(auto.needed))}、緩衝 ${esc(hm((item && item.buffer) || 0, true))}、排定 ${esc(hm(auto.scheduled))}）</span>` : '';
+    const missingText = auto => auto.missing ? ' <span class="leg-missing text-slate-500 font-medium">（沒有路線查詢結果，查詢、預估無法顯示）</span>' : '';
 
-    // 擇一組前後：同一列並列每條路徑的查詢時間（「→ A 約 X 分／→ B 約 Y 分」），各路徑分別與同一個排定時間比對，不足的那條自己帶紅字
-    const pathsText = (auto, weight) => auto.paths.map(p => `<span class="leg-path ${weight}">${esc(p.label)} <span class="auto-leg-duration text-amber-600">(查詢 ${esc(p.text)})</span>${shortText({ scheduled: auto.scheduled, needed: p.needed, short: p.short })}</span>`).join('／');
+    // 擇一組前後：同一列並列每條路徑的查詢與預估（「→ A 查詢 … 預估 …／→ B …」），共用一個排定時間；各路徑分別與同一個排定時間比對，不足的那條自己帶紅字
+    const pathsHtml = auto => `<div class="leg-lengths flex flex-wrap items-center gap-x-3 gap-y-1.5">${auto.paths.map(p => `<span class="leg-path inline-flex flex-wrap items-center gap-1.5 font-bold text-slate-800">${esc(p.label)} <span class="auto-leg-duration inline-flex flex-wrap gap-1.5">${queryChip(p)}${estimateChip(p, p.needed)}</span>${shortText({ scheduled: auto.scheduled, needed: p.needed, short: p.short })}</span>`).join('')}${scheduledChip({ ...auto, short: false, mismatch: false })}</div>`;
 
-    // note 只是備註文字；查詢時間（auto）與備註並列
-    function legExtras(item, auto, weight) {
-        const note = item.note ? ` <span class="text-amber-600 ${weight}">(${esc(item.note)})</span>` : '';
-        if (!auto) return note;
-        if (auto.paths) return `${note} ${pathsText(auto, weight)}${scheduledText(auto)}${autoNote(auto)}`;
-        return `${note} <span class="auto-leg-duration text-amber-600 ${weight}">(查詢 ${esc(auto.text)})</span>${scheduledText(auto)}${shortText(auto)}${autoNote(auto)}`;
-    }
+    // 單一路徑：查詢、預估、排定三個標籤 + 說明文字；距離放在標籤後面
+    const lengthsHtml = (auto, item) => auto.paths ? pathsHtml(auto)
+        : `<div class="leg-lengths flex flex-wrap items-center gap-1.5"><span class="auto-leg-duration inline-flex flex-wrap gap-1.5">${queryChip(auto)}${estimateChip(auto, auto.needed)}</span>${scheduledChip(auto)}${auto.distance ? ` <span class="text-xs md:text-sm font-bold text-slate-600">${esc(auto.distance)}</span>` : ''}${bufferText(item)}${missingText(auto)}</div>${shortText(auto)}${mismatchText(auto, item)}`;
 
-    // 緩衝非 0 時在移動列加註；只是標示，不改查詢時間
-    const bufferText = item => Number.isInteger(item.buffer) && item.buffer !== 0
-        ? ` <span class="leg-buffer text-slate-500 font-bold">含緩衝 ${item.buffer > 0 ? '+' : '−'}${Math.abs(item.buffer)} 分</span>` : '';
+    // 緩衝非 0 時加標籤；只是標示，不改查詢與預估
+    const bufferText = item => item && Number.isInteger(item.buffer) && item.buffer !== 0
+        ? ` <span class="leg-buffer ${CHIP_CLS} bg-violet-100 text-violet-800"><span class="font-medium opacity-70">緩衝</span>${esc(hm(item.buffer, true))}</span>` : '';
 
     function moveRow(item, auto) {
-        return `<div class="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 text-xs md:text-sm border border-slate-200">
-    <span class="font-bold text-slate-500 w-28 shrink-0"><i class="fa-solid fa-route mr-1"></i> ${esc(item.time)}</span>
-    <div class="text-slate-700">${esc(item.text)}${legExtras(item, auto, 'font-bold')}${bufferText(item)}</div>
+        const note = item.note ? ` <span class="text-amber-700">(${esc(item.note)})</span>` : '';
+        const lengths = auto ? lengthsHtml(auto, item) + autoNote(auto) : bufferText(item);
+        return `<div class="p-3 rounded-xl bg-slate-50 text-xs md:text-sm border border-slate-200">
+    <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span class="${TIME_CLS}"><i class="fa-solid fa-route mr-1 text-slate-500"></i>${esc(item.time)}</span>
+        <span class="font-bold text-slate-800">${esc(item.text)}${note}</span>
+    </div>
+    ${lengths ? `<div class="mt-1.5">${lengths}</div>` : ''}
 </div>`;
     }
 
     // 兩個地圖標記之間沒有交通列時補的唯讀連接列（只在有路線快取時出現）
     function autoLegRow(auto) {
-        return `<div class="auto-leg-row flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 text-xs md:text-sm border border-dashed border-slate-300">
-    <i class="fa-solid fa-car text-amber-500 w-4 shrink-0 text-center"></i>
-    <div class="text-slate-700">${auto.paths
-        ? `<span class="font-bold">車程（自動）</span> ${pathsText(auto, 'font-bold')}${scheduledText(auto)}`
-        : `<span class="font-bold">車程${esc(auto.text)}（自動）</span>${scheduledText(auto)}${shortText(auto)}`}${autoNote(auto)}</div>
+        return `<div class="auto-leg-row p-3 rounded-xl bg-slate-50 text-xs md:text-sm border border-dashed border-slate-300">
+    <div class="font-bold text-slate-800"><i class="fa-solid fa-car text-amber-500 mr-1"></i>車程（自動）</div>
+    <div class="mt-1.5">${auto.paths ? pathsHtml(auto) : lengthsHtml(auto, null)}${autoNote(auto)}</div>
 </div>`;
     }
 
-    // 停留時間只給 spot／meal：「（停留 1 小時 40 分）」；沒有值回空字串
+    // 停留時間只給 spot／meal：彩色標籤「停留 1小時40分」；沒有值回空字串
     function stayText(item) {
         const label = Trip.model.getStayLabel(item);
-        return label ? `（${label}）` : '';
+        return label ? `<span class="stay-chip ${CHIP_CLS} bg-emerald-100 text-emerald-800">${esc(label)}</span>` : '';
     }
+
+    // 時間區間 + 停留標籤（卡片與擇一組外框共用）
+    const timeHtml = item => item.time ? `<span class="flex flex-wrap items-center justify-end gap-x-2 gap-y-1"><span class="${TIME_CLS}">${esc(item.time)}</span>${stayText(item)}</span>` : '';
 
     function card(item, ctx, point) {
         const style = CARD_STYLES[item.type];
         const place = ctx.places[item.place];
         const click = interactive(place, item.place);
         const title = item.title || (place && place.name) || '';
-        const time = item.time ? `<span class="text-xs font-bold ${style.time}">${esc(item.time)}${stayText(item)}</span>` : '';
+        const time = timeHtml(item);
         const desc = item.desc ? `<p class="text-slate-700 text-xs md:text-sm mt-1 font-medium leading-relaxed">${esc(item.desc)}</p>` : '';
         return `<div class="p-4 rounded-xl ${style.box} border-l-8 shadow-sm${click.cls}"${click.attrs}>
-    <div class="flex justify-between items-start mb-1">
+    <div class="flex justify-between items-start gap-2 mb-1">
         <span class="flex items-center gap-2">${numberBadge(point)}<span class="text-xs font-black ${style.tag} text-white px-2 py-0.5 rounded">${esc(item.tag)}</span></span>
         ${time}
     </div>
@@ -119,7 +136,7 @@
         const desc = item.desc ? `<p class="text-slate-700 text-xs">${esc(item.desc)}</p>` : '';
         return `<div class="p-3 rounded-xl bg-amber-100/70 border border-amber-300 text-xs md:text-sm${click.cls}"${click.attrs}>
     <div class="flex justify-between font-extrabold text-amber-950 mb-0.5">
-        <span class="flex items-center gap-1.5">${numberBadge(point)}<span><i class="fa-solid fa-${esc(icon)} mr-1"></i> ${esc(item.time)}</span></span>
+        <span class="flex items-center gap-1.5">${numberBadge(point)}<span class="text-sm md:text-base font-black tabular-nums"><i class="fa-solid fa-${esc(icon)} mr-1"></i> ${esc(item.time)}</span></span>
         <span>${esc(item.title)}</span>
     </div>
     ${desc}${click.hint}
@@ -154,11 +171,11 @@
 
     // 擇一組外框：上方標示「二選一」與共用時間；成員卡片手機堆疊、桌機（md 以上）並排
     function altGroup(first, members) {
-        const timeHtml = first.time ? `<span class="text-xs font-bold text-slate-700">${esc(first.time)}${stayText(first)}</span>` : '';
+        const timeBlock = timeHtml(first);
         return `<div class="alt-group rounded-2xl border-2 border-dashed border-slate-400 p-3 bg-slate-50/60" data-alt-group>
     <div class="flex justify-between items-center mb-2">
         <span class="text-xs font-black bg-slate-600 text-white px-2 py-0.5 rounded"><i class="fa-solid fa-code-branch mr-1"></i>二選一</span>
-        ${timeHtml}
+        ${timeBlock}
     </div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
 ${members.filter(Boolean).join('\n')}

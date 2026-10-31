@@ -12,10 +12,10 @@
         buffer: ['緩衝（分鐘，可正負）', 'int'], place: ['地點', 'place'], map: ['顯示在地圖', 'bool'], numbered: ['地圖上編號', 'bool'], backup: ['備案（不連線）', 'bool']
     };
 
-    // ctx：{ data(): {trip, places}, errors(): string[], changed(): 重新驗證並更新外框, toast(msg), routes(): { legs }（路線快取，可省略） }
+    // ctx：{ data(): {trip, places}, errors(): string[], changed(): 重新驗證並更新外框, toast(msg), setTrial(on): 暫時套用開始／結束（外框據此擋存檔與發布）, routes(): { legs }（路線快取，可省略） }
     function create(pane, ctx) {
         const scroller = pane.parentElement;
-        const ui = { openDays: new Set([1]), dayCfg: new Set(), openItem: null, drag: null };
+        const ui = { openDays: new Set([1]), dayCfg: new Set(), openItem: null, drag: null, trial: null };   // trial：暫時套用中的 { di, item, field, snap }，null＝沒有
         const draft = () => ctx.data();
 
         const placeName = id => (draft().places[id] && draft().places[id].name) || '';
@@ -26,6 +26,14 @@
 
         // 待套用列：欄位值與資料不同時才顯示（syncPending）。連動／伸縮／取消；buffer 另有向前／向後選擇（在 pendBar 外，常駐）
         const pendBar = field => `<div data-pendbar="${field}" style="display:none" class="mt-1 flex flex-wrap items-center gap-1"><span class="text-[11px] text-amber-700">待套用：連動／伸縮</span><button type="button" data-act="pendlink" data-field="${field}" class="shrink-0 rounded border bg-white px-1.5 text-[11px] text-slate-700 hover:bg-slate-100" title="連動：${field === 'start' ? '前面整串跟著動' : field === 'end' ? '後面整串跟著動' : '依方向，該側整串跟著動'}（Enter 也是連動）">連動</button><button type="button" data-act="pendstretch" data-field="${field}" class="shrink-0 rounded border bg-white px-1.5 text-[11px] text-slate-700 hover:bg-slate-100" title="伸縮（單次）：只動緊鄰的移動與景點，更遠的不動">伸縮</button><button type="button" data-act="pendcancel" data-field="${field}" class="shrink-0 rounded border bg-white px-1.5 text-[11px] text-slate-500 hover:bg-slate-100" title="取消：欄位還原成目前資料">取消</button></div>`;
+
+        // 暫時套用列：按「連動」「伸縮」之後，結果先暫時留在清單與預覽上；「確認」才算數，「還原」回到操作前（資料與欄位完全復原）
+        const isTrial = (item, field) => !!ui.trial && ui.trial.item === item && ui.trial.field === field;
+        const trialBar = (field, on) => `<div data-trialbar="${field}" style="${on ? '' : 'display:none'}" class="mt-1 flex flex-wrap items-center gap-1"><span class="text-[11px] font-bold text-emerald-700">已暫時套用（看清單與預覽）</span><button type="button" data-act="trialconfirm" class="shrink-0 rounded bg-emerald-600 px-2 text-[11px] font-bold text-white hover:bg-emerald-500" title="確認：這次調整正式生效">確認</button><button type="button" data-act="trialrevert" class="shrink-0 rounded border bg-white px-2 text-[11px] text-slate-700 hover:bg-slate-100" title="還原：回到操作前，資料與欄位完全復原">還原</button></div>`;
+
+        // 清單列的長度標籤（停留／排定）：沒有值時整個隱藏
+        const LEN_CLS = 'shrink-0 rounded-md px-1.5 py-0.5 text-xs font-bold whitespace-nowrap empty:hidden ';
+        const lenCls = text => LEN_CLS + (text.startsWith('排定') ? 'bg-sky-100 text-sky-900' : 'bg-emerald-100 text-emerald-800');
 
         function fieldHtml(name, item, day, ii) {
             const [label, kind] = FIELD[name];
@@ -38,11 +46,11 @@
                 const ok = !item.place || draft().places[item.place];
                 return `<label class="col-span-2 block"><span class="text-xs text-slate-500">${label}（輸入名稱或 id 搜尋）</span><input list="placelist" data-f="place" value="${esc(item.place)}" class="mt-0.5 w-full rounded border p-1.5 ${ok ? '' : 'border-rose-500 bg-rose-50'}"><span class="hint text-xs ${ok ? 'text-slate-500' : 'text-rose-600'}">${item.place ? (ok ? esc(placeName(item.place)) : '找不到這個地點 id') : ''}</span></label>`;
             }
-            if (name === 'time' && item.type === 'move') return `<label class="block"><span class="text-xs text-slate-500">${label}（自動：由前後項目與路線查詢長度決定，改「緩衝」可微調）</span><input data-f="time" readonly value="${esc(item.time)}" class="mt-0.5 w-full rounded border bg-slate-100 p-1.5 text-slate-500"></label>`;
+            if (name === 'time' && item.type === 'move') return `<label class="block"><span class="text-xs text-slate-500">${label}（自動：由前後項目與預估時間決定，改「緩衝」可微調）</span><input data-f="time" readonly value="${esc(item.time)}" class="mt-0.5 w-full rounded border bg-slate-100 p-1.5 text-slate-500"></label>`;
             const parts = name === 'time' ? L.timeParts(item.time) : null;
             if (parts) {   // 完整區間：開始、結束都可改（離開欄位後連動：改結束平移後面、改開始平移前面），各有一次性「伸縮」、說明文字
                 const rw = 'class="mt-0.5 w-full rounded border p-1.5"';
-                const edge = (side, label, v) => `<div class="block"><span class="text-xs text-slate-500">${label}</span><input data-f="${side}" value="${esc(v)}" class="mt-0.5 w-full rounded border p-1.5">${pendBar(side)}</div>`;
+                const edge = (side, label, v) => `<div class="block"><span class="text-xs text-slate-500">${label}</span><input data-f="${side}" value="${esc(v)}" class="mt-0.5 w-full rounded border p-1.5">${pendBar(side)}${trialBar(side, isTrial(item, side))}</div>`;
                 return `<div class="col-span-2 grid grid-cols-3 gap-2">
                     ${edge('start', '開始（改它＝前面整串跟著動）', parts.start)}
                     ${edge('end', '結束（改它＝後面整串跟著動）', parts.end)}
@@ -50,7 +58,7 @@
                 </div>`;
             }
             if (name === 'buffer' && item.type === 'move') {   // 移動列緩衝：向前＝開始邊動（前面跟著動）、向後＝結束邊動（後面跟著動）；方向與伸縮不存，只存總緩衝
-                return `<div class="block"><span class="text-xs text-slate-500">${label}</span><div class="mt-0.5 flex gap-1"><input data-f="buffer" inputmode="numeric" value="${esc(item.buffer)}" class="min-w-0 flex-1 rounded border p-1.5"><select data-f="bufdir" class="shrink-0 rounded border bg-white p-1 text-xs" title="這次調整哪一邊動（不存）"><option value="back" selected>向後</option><option value="forward">向前</option></select></div>${pendBar('buffer')}</div>`;
+                return `<div class="block"><span class="text-xs text-slate-500">${label}</span><div class="mt-0.5 flex gap-1"><input data-f="buffer" inputmode="numeric" value="${esc(item.buffer)}" class="min-w-0 flex-1 rounded border p-1.5"><select data-f="bufdir" class="shrink-0 rounded border bg-white p-1 text-xs" title="這次調整哪一邊動（不存）"><option value="back" selected>向後</option><option value="forward">向前</option></select></div>${pendBar('buffer')}${trialBar('buffer', isTrial(item, 'buffer'))}</div>`;
             }
             return `<label class="block"><span class="text-xs text-slate-500">${label}</span><input data-f="${name}" value="${esc(item[name])}" class="mt-0.5 w-full rounded border p-1.5"></label>`;
         }
@@ -97,8 +105,8 @@
                         <div data-row draggable="true" data-act="toggle" class="flex cursor-pointer items-center gap-2 border-b px-2 py-1.5 ${bad ? 'bg-rose-50' : isMove ? 'bg-sky-50 hover:bg-sky-100' : isOpen ? 'bg-blue-50' : 'hover:bg-slate-50'}">
                             <span class="cursor-grab select-none text-slate-400">⋮⋮</span>${num}
                             ${isMove ? '<span title="移動" class="shrink-0 text-sky-600">🚗</span>' : ''}<span class="shrink-0 rounded px-1.5 py-0.5 text-[11px] font-bold ${meta.chip}">${meta.label}</span>
-                            <span data-time class="w-24 shrink-0 truncate text-xs text-slate-500">${esc(it.time || '')}</span>
-                            <span data-stay class="shrink-0 text-[11px] text-emerald-700">${esc(L.stayHint(day, ii))}</span>
+                            <span data-time class="w-28 shrink-0 whitespace-nowrap text-sm font-black tabular-nums text-slate-900">${esc(it.time || '')}</span>
+                            <span data-stay class="${lenCls(L.rowLength(day, ii))}">${esc(L.rowLength(day, ii))}</span>
                             <span data-sum class="min-w-0 flex-1 truncate ${bad ? 'text-rose-700' : ''}">${bad ? '⚠ ' : ''}${esc(itemLabel(it))}</span>
                             ${altBtn}
                             <button data-act="up" class="rounded px-1.5 text-slate-500 hover:bg-slate-200" title="上移（到頂會跨到前一天）">↑</button>
@@ -123,7 +131,7 @@
                             ${dayErrs.length ? `<span class="shrink-0 rounded bg-rose-100 px-1.5 text-xs text-rose-700">⚠ ${dayErrs.length}</span>` : ''}
                             ${ctx.dayHeadHtml ? `<span data-dayroute data-di="${di}" class="contents">${ctx.dayHeadHtml(di)}</span>` : ''}
                         </button>
-                        <button data-act="dayresched" class="rounded border bg-white px-2 py-0.5 text-xs" title="以第一個有完整時間的項目的開始為起點，依停留與移動長度（路線查詢 + 緩衝）重排整天；按了才執行">整天重排</button>
+                        <button data-act="dayresched" class="rounded border bg-white px-2 py-0.5 text-xs" title="以第一個有完整時間的項目的開始為起點，依停留與移動長度（預估 + 緩衝）重排整天；按了才執行">整天重排</button>
                         <button data-act="daycfg" class="rounded border bg-white px-2 py-0.5 text-xs">日設定</button>
                     </div>
                     ${ui.dayCfg.has(day.day) ? dayCfgHtml(day, di) : ''}
@@ -162,7 +170,9 @@
             pane.querySelectorAll(`[data-item][data-di="${di}"]`).forEach(el => {
                 const ii = +el.dataset.ii, t = day.items[ii].time || '';
                 el.querySelector('[data-time]').textContent = t;
-                el.querySelector('[data-stay]').textContent = L.stayHint(day, ii);
+                const stay = el.querySelector('[data-stay]'), len = L.rowLength(day, ii);
+                stay.textContent = len;
+                stay.className = lenCls(len);
                 const form = el.querySelector('[data-form]');
                 if (!form) return;
                 const parts = L.timeParts(t) || {};
@@ -171,6 +181,13 @@
                 set('buffer', String(day.items[ii].buffer || ''));
                 syncPending(form, day.items[ii]);
             });
+        }
+
+        // 暫時套用中不得再改別的東西（編輯、搬移、存檔、發布都要先確認或還原）；回傳是否被擋下並提示
+        function blockedByTrial() {
+            if (!ui.trial) return false;
+            ctx.toast('請先「確認」或「還原」暫時套用的調整');
+            return true;
         }
 
         // 待套用狀態（只存在 DOM：input.dataset.pend＋黃底＋按鈕列），不進資料。結構改動（rerender／toggle 重畫）會整個重畫表單，等於直接捨棄待套用
@@ -183,17 +200,45 @@
                 input.style.background = pend ? '#fef3c7' : '';
                 const bar = form.querySelector(`[data-pendbar="${f}"]`);
                 if (bar) bar.style.display = pend ? '' : 'none';
+                const trialEl = form.querySelector(`[data-trialbar="${f}"]`);
+                if (trialEl) trialEl.style.display = isTrial(item, f) ? '' : 'none';
             });
         }
 
-        // 套用或取消待套用欄位：mode 'link'｜'stretch'｜'cancel'
+        // 待套用欄位：mode 'link'｜'stretch'｜'cancel'。連動／伸縮 = 暫時套用（進入試算，結果先留在清單與預覽，等「確認」或「還原」）
         function applyPending(di, ii, field, mode) {
             const form = pane.querySelector(`[data-item][data-di="${di}"][data-ii="${ii}"] [data-form]`);
             if (!form) return;
             if (mode === 'cancel') return refreshTimes(di, true);
+            if (blockedByTrial()) return;
             const value = form.querySelector(`input[data-f="${field}"]`).value;
-            if (field === 'buffer') applyBuffer(di, ii, value, form.querySelector('[data-f="bufdir"]').value, mode);
-            else applyEdge(di, ii, field, value, mode);
+            const direction = field === 'buffer' ? form.querySelector('[data-f="bufdir"]').value : undefined;
+            startTrial(di, ii, field, value, { mode, direction });
+        }
+
+        // 暫時套用：不補列、不重畫，焦點不丟；被拒絕（停留 ≤ 0、超出一天、格式不對）toast 並把欄位還原成資料裡的值，不進入暫時套用
+        function startTrial(di, ii, field, value, opts) {
+            const { trip, places } = draft();
+            const day = trip.days[di];
+            const r = L.startTrial(day, ii, field, value, opts);
+            if (!r.ok) { ctx.toast(r.message); return refreshTimes(di, true); }
+            if (field === 'buffer' && !M.parseTimeRange(day.items[ii].time)) M.fitMoves(day, places, routesOf(), trip.site, item => item === day.items[ii]);   // 還沒有時間的列：依預估長度補上
+            ui.trial = { di, item: day.items[ii], field, snap: r.snap };
+            ctx.setTrial(true);
+            refreshTimes(di, true);
+            ctx.changed();   // 清單、預覽、路線列都看到暫時結果；存檔與發布在確認前被擋下
+        }
+
+        // 確認：暫時結果正式生效（資料已經是結果，只是解除暫時狀態並通知變更）；還原：回到操作前
+        function endTrial(confirm) {
+            const t = ui.trial;
+            if (!t) return;
+            const day = draft().trip.days[t.di];
+            if (!confirm) L.restoreDay(day, t.snap);
+            ui.trial = null;
+            ctx.setTrial(false);
+            refreshTimes(t.di, true);
+            ctx.changed();
         }
 
         // 路線算完（keys = 新算出的路段）：綁定這些路段的移動列依新長度調整，後面平移；不重畫，只更新時間
@@ -205,26 +250,6 @@
                 if (M.fitMoves(day, places, routesOf(), trip.site, (_item, key) => want.has(key)).changed.length) { any = true; refreshTimes(di); }
             });
             if (any) ctx.changed();
-        }
-
-        // 景點開始／結束邊界調整（連動或伸縮）：不補列、不重畫，焦點不丟；拒絕時 toast 並把欄位還原成資料裡的值
-        function applyEdge(di, ii, side, value, mode) {
-            const day = draft().trip.days[di];
-            const r = L.setItemTime(day, ii, side, value, mode);
-            if (!r.ok) ctx.toast(r.message);
-            refreshTimes(di, true);
-            if (r.ok) ctx.changed();
-        }
-
-        // 移動列緩衝（連動或伸縮）：同景點邊界，不補列、不重畫、焦點不丟；拒絕時 toast 並還原欄位
-        function applyBuffer(di, ii, value, direction, mode) {
-            const { trip, places } = draft();
-            const day = trip.days[di];
-            const r = L.setMoveBuffer(day, ii, value, direction, mode);
-            if (!r.ok) ctx.toast(r.message);
-            else if (!M.parseTimeRange(day.items[ii].time)) M.fitMoves(day, places, routesOf(), trip.site, item => item === day.items[ii]);   // 還沒有時間的列：依查詢長度補上
-            refreshTimes(di, true);
-            if (r.ok) ctx.changed();
         }
 
         function afterMove(pos, fromDi, before) {
@@ -243,6 +268,9 @@
             const el = e.target.closest('[data-act]');
             if (!el) return;
             const act = el.dataset.act;
+            if (act === 'trialconfirm') return endTrial(true);
+            if (act === 'trialrevert') return endTrial(false);
+            if (blockedByTrial()) return;
             const itemEl = el.closest('[data-item]');
             const { trip } = draft();
             const days = trip.days;
@@ -281,7 +309,7 @@
             }
         });
 
-        pane.addEventListener('mousedown', e => { if (e.target.closest('[data-act^="pend"]')) e.preventDefault(); });   // 按鈕不搶走欄位焦點（離開焦點本來就不套用，只是讓焦點留在原處）
+        pane.addEventListener('mousedown', e => { if (e.target.closest('[data-act^="pend"],[data-act^="trial"]')) e.preventDefault(); });   // 按鈕不搶走欄位焦點（離開焦點本來就不套用，只是讓焦點留在原處）
         // 待套用欄位按 Enter＝連動
         pane.addEventListener('keydown', e => {
             if (e.key !== 'Enter' || e.isComposing) return;
@@ -297,6 +325,7 @@
 
         function handleEdit(e, committed) {
             const el = e.target;
+            if (ui.trial && el.closest('[data-form],[data-df]')) { blockedByTrial(); return render(); }   // 暫時套用中：欄位退回資料裡的值
             const { trip, places } = draft();
             const days = trip.days;
             const form = el.closest('[data-form]');
@@ -356,6 +385,7 @@
         pane.addEventListener('dragstart', e => {
             const row = e.target.closest('[data-row]');
             if (!row) return;
+            if (blockedByTrial()) return e.preventDefault();
             const item = row.closest('[data-item]');
             ui.drag = { di: +item.dataset.di, ii: +item.dataset.ii };
             e.dataTransfer.effectAllowed = 'move';
@@ -395,7 +425,7 @@
         pane.addEventListener('dragend', () => { ui.drag = null; clearMarks(); pane.querySelectorAll('.opacity-40').forEach(n => n.classList.remove('opacity-40')); });
 
         // 重新載入資料時呼叫：丟掉指向舊項目的展開狀態
-        function reset() { ui.openItem = null; }
+        function reset() { ui.openItem = null; ui.trial = null; ctx.setTrial(false); }
 
         return { render, reset, applyComputed };
     }

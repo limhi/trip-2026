@@ -243,7 +243,7 @@ async function guard(label, fn) {
     const GEO_JS = 'window.TRIP_ROUTES_GEO = ' + JSON.stringify(fakeGeo) + ';';
     // 獨立算法（不用 model 的格式函式）
     const mins = (d, leg) => Math.round(fakeLegs[leg.key].duration / 60 * FACTOR(d));
-    const hm = m => (m >= 60 ? Math.floor(m / 60) + ' 小時' + (m % 60 ? ' ' + (m % 60) + ' 分' : '') : m + ' 分');
+    const hm = m => Math.floor(m / 60) + '小時' + String(m % 60).padStart(2, '0') + '分';   // 獨立寫法：X小時YY分
     async function routesPage(opts = {}) {
         const p = await newPage(opts);
         p.geoRequests = [];
@@ -273,21 +273,24 @@ async function guard(label, fn) {
                 const el = document.querySelector(s);
                 const sum = el.querySelector('.day-drive-summary');
                 return { summary: sum ? sum.textContent : null, autoRows: el.querySelectorAll('.auto-leg-row').length, autoDur: el.querySelectorAll('.auto-leg-duration').length,
-                    autoRowText: [...el.querySelectorAll('.auto-leg-row')].map(r => r.textContent) };
+                    autoRowText: [...el.querySelectorAll('.auto-leg-row')].map(r => r.textContent),
+                    lengths: [...el.querySelectorAll('.leg-lengths')].map(x => x.textContent) };
             }, `#day-${day.day}`);
             // 有擇一組的天：連接列只出現一條、總車程取較長的路徑，這些由 route-view 與 blocks 的單元測試與 T11 驗證
             if (model.getAltGroups(day).length) continue;
             const wantAuto = cached.filter(l => l.needsRow).length;
-            const wantDur = cached.filter(l => l.rowIndex != null).length;   // duration 只是備註，不再隱藏查詢時間
+            const wantDur = cached.length ? legs.filter(l => l.rowIndex != null).length : 0;   // 有快取的天，每個綁定的移動列都有一組長度標籤（沒有查詢結果的顯示「—」）
             if (dom.autoRows !== wantAuto) bad.push(`DAY ${day.day}：自動連接列 ${dom.autoRows}，應為 ${wantAuto}`);
             if (dom.autoDur !== wantDur) bad.push(`DAY ${day.day}：算出的交通列時間 ${dom.autoDur}，應為 ${wantDur}`);
+            if (dom.lengths.some(t => !(t.includes('查詢') && t.includes('預估') && t.includes('排定')))) bad.push(`DAY ${day.day}：有長度列缺少 查詢／預估／排定 其中之一`);
+            if (cached.length && dom.lengths.length !== wantDur + wantAuto) bad.push(`DAY ${day.day}：三種長度列 ${dom.lengths.length}，應為 ${wantDur + wantAuto}`);
             if (cached.length === 0) { if (dom.summary !== null) bad.push(`DAY ${day.day}：沒有快取卻有總車程`); continue; }
             const totalMin = cached.reduce((s, l) => s + mins(day, l), 0), totalKm = (cached.reduce((s, l) => s + fakeLegs[l.key].distance, 0) / 1000).toFixed(1);
             const partial = cached.length < legs.length;
-            if (!dom.summary || !dom.summary.includes(`總車程 約 ${hm(totalMin)}・總里程 ${totalKm} km`)) bad.push(`DAY ${day.day}：總車程文字不對「${dom.summary}」，應含 ${hm(totalMin)}・${totalKm} km`);
+            if (!dom.summary || !dom.summary.includes(`總車程 ${hm(totalMin)}・總里程 ${totalKm} km`)) bad.push(`DAY ${day.day}：總車程文字不對「${dom.summary}」，應含 ${hm(totalMin)}・${totalKm} km`);
             if (dom.summary && dom.summary.includes('部分路段未計算') !== partial) bad.push(`DAY ${day.day}：「部分路段未計算」應為 ${partial}`);
             const firstAuto = cached.find(l => l.needsRow);
-            if (firstAuto && !dom.autoRowText.some(t => t.includes(`車程約 ${hm(mins(day, firstAuto))}・`) && t.includes('（自動）'))) bad.push(`DAY ${day.day}：連接列文字不對`);
+            if (firstAuto && !dom.autoRowText.some(t => t.includes(`預估${hm(mins(day, firstAuto))}`) && t.includes('車程（自動）'))) bad.push(`DAY ${day.day}：連接列文字不對`);
         }
         check('T8 每天：自動連接列數、算出的交通列時間、總車程與里程、「部分路段未計算」', bad.length === 0, bad.slice(0, 5).join('；'));
 
@@ -315,7 +318,7 @@ async function guard(label, fn) {
             if (labels.length !== cached.length) bad2.push(`DAY ${day.day}：時間標示 ${labels.length} 個，應為 ${cached.length}`);
             const wantRed = cached.filter(l => mins(day, l) > MAX_MIN).length;
             if (solid.filter(l => l.color === '#dc2626').length !== wantRed || labels.filter(l => /map-leg-label-over/.test(l.html)).length !== wantRed) bad2.push(`DAY ${day.day}：紅色段落應為 ${wantRed} 段`);
-            cached.forEach(l => { if (!labels.some(x => x.html.includes(`約 ${hm(mins(day, l))}・${(fakeLegs[l.key].distance / 1000).toFixed(1)} km`))) bad2.push(`DAY ${day.day}：找不到標示「${hm(mins(day, l))}」`); });
+            cached.forEach(l => { if (!labels.some(x => x.html.includes(`${hm(mins(day, l))}・${(fakeLegs[l.key].distance / 1000).toFixed(1)} km`))) bad2.push(`DAY ${day.day}：找不到標示「${hm(mins(day, l))}」`); });
             const note = await p.evaluate(d => document.querySelector(`#day-map-panel-${d} p:last-child`).textContent, day.day);
             if (!note.includes('實際請以導航為準') || !note.includes('×' + FACTOR(day))) bad2.push(`DAY ${day.day}：地圖說明文字沒有更新「${note.slice(0, 40)}」`);
         }
@@ -420,7 +423,7 @@ async function guard(label, fn) {
             paths.forEach((sc, j) => {
                 const g = got[j];
                 if (!g) return;
-                if (!g.text.includes(`查詢 約 ${hm(sc.needed)}`)) bad.push(`第 ${i + 1} 條第 ${j + 1} 路徑沒有查詢時間「約 ${hm(sc.needed)}」：${g.text.slice(0, 60)}`);
+                if (!g.text.includes(`預估${hm(sc.needed)}`)) bad.push(`第 ${i + 1} 條第 ${j + 1} 路徑沒有預估時間「${hm(sc.needed)}」：${g.text.slice(0, 60)}`);
                 if (g.short !== sc.short) bad.push(`第 ${i + 1} 條第 ${j + 1} 路徑「排定不足」應為 ${sc.short}，實際 ${g.short}`);
                 if (g.short && !g.text.includes('⚠ 排定不足')) bad.push(`第 ${i + 1} 條第 ${j + 1} 路徑紅字沒有「⚠ 排定不足」文字`);
             });
@@ -434,7 +437,7 @@ async function guard(label, fn) {
         await openIndex(p);
         for (const day of altDays) {
             const slots = altSlots(day, REAL_ROUTES);
-            check(`T12 DAY ${day.day} 真實快取：組前、組後各一條連接列、每條路徑有查詢時間、「排定不足」只在不足的路徑、總車程取較長`, (await altProblems(p, day, slots)).length === 0, (await altProblems(p, day, slots)).slice(0, 3).join('；'));
+            check(`T12 DAY ${day.day} 真實快取：組前、組後各一條連接列、每條路徑有預估時間、「排定不足」只在不足的路徑、總車程取較長`, (await altProblems(p, day, slots)).length === 0, (await altProblems(p, day, slots)).slice(0, 3).join('；'));
             // 反向：期望值被改錯時，這個比對一定要抓得到（證明斷言不是空的）
             const flipped = slots.map((ps, i) => i === 0 ? ps.map((sc, j) => j === 0 ? { ...sc, short: !sc.short } : sc) : ps);
             const shifted = slots.map((ps, i) => i === 0 ? ps.map((sc, j) => j === 0 ? { ...sc, needed: sc.needed + 7 } : sc) : ps);
@@ -445,8 +448,8 @@ async function guard(label, fn) {
                 return g ? (g.innerText.split(text).length - 1) : -1;
             }, { n: day.day, text });
             if (day.day === 4) {
-                check('T12 DAY 4 真實資料：擇一組顯示「停留 1 小時 40 分」恰好一次', await stayCount('停留 1 小時 40 分') === 1);
-                check('T12 DAY 4 反向：錯的停留時間文字比對會失敗', await stayCount('停留 1 小時 41 分') !== 1);
+                check('T12 DAY 4 真實資料：擇一組顯示「停留 1小時40分」恰好一次', await stayCount('停留 1小時40分') === 1);
+                check('T12 DAY 4 反向：錯的停留時間文字比對會失敗', await stayCount('停留 1小時41分') !== 1);
             }
         }
         check('T12 真實資料頁面無 JS 錯誤、沒有紅色提示列', p.errors.length === 0 && !(await p.evaluate(() => !!document.querySelector('body > div.bg-rose-600'))), p.errors.join(' | '));
