@@ -157,6 +157,15 @@
         return { ok: false, reason: 'invalid', message: '這個欄位不能修改', changed: [] };
     }
 
+    // 設定移動列的緩衝（value 是輸入框文字：空白＝0＝刪除欄位；不是整數回傳拒絕）。direction 'forward'（開始邊動）｜'back'（結束邊動）；
+    // mode 'link'｜'stretch'，規則在 model.adjustMoveBuffer。移動列沒有完整時間時只存 buffer，等路線算完再依長度補。回傳 { ok, reason, message, changed }
+    function setMoveBuffer(day, ii, value, direction = 'back', mode = 'link') {
+        const text = String(value).trim();
+        const n = text === '' ? 0 : Number(text);
+        if (!Number.isInteger(n)) return { ok: false, reason: 'invalid', message: '緩衝必須是整數分鐘', changed: [] };
+        return M.adjustMoveBuffer(day, ii, n, direction, mode);
+    }
+
     // 移動列（物件）→ 綁定路段的 key；改動前後各取一次，路段變了的列才需要重算長度
     function moveKeys(day, places) {
         const keys = new Map();
@@ -224,7 +233,7 @@
     const itemErrors = (errors, dayNo, ii) => errors.filter(e => e.startsWith(`DAY ${dayNo} 第 ${ii + 1} 項：`));
     const dayErrors = (errors, dayNo) => errors.filter(e => e.startsWith(`DAY ${dayNo} `));
 
-    const api = { TYPES, moveItem, stepItem, changeType, newItem, altPosition, canJoinAlt, joinAlt, leaveAlt, stayHint, timeParts, setItemTime, moveKeys, syncMoves, rescheduleDay, moveWarnings, getPath, setPath, itemErrors, dayErrors };
+    const api = { TYPES, moveItem, stepItem, changeType, newItem, altPosition, canJoinAlt, joinAlt, leaveAlt, stayHint, timeParts, setItemTime, setMoveBuffer, moveKeys, syncMoves, rescheduleDay, moveWarnings, getPath, setPath, itemErrors, dayErrors };
     root.DaysLogic = api;
     if (typeof module !== 'undefined') module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
