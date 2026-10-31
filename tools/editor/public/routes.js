@@ -2,6 +2,7 @@
 // 計算流程在 routes-controller.js、純邏輯在 routes-logic.js、規則在 js/model.js。
 //   const routes = EditorRoutes.create({ pane, bar, data, changed, onComputed, onStatus });
 //   routes.legHtml(di, ii) / routes.dayHeadHtml(di)   給 days.js 畫在項目之間與日標題
+//   routes.known()                                    路線快取 { key: { distance, duration } }（days.js 算移動列長度用）
 //   routes.reset()                                    重新載入資料後呼叫
 // 草稿變動（document 的 'draftchange'）時自動重畫並排程計算；結果更新時只就地換掉路線區塊，不重畫整個分頁（避免輸入中失去焦點）。
 (function () {
@@ -11,7 +12,7 @@
     const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
     // pane：每日行程分頁（放路線區塊）；bar：路線設定與警告列；data()：{ trip, places }；
-    // changed()：草稿改了（重新驗證並通知預覽）；onComputed()：有新算出的路線（預覽要重新整理）
+    // changed()：草稿改了（重新驗證並通知預覽）；onComputed(keys)：有新算出的路線（keys＝新算出的路段；預覽要重新整理、受影響的天要連動）
     // onStatus()：路線狀態變了（含「有未存檔的路線」），外框要重畫
     function create({ pane, bar, data, changed, onComputed, onStatus = () => {} }) {
         const ctl = window.RoutesController.create({ data, onUpdate: () => { refresh(); onStatus(); }, onComputed });
@@ -28,11 +29,21 @@
             failed: ['失敗', 'bg-rose-100 text-rose-700']
         };
 
+        // 三種長度標籤：查詢（路線原始時間）、預估（× 路況係數）、排定（time 區間）；排定不足或與「預估 + 緩衝」不一致標紅加 ⚠；沒有值顯示「—」
+        const chip = (label, text, cls, flag = '') => `<span class="inline-flex gap-1 rounded px-1.5 py-0.5 text-xs font-bold ${cls}"><span class="font-medium opacity-70">${label}</span>${flag}${esc(text)}</span>`;
+        function lengthChips(s) {
+            const t = L.legLengths(s);
+            const bad = !!t.problem;
+            const note = t.problem === 'short' ? '排定不足（排定 &lt; 預估）' : t.problem === 'mismatch' ? '排定與預估＋緩衝不一致' : '';
+            return `<span data-lengths class="inline-flex flex-wrap items-center gap-1">${chip('查詢', t.query, 'bg-slate-200 text-slate-800')}${chip('預估', t.estimate, 'bg-amber-100 text-amber-900')}${chip('排定', t.scheduled, bad ? 'bg-rose-100 text-rose-700 border border-rose-300' : 'bg-sky-100 text-sky-900', bad ? '⚠ ' : '')}${t.buffer ? chip('緩衝', t.buffer, 'bg-violet-100 text-violet-800') : ''}${note ? `<span class="font-bold text-rose-600">⚠ ${note}</span>` : ''}</span>`;
+        }
+
         // 某個項目後面接著的路段（fromItemIndex === ii）
         function legHtml(di, ii) {
             const { trip, places } = data();
             const day = trip.days[di];
             const factor = M.getTrafficFactor(day, trip.site);
+            const sched = M.getLegSchedule(day, places, { legs: ctl.known }, trip.site);
             return M.getLegs(day, places).map((leg, n) => ({ leg, n })).filter(x => x.leg.fromItemIndex === ii).map(({ leg, n }) => {
                 const status = ctl.status(leg.key) || 'pending';
                 const [label, cls] = BADGE[status];
@@ -40,10 +51,10 @@
                 let body;
                 if (status === 'ok') {
                     const t = L.legText(ctl.known[leg.key], factor, maxMinutes());
-                    body = `<span class="${t.over ? 'font-bold text-rose-600' : ''}">${esc(t.text)}${t.over ? `（超過 ${maxMinutes()} 分）` : ''}</span> <span class="text-slate-400">${esc(M.formatFactorNote(factor))}</span>`;
+                    body = `${lengthChips(sched[n])} <span class="${t.over ? 'font-bold text-rose-600' : ''}">${esc(M.formatDistance(ctl.known[leg.key].distance))}${t.over ? `（預估超過 ${esc(M.formatHM(maxMinutes()))}）` : ''}</span> <span class="text-slate-400">${esc(M.formatFactorNote(factor))}</span>`;
                 } else if (status === 'failed') {
-                    body = `<span class="text-rose-600">${esc(ctl.error(leg.key))}；退回直線，不會自動重試</span>`;
-                } else body = '';
+                    body = `${lengthChips(sched[n])} <span class="text-rose-600">${esc(ctl.error(leg.key))}；退回直線，不會自動重試</span>`;
+                } else body = lengthChips(sched[n]);
                 const btn = status === 'computing' ? '' : `<button data-leg-act="recompute" data-key="${esc(leg.key)}" class="rounded border bg-white px-1.5 text-slate-600 hover:bg-slate-100">重新計算</button>`;
                 return `<div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 border-b bg-slate-50 px-3 py-0.5 text-xs text-slate-600"><span>↓ ${label2}</span><span class="rounded px-1 ${cls}">${label}</span>${body}${btn}</div>`;
             }).join('');
@@ -55,7 +66,7 @@
             const t = L.dayTotals(trip.days[di], places, ctl.known, trip.site);
             if (!t.count) return '';
             const miss = t.missing && t.missing !== t.count ? `（${t.missing} 段未算）` : '';
-            const text = t.missing === t.count ? '車程：尚未計算' : `車程 ${M.formatDuration(t.minutes)}・${M.formatDistance(t.meters)}`;
+            const text = t.missing === t.count ? '車程：尚未計算' : `車程 ${M.formatHM(t.minutes)}・${M.formatDistance(t.meters)}`;
             return `<span class="shrink-0 rounded bg-white px-1.5 text-xs text-slate-600">${text}${miss}</span>`;
         }
 
@@ -64,6 +75,13 @@
             const { trip, places } = data();
             const out = [];
             for (const day of trip.days) {
+                M.deriveMoves(day, places).warnings.forEach(w => out.push(w.message));   // 移動列：多個、多餘
+                const noRoute = new Set();
+                M.getLegs(day, places).forEach(leg => {   // 移動列沒有查詢結果：時間沿用現有值，不會連動
+                    if (leg.rowIndex == null || leg.closeLoop || noRoute.has(leg.rowIndex) || ctl.status(leg.key) === 'computing') return;
+                    noRoute.add(leg.rowIndex);
+                    if (M.getMoveMinutesAt(day, leg.rowIndex, places, { legs: ctl.known }, trip.site) == null) out.push(`DAY ${day.day} 第 ${leg.rowIndex + 1} 項：移動列沒有路線查詢結果，時間沿用現有值（算出路線後才會連動）`);
+                });
                 M.getTimeWarnings(day, places, { legs: ctl.known }, trip.site).forEach(w => out.push(w.message));
                 M.getLegs(day, places).forEach((leg, n) => {
                     if (ctl.status(leg.key) === 'failed') out.push(`DAY ${day.day} 第 ${n + 1} 段（${nameOf(leg.fromId)} → ${nameOf(leg.toId)}）：路線計算失敗（${ctl.error(leg.key)}），公開頁面會退回直線`);
@@ -139,6 +157,7 @@
 
         return {
             legHtml, dayHeadHtml,
+            known: () => ctl.known,
             unsaved: () => ctl.unsaved(),
             markSaved: () => ctl.markSaved(),
             reset() {

@@ -3,7 +3,7 @@
 // 每次草稿變動會在 document 發出 'draftchange' 事件（detail = { trip, places }），給預覽等功能使用。
 const $ = id => document.getElementById(id);
 const M = window.Trip.model;
-const state = { data: null, saved: '', errors: [], tab: 'days', errOpen: false };
+const state = { data: null, saved: '', errors: [], tab: 'days', errOpen: false, trial: false };   // trial：有暫時套用（連動／伸縮的結果尚未確認），存檔與發布先擋下
 
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const snapshot = () => JSON.stringify({ trip: state.data.trip, places: state.data.places });
@@ -26,10 +26,11 @@ async function api(method, body) {
 function renderChrome() {
     const status = $('status');
     if (!state.data) { status.textContent = '載入中…'; status.className = 'text-xs'; }
+    else if (state.trial) { status.textContent = '● 暫時套用中（請先確認或還原，才能存檔與發布）'; status.className = 'text-xs font-bold text-amber-300'; }
     else if (textDirty()) { status.textContent = '● 有未存檔的修改'; status.className = 'text-xs font-bold text-amber-300'; }
     else if (dirty()) { status.textContent = '● 路線計算結果未存檔'; status.className = 'text-xs font-bold text-amber-300'; }
     else { status.textContent = '已存檔（與磁碟相同）'; status.className = 'text-xs text-emerald-300'; }
-    $('save').disabled = !dirty();
+    $('save').disabled = !dirty() || state.trial;
     document.querySelectorAll('#tabs button').forEach(b => {
         b.className = 'px-4 py-2 ' + (b.dataset.tab === state.tab ? 'border-b-2 border-blue-600 bg-white text-blue-700' : 'text-slate-500');
     });
@@ -60,13 +61,14 @@ preview.start();
 
 let routes = null;   // 路線功能（routes.js）；days 先建立，所以用延後綁定
 const days = DaysTab.create($('pane-days'), {
-    data: () => state.data, errors: () => state.errors, changed, toast, onDayOpen: n => preview.scrollToDay(n),
+    data: () => state.data, errors: () => state.errors, changed, toast, setTrial: on => { state.trial = on; renderChrome(); }, onDayOpen: n => preview.scrollToDay(n),
+    routes: () => (routes ? { legs: routes.known() } : undefined),
     legHtml: (di, ii) => (routes ? routes.legHtml(di, ii) : ''),
     dayHeadHtml: di => (routes ? routes.dayHeadHtml(di) : '')
 });
 routes = EditorRoutes.create({
     pane: $('pane-days'), bar: $('routebar'), data: () => state.data, changed,
-    onComputed: () => preview.sendDraft({ trip: state.data.trip, places: state.data.places }),
+    onComputed: keys => { days.applyComputed(keys); preview.sendDraft({ trip: state.data.trip, places: state.data.places }); },
     onStatus: renderChrome
 });
 
@@ -75,7 +77,7 @@ const places = PlacesTab.create($('pane-places'), { data: () => state.data, chan
 const hotels = HotelsTab.create($('pane-hotels'), { data: () => state.data, changed, toast });
 
 const publishDialog = PublishDialog.create({ modal: $('modal'), body: $('modal-body'), state: () => state, dirty, reload: load });
-$('publish').onclick = () => publishDialog.show();
+$('publish').onclick = () => { if (state.trial) return toast('請先確認或還原暫時套用的調整'); publishDialog.show(); };
 
 // 還原選單：「放棄未存檔的修改」＝重新載入；「還原到上次發布」＝資料檔退回 HEAD（先備份）
 const restoreMenu = $('restoreMenu');
@@ -112,6 +114,7 @@ async function load() {
 }
 
 async function save() {
+    if (state.trial) return toast('請先確認或還原暫時套用的調整');
     try {
         const res = await api('PUT', state.data);
         state.data.mtimes = res.mtimes;

@@ -6,7 +6,7 @@ const L = require('./public/places-logic');
 
 const trip = () => ({
     days: [
-        { day: 1, stay: { place: 'inn' }, items: [{ type: 'spot', place: 'a' }, { type: 'drive', text: 'x' }, { type: 'spot', place: 'inn' }] },
+        { day: 1, stay: { place: 'inn' }, items: [{ type: 'spot', place: 'a' }, { type: 'move', text: 'x' }, { type: 'spot', place: 'inn' }] },
         { day: 2, items: [{ type: 'waypoint', place: 'a' }] }
     ],
     hotels: [{ place: 'inn', region: 'r' }, { place: 'b' }]

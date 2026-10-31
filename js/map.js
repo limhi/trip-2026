@@ -47,7 +47,7 @@
         const esc = Trip.blocks.esc;
         const info = dayRouteInfo(day, places, routeCtx);
         const note = info
-            ? `標記數字與左邊行程的編號相同（無數字的圓點為不列入行程的起點）；實線為道路查詢路線，虛線為尚未計算的順序示意。路段中間標示查詢時間與距離，紅色表示單段超過 ${Trip.model.formatDuration(info.max).replace('約 ', '')}。${esc(info.factorNote)}，實際請以導航為準，可點標記開啟導航。`
+            ? `標記數字與左邊行程的編號相同（無數字的圓點為不列入行程的起點）；實線為道路路線，虛線為尚未計算的順序示意。路段中間標示預估時間與距離，紅色表示單段超過 ${Trip.model.formatHM(info.max)}。${esc(info.factorNote)}，實際請以導航為準，可點標記開啟導航。`
             : '標記數字與左邊行程的編號相同（無數字的圓點為不列入行程的起點）；連線僅為順序示意，實際道路請點標記後開啟導航。';
         const stayPlace = day.stay && places[day.stay.place];
         const stayButton = stayPlace && stayPlace.infoType
@@ -83,12 +83,12 @@
     }
 
     // 路段中間的「時間・距離」標示（不攔截點擊，標記仍可點）
-    // 時間一律標示「查詢」與係數（短形式可見，完整說明放 title）
+    // 時間一律標示「預估」與係數（短形式可見，完整說明放 title）
     function createLegLabel(text, over, info) {
         const esc = Trip.blocks.esc;
         return L.divIcon({
             className: 'map-leg-label-icon',
-            html: `<div class="map-leg-label${over ? ' map-leg-label-over' : ''}" title="${esc(info.factorNote)}">${esc(text)} <span class="map-leg-factor">查詢 ×${esc(info.factor)}</span></div>`,
+            html: `<div class="map-leg-label${over ? ' map-leg-label-over' : ''}" title="${esc(info.factorNote)}">${esc(text)} <span class="map-leg-factor">預估 ×${esc(info.factor)}</span></div>`,
             iconSize: [0, 0]
         });
     }

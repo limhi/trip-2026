@@ -131,9 +131,9 @@ test('geo 載入後：道路路線取代虛線，超過門檻的段落紅色，�
     assert.deepEqual(lines.map(l => l.opts.color), ['#334155', '#dc2626']);
     const ls = labels(env);
     assert.equal(ls.length, 2);
-    assert.match(ls[0].opts.icon.html, /約 1 小時 21 分・75\.3 km/);
+    assert.match(ls[0].opts.icon.html, /1小時21分・75\.3 km/);
     assert.ok(!/over/.test(ls[0].opts.icon.html));
-    assert.match(ls[1].opts.icon.html, /約 3 小時 8 分・200\.0 km/);
+    assert.match(ls[1].opts.icon.html, /3小時08分・200\.0 km/);
     assert.match(ls[1].opts.icon.html, /map-leg-label-over/);
     assert.equal(ls[0].opts.interactive, false);
     // 第一段路線點 [24.1,121.1]→[24.12,121.17]→[24.2,121.2]：一半長度落在第二小段上，不是起終點中點 [24.15,121.15]
@@ -203,7 +203,7 @@ test('兩天的地圖在 geo 載入完成前都展開：只載入一次，載入
     for (const g of env.rec.groups) assert.ok(g.layers.filter(l => l.kind === 'polyline').every(l => !l.opts.dashArray));
 });
 
-test('中點標示一律帶「查詢」與係數（可見文字，title 為完整說明）', async () => {
+test('中點標示一律帶「預估」與係數（可見文字，title 為完整說明）', async () => {
     const env = makeEnv();
     expand(env, CACHE);
     env.ctx.window.TRIP_ROUTES_GEO = GEO;
@@ -212,8 +212,8 @@ test('中點標示一律帶「查詢」與係數（可見文字，title 為完�
     const ls = labels(env);
     assert.equal(ls.length, 2);
     for (const l of ls) {
-        assert.match(l.opts.icon.html, /查詢\s*×1\.25/);
-        assert.match(l.opts.icon.html, /title="查詢・含路況緩衝 ×1\.25"/);
+        assert.match(l.opts.icon.html, /預估\s*×1\.25/);
+        assert.match(l.opts.icon.html, /title="預估・含路況係數 ×1\.25"/);
     }
 });
 

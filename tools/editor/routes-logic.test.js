@@ -11,7 +11,7 @@ const places = {
     nocoord: { name: '沒座標' }
 };
 const day = (items, extra) => ({ day: 1, items, ...extra });
-const trip = { site: {}, days: [day([{ type: 'spot', place: 'a' }, { type: 'drive', text: '開車' }, { type: 'spot', place: 'b' }, { type: 'spot', place: 'c' }])] };
+const trip = { site: {}, days: [day([{ type: 'spot', place: 'a' }, { type: 'move', text: '開車' }, { type: 'spot', place: 'b' }, { type: 'spot', place: 'c' }])] };
 const [ab, bc] = M.getLegs(trip.days[0], places);
 
 test('pendingLegs：只挑快取沒有的段落，並排除計算中／已失敗的', () => {
@@ -60,13 +60,29 @@ test('legText：顯示時間、距離，超過門檻標紅（以顯示分鐘判�
     assert.equal(R.legText(e, 2, 120).over, true, '係數改變，判斷跟著變');
 });
 
+test('legLengths：查詢（不含係數）、預估（含係數）、排定三種長度，一律「X小時YY分」；排定不足與不一致各自標記', () => {
+    const known = { [ab.key]: { distance: 75323, duration: 4334 } };   // 查詢 72、預估 90（×1.25）
+    const mk = (time, buffer) => ({ ...trip.days[0], items: [trip.days[0].items[0], { type: 'move', text: '開車', time, ...(buffer ? { buffer } : {}) }, ...trip.days[0].items.slice(2)] });
+    const lens = (d, k = known) => R.legLengths(M.getLegSchedule(d, places, { legs: k }, { routing: { trafficFactor: 1.25 } })[0]);
+    assert.deepEqual(lens(mk('08:00 - 09:30')), { query: '1小時12分', estimate: '1小時30分', scheduled: '1小時30分', buffer: '', problem: '' });
+    assert.equal(lens(mk('08:00 - 09:00')).problem, 'short');                         // 排定 60 < 預估 90
+    assert.equal(lens(mk('08:00 - 11:00')).problem, 'mismatch');                      // 排定 180 ≠ 預估 90
+    assert.deepEqual([lens(mk('08:00 - 09:45', 15)).problem, lens(mk('08:00 - 09:45', 15)).buffer], ['', '+15分']);   // 90 + 15 = 105 吻合
+});
+
+test('legLengths：沒有查詢結果或排定時間時顯示「—」，不標問題', () => {
+    const d = { ...trip.days[0], items: [trip.days[0].items[0], { type: 'move', text: '開車', time: '15:30 後' }, ...trip.days[0].items.slice(2)] };
+    const [s] = M.getLegSchedule(d, places, { legs: {} }, {});
+    assert.deepEqual(R.legLengths(s), { query: '—', estimate: '—', scheduled: '—', buffer: '', problem: '' });
+});
+
 test('missingCoords：有地點但沒座標的項目（map:false 與找不到地點的不算）', () => {
     const t = { days: [day([
         { type: 'spot', place: 'a' },
         { type: 'spot', place: 'nocoord' },
         { type: 'spot', place: 'nocoord', map: false },
         { type: 'spot', place: 'ghost' },
-        { type: 'drive', text: 'x' }
+        { type: 'move', text: 'x' }
     ])] };
     assert.deepEqual(R.missingCoords(t, places), [{ day: 1, itemIndex: 1, placeId: 'nocoord', name: '沒座標' }]);
 });

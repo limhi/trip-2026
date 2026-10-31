@@ -9,15 +9,14 @@
 
     // 每種項目類型可填的欄位（與 docs/DESIGN.md 4.2 一致）；label／chip 給畫面用
     const TYPES = {
-        drive:    { label: '交通',   chip: 'bg-slate-700 text-white',         fields: ['time', 'text', 'note'] },
-        move:     { label: '移動',   chip: 'bg-slate-200 text-slate-800',     fields: ['time', 'text', 'note'] },
-        spot:     { label: '景點',   chip: 'bg-blue-100 text-blue-800',       fields: CARD },
-        meal:     { label: '用餐',   chip: 'bg-amber-100 text-amber-800',     fields: CARD },
-        stay:     { label: '住宿',   chip: 'bg-purple-100 text-purple-800',   fields: CARD },
-        end:      { label: '結束',   chip: 'bg-emerald-100 text-emerald-800', fields: CARD },
-        notice:   { label: '提醒',   chip: 'bg-orange-100 text-orange-800',   fields: CARD },
-        brief:    { label: '資訊框', chip: 'bg-yellow-100 text-yellow-800',   fields: ['time', 'title', 'place', 'icon', 'desc', ...COMMON] },
-        waypoint: { label: '起訖/休息點', chip: 'bg-sky-100 text-sky-800',    fields: ['place', 'text', 'mapName', 'backup', 'numbered'] }
+        move:     { label: '移動',        chip: 'bg-slate-200 text-slate-800',     bar: 'border-l-sky-500',     fields: ['time', 'text', 'note', 'buffer'] },
+        spot:     { label: '景點',        chip: 'bg-blue-100 text-blue-800',       bar: 'border-l-blue-500',    fields: CARD },
+        meal:     { label: '用餐',        chip: 'bg-amber-100 text-amber-800',     bar: 'border-l-amber-500',   fields: CARD },
+        stay:     { label: '住宿',        chip: 'bg-purple-100 text-purple-800',   bar: 'border-l-purple-500',  fields: CARD },
+        end:      { label: '結束',        chip: 'bg-emerald-100 text-emerald-800', bar: 'border-l-emerald-500', fields: CARD },
+        notice:   { label: '提醒',        chip: 'bg-orange-100 text-orange-800',   bar: 'border-l-orange-500',  fields: CARD },
+        brief:    { label: '資訊框',      chip: 'bg-yellow-100 text-yellow-800',   bar: 'border-l-yellow-500',  fields: ['time', 'title', 'place', 'icon', 'desc', ...COMMON] },
+        waypoint: { label: '起訖/休息點', chip: 'bg-sky-100 text-sky-800',         bar: 'border-l-sky-500',     fields: ['place', 'text', 'mapName', 'backup', 'numbered'] }
     };
 
     // 把項目從 (fromDi, fromIi) 搬到 (toDi, toIi)；toIi 是以「搬動前」的陣列計算的插入位置。回傳新位置。
@@ -127,8 +126,139 @@
         return M.getStayLabel(it);
     }
 
+    // 清單每一列的長度標籤（唯讀，不寫入資料）：景點／用餐是停留；移動是「排定 X小時YY分」（time 區間的長度）；其他或時間不完整回傳空字串
+    function rowLength(day, ii) {
+        const it = day.items[ii];
+        if (it && it.type === 'move') {
+            const r = M.parseTimeRange(it.time);
+            return r ? `排定 ${M.formatHM(r.end - r.start)}` : '';
+        }
+        return stayHint(day, ii);
+    }
+
+    // ---- 邊界連動與伸縮（ADR 0007）：長度與平移規則全在 model（adjustSpotEdge、fitMoves），這裡只決定「哪個欄位怎麼改」 ----
+
+    const TIME_HEAD = /^\s*(\d{1,2}):(\d{2})\s*[-–—~]\s*(\d{1,2}):(\d{2})(?!\d)/;
+
+    // 完整區間 time 拆成 { start, end, tail }（'HH:MM'、'HH:MM'、區間後的說明文字）；不是完整區間回傳 null。編輯器的開始／結束／後註欄用
+    function timeParts(time) {
+        const r = M.parseTimeRange(time);
+        if (!r) return null;
+        const clock = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+        return { start: clock(r.start), end: clock(r.end), tail: time.slice(TIME_HEAD.exec(time)[0].length).trim() };
+    }
+
+    // 改項目的時間，part：
+    //   'start'／'end' 開始／結束（H:MM）：交給 model.adjustSpotEdge；mode 'link'（預設，連動：改結束平移後面、改開始平移前面）｜'stretch'（伸縮，單次，只動緊鄰）
+    //   'tail'  區間後的說明文字：只改文字
+    //   'time'  整串時間文字（沒有完整區間的項目，例如「15:30 後」）：直接寫入，空字串刪除欄位
+    // 被拒絕（格式不對、停留 ≤ 0、超出當天等）回傳 { ok: false, reason, message } 且不改任何資料。
+    // 回傳 { ok, reason, message, changed }
+    function setItemTime(day, ii, part, value, mode = 'link') {
+        const it = day.items[ii];
+        const done = () => ({ ok: true, reason: null, message: '', changed: [] });
+        if (part === 'time') { if (value === '' || value == null) delete it.time; else it.time = value; return done(); }
+        if (part === 'start' || part === 'end') return M.adjustSpotEdge(day, ii, part, value, mode);
+        if (part === 'tail' && M.parseTimeRange(it.time)) {
+            const head = TIME_HEAD.exec(it.time)[0];
+            it.time = head + (String(value).trim() ? ' ' + String(value).trim() : '');
+            return done();
+        }
+        return { ok: false, reason: 'invalid', message: '這個欄位不能修改', changed: [] };
+    }
+
+    // 設定移動列的緩衝（value 是輸入框文字：空白＝0＝刪除欄位；不是整數回傳拒絕）。direction 'forward'（開始邊動）｜'back'（結束邊動）；
+    // mode 'link'｜'stretch'，規則在 model.adjustMoveBuffer。移動列沒有完整時間時只存 buffer，等路線算完再依長度補。回傳 { ok, reason, message, changed }
+    function setMoveBuffer(day, ii, value, direction = 'back', mode = 'link') {
+        const text = String(value).trim();
+        const n = text === '' ? 0 : Number(text);
+        if (!Number.isInteger(n)) return { ok: false, reason: 'invalid', message: '緩衝必須是整數分鐘', changed: [] };
+        return M.adjustMoveBuffer(day, ii, n, direction, mode);
+    }
+
+    // ---- 暫時套用（連動／伸縮之後先試算；「確認」才算數、「還原」回到操作前）----
+
+    // 整天項目的快照：項目物件本身（還原後仍是同一個物件）與它們當時的欄位內容
+    function snapshotDay(day) {
+        return { refs: day.items.slice(), data: JSON.parse(JSON.stringify(day.items)) };
+    }
+
+    // 就地還原成快照：項目物件、順序、欄位都回到快照當時，被加進來的項目被丟掉
+    function restoreDay(day, snap) {
+        snap.refs.forEach((item, i) => {
+            Object.keys(item).forEach(k => delete item[k]);
+            Object.assign(item, JSON.parse(JSON.stringify(snap.data[i])));
+        });
+        day.items.splice(0, day.items.length, ...snap.refs);
+    }
+
+    // 試算一次待套用的欄位（field 'start'｜'end'｜'buffer'）：先拍快照，再就地套用連動或伸縮，結果暫時留在 day 上。
+    // opts：{ mode 'link'｜'stretch', direction 'forward'｜'back'（只有 buffer 用）}。
+    // 成功回傳 { ok: true, snap, changed }，之後「確認」不用再改資料、「還原」用 restoreDay(day, snap)；
+    // 被拒絕（停留 ≤ 0、超出一天、格式不對）回傳 { ok: false, message }，資料一個字都不變（沒有 snap）
+    function startTrial(day, ii, field, value, { mode = 'link', direction = 'back' } = {}) {
+        const snap = snapshotDay(day);
+        const r = field === 'buffer' ? setMoveBuffer(day, ii, value, direction, mode) : setItemTime(day, ii, field, value, mode);
+        if (!r.ok) { restoreDay(day, snap); return { ok: false, message: r.message, reason: r.reason }; }
+        return { ok: true, snap, changed: r.changed };
+    }
+
+    // 移動列（物件）→ 綁定路段的 key；改動前後各取一次，路段變了的列才需要重算長度
+    // 欄位值（輸入框文字）與資料不同＝待套用：開始／結束（只看有完整區間的項目）、移動列緩衝（空白＝0；不是整數也算，套用時才被拒絕）。其他欄位沒有待套用
+    function isPendingEdit(item, field, value) {
+        const text = String(value == null ? '' : value).trim();
+        if (field === 'start' || field === 'end') {
+            const parts = timeParts(item.time);
+            return !!parts && parts[field] !== text;
+        }
+        if (field === 'buffer' && item.type === 'move') {
+            const n = text === '' ? 0 : Number(text);
+            return !Number.isInteger(n) || n !== (item.buffer || 0);
+        }
+        return false;
+    }
+
+    function moveKeys(day, places) {
+        const keys = new Map();
+        M.getLegs(day, places).forEach(leg => {
+            if (leg.rowIndex != null && !leg.closeLoop && !keys.has(day.items[leg.rowIndex])) keys.set(day.items[leg.rowIndex], leg.key);
+        });
+        return keys;
+    }
+
+    // 結構改動（新增、刪除、搬移、換地點、轉類型、擇一組）之後：補缺的移動列（fill = false 時不補），
+    // 再讓「路段變了」或「新補的」移動列依查詢長度調整（before = 改動前的 moveKeys；沒有查詢結果的列不動，等路線算完再處理）。
+    // opts：{ routes: { legs }, site, before, fill }。回傳 { added: 補了幾列, changed, warnings }
+    function syncMoves(day, places, { routes, site, before = new Map(), fill = true } = {}) {
+        const added = M.applyMoves(day, M.deriveMoves(day, places), fill).added.length;
+        const r = M.fitMoves(day, places, routes, site, (item, key) => before.get(item) !== key);
+        return { added, changed: r.changed, warnings: r.warnings };
+    }
+
+    // 整天重排（「整天重排」按鈕與 tools/sync-moves.js --reschedule 共用；就地修改 day）：
+    //   1. 補缺的移動列（applyMoves）；補出的列有查詢結果時，先依前一站結束算出 time（fitMoves），沒有查詢結果就維持沒有 time 並警告。
+    //   2. 以第一個完整區間項目的開始為起點整天重排（model.rescheduleDay）：停留不變、移動列 = 查詢 + 緩衝。
+    // 可重複執行（第二次 added、changed 都是 0）。回傳 { added: 補了幾列, changed: 幾個項目的時間有變（含補出的列新得到的時間）, warnings: [{ type, index, message }] }
+    function rescheduleDay(day, places, { routes, site } = {}) {
+        const before = new Map(day.items.map(i => [i, i.time]));
+        const filled = M.applyMoves(day, M.deriveMoves(day, places)).added;
+        const added = new Set(filled.map(a => a.item));
+        const warnings = M.fitMoves(day, places, routes, site, item => added.has(item)).warnings;
+        added.forEach(item => {
+            if (!item.time && !warnings.some(w => w.type === 'no-route' && day.items[w.index] === item)) {
+                warnings.push({ type: 'no-route', index: day.items.indexOf(item), message: `DAY ${day.day} 第 ${day.items.indexOf(item) + 1} 項：新補的移動列沒有路線查詢結果，時間留空` });
+            }
+        });
+        const r = M.rescheduleDay(day, places, routes, site);
+        warnings.push(...r.warnings);
+        return { added: filled.length, changed: day.items.filter(i => before.get(i) !== i.time).length, warnings };
+    }
+
+    // 移動列警告（多個、多餘）；不擋存檔與發布
+    const moveWarnings = (day, places) => M.deriveMoves(day, places).warnings;
+
     function newItem(type, placeIds) {
-        if (type === 'drive' || type === 'move') return { type, text: '新項目' };
+        if (type === 'move') return { type, text: '新項目' };
         if (type === 'waypoint') return { type, place: placeIds[0] };
         if (type === 'brief') return { type, title: '新項目' };
         return { type, tag: '新項目', title: '新項目' };
@@ -154,7 +284,7 @@
     const itemErrors = (errors, dayNo, ii) => errors.filter(e => e.startsWith(`DAY ${dayNo} 第 ${ii + 1} 項：`));
     const dayErrors = (errors, dayNo) => errors.filter(e => e.startsWith(`DAY ${dayNo} `));
 
-    const api = { TYPES, moveItem, stepItem, changeType, newItem, altPosition, canJoinAlt, joinAlt, leaveAlt, stayHint, getPath, setPath, itemErrors, dayErrors };
+    const api = { TYPES, moveItem, stepItem, changeType, newItem, altPosition, canJoinAlt, joinAlt, leaveAlt, stayHint, rowLength, timeParts, setItemTime, setMoveBuffer, isPendingEdit, snapshotDay, restoreDay, startTrial, moveKeys, syncMoves, rescheduleDay, moveWarnings, getPath, setPath, itemErrors, dayErrors };
     root.DaysLogic = api;
     if (typeof module !== 'undefined') module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -14,6 +14,7 @@
  *   7. 版本號格式
  *   8. 路線快取：data/routes.js、routes-geo.js 與 routes.json 同步（併入第 0 項）、routes.json 結構正確；
  *      行程有路段沒快取、快取有沒被使用的舊筆只會警告，不失敗
+ *   9. 移動列：缺移動列、重複、多餘只警告（見 tools/sync-moves.js）
  * 有任何問題會列出並以非 0 結束。這不能取代瀏覽器實測（見 docs/DESIGN.md 的「驗證方法」）。
  */
 const fs = require('fs');
@@ -68,6 +69,13 @@ if (TRIP && PLACES && model) {
     const v = TRIP.site && TRIP.site.version;
     if (!v || !/^v\d+\.\d+$/.test(v.number) || !/^\d{4}\/\d{2}\/\d{2}$/.test(v.date)) fail('site.version 格式應為 { number: "v1.5", date: "2026/10/17" }');
     else info.push(`版本 ${v.number} · ${v.date}`);
+
+    // 移動列：缺移動列、重複、多餘只警告（node tools/sync-moves.js 可補缺的列；不檢查時間）
+    for (const day of TRIP.days) {
+        const r = model.deriveMoves(day, PLACES);
+        r.missing.forEach(m => warnings.push(`DAY ${day.day}：${m.text} 之間缺少移動列；請執行 node tools/sync-moves.js`));
+        r.warnings.forEach(w => warnings.push(w.message));
+    }
 
     // 路線：缺少的路段、沒被使用的舊筆只警告，不失敗
     if (routes && routes.legs && typeof routes.legs === 'object') {
