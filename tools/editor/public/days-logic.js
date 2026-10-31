@@ -9,14 +9,14 @@
 
     // 每種項目類型可填的欄位（與 docs/DESIGN.md 4.2 一致）；label／chip 給畫面用
     const TYPES = {
-        move:     { label: '移動',   chip: 'bg-slate-200 text-slate-800', bar: 'border-l-sky-500',     fields: ['time', 'text', 'note', 'buffer'] },
-        spot:     { label: '景點',   chip: 'bg-blue-100 text-blue-800', bar: 'border-l-blue-500',       fields: CARD },
-        meal:     { label: '用餐',   chip: 'bg-amber-100 text-amber-800', bar: 'border-l-amber-500',     fields: CARD },
-        stay:     { label: '住宿',   chip: 'bg-purple-100 text-purple-800', bar: 'border-l-purple-500',   fields: CARD },
-        end:      { label: '結束',   chip: 'bg-emerald-100 text-emerald-800', bar: 'border-l-emerald-500', fields: CARD },
-        notice:   { label: '提醒',   chip: 'bg-orange-100 text-orange-800', bar: 'border-l-orange-500',   fields: CARD },
-        brief:    { label: '資訊框', chip: 'bg-yellow-100 text-yellow-800', bar: 'border-l-yellow-500',   fields: ['time', 'title', 'place', 'icon', 'desc', ...COMMON] },
-        waypoint: { label: '起訖/休息點', chip: 'bg-sky-100 text-sky-800', bar: 'border-l-sky-500',    fields: ['place', 'text', 'mapName', 'backup', 'numbered'] }
+        move:     { label: '移動',        chip: 'bg-slate-200 text-slate-800',     bar: 'border-l-sky-500',     fields: ['time', 'text', 'note', 'buffer'] },
+        spot:     { label: '景點',        chip: 'bg-blue-100 text-blue-800',       bar: 'border-l-blue-500',    fields: CARD },
+        meal:     { label: '用餐',        chip: 'bg-amber-100 text-amber-800',     bar: 'border-l-amber-500',   fields: CARD },
+        stay:     { label: '住宿',        chip: 'bg-purple-100 text-purple-800',   bar: 'border-l-purple-500',  fields: CARD },
+        end:      { label: '結束',        chip: 'bg-emerald-100 text-emerald-800', bar: 'border-l-emerald-500', fields: CARD },
+        notice:   { label: '提醒',        chip: 'bg-orange-100 text-orange-800',   bar: 'border-l-orange-500',  fields: CARD },
+        brief:    { label: '資訊框',      chip: 'bg-yellow-100 text-yellow-800',   bar: 'border-l-yellow-500',  fields: ['time', 'title', 'place', 'icon', 'desc', ...COMMON] },
+        waypoint: { label: '起訖/休息點', chip: 'bg-sky-100 text-sky-800',         bar: 'border-l-sky-500',     fields: ['place', 'text', 'mapName', 'backup', 'numbered'] }
     };
 
     // 把項目從 (fromDi, fromIi) 搬到 (toDi, toIi)；toIi 是以「搬動前」的陣列計算的插入位置。回傳新位置。

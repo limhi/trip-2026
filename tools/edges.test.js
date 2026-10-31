@@ -294,3 +294,25 @@ test('任一連動／伸縮操作之後，每個結束 = 下一個開始', () =>
     ];
     ops.forEach((op, k) => { const d = dayOf(); assert.equal(op(d).ok, true, `op ${k}`); assert.ok(joined(d), `op ${k}`); });
 });
+
+test('adjustSpotEdge：無效 side／mode／不存在的 index 一律拒絕且資料不變', () => {
+    const day = dayOf();
+    const before = snapshot(day);
+    for (const [index, side, mode] of [[9, 'end', 'link'], [-1, 'end', 'link'], [2, 'middle', 'link'], [2, undefined, 'link'], [2, 'end', 'wrap'], [2, 'end', undefined]]) {
+        const r = model.adjustSpotEdge(day, index, side, '12:00', mode);
+        assert.equal(r.ok, false);
+        assert.equal(r.reason, 'invalid');
+        assert.deepEqual(r.changed, []);
+        assert.equal(snapshot(day), before);
+    }
+});
+
+test('moveEdge：單位索引超出範圍回 invalid（不是 incomplete），資料不變', () => {
+    const day = dayOf();
+    const before = snapshot(day);
+    assert.equal(model.moveEdge(day, 99, 'end', 700, 'link').reason, 'invalid');
+    assert.equal(model.moveEdge(day, -1, 'end', 700, 'link').reason, 'invalid');
+    assert.equal(snapshot(day), before);
+    const inc = { day: 1, items: [spot('a', '15:30 後')] };
+    assert.equal(model.moveEdge(inc, 0, 'end', 960, 'link').reason, 'incomplete');
+});

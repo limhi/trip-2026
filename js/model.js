@@ -413,11 +413,7 @@
 
     // ───────── 邊界連動與伸縮（docs/adr/0007）─────────
     // 單位（unit）= 一個項目，擇一組整組算一個（時間在第一員，index 取組內任一員都行）。
-    // moveEdge 是共同核心：改單位 u 的某一邊（side 'start'／'end'）到 value（分鐘），整個操作先算好再一次套用，任何一步不合就整個不套用。
-    //   link：結束邊 → 後面所有完整區間單位平移 delta；開始邊 → 前面所有完整區間單位平移 delta（delta = 新值 − 舊值）。
-    //   stretch：鄰近單位若是移動就整個平移 delta，再外一個（或鄰近本身不是移動時）單位由靠近的那一邊吸收 delta；更遠的不動。
-    // 不完整時間的單位不平移、不吸收。回傳 { ok, reason, message, changed: [{ index, from, to }] }；
-    // reason：'stay'（停留 ≤ 0）、'length'（移動長度 < 0）、'overflow'（超出 00:00–23:59）、'incomplete'、'invalid-time'、'not-move'、'invalid'
+    // 把一天的項目切成單位：{ carrier（時間所在項目的 index）, range（完整區間或 null）, isMove }
     function getEdgeUnits(day) {
         const units = [];
         for (let i = 0; i < day.items.length; i++) {
@@ -436,11 +432,17 @@
         return m && +m[1] < 24 && +m[2] < 60 && minutes <= DAY_END ? minutes : null;
     }
 
+    // moveEdge 是共同核心：改單位 u 的某一邊（side 'start'／'end'）到 value（分鐘），整個操作先算好再一次套用，任何一步不合就整個不套用。
+    //   link：結束邊 → 後面所有完整區間單位平移 delta；開始邊 → 前面所有完整區間單位平移 delta（delta = 新值 − 舊值）。
+    //   stretch：鄰近單位若是移動就整個平移 delta，再外一個（或鄰近本身不是移動時）單位由靠近的那一邊吸收 delta；更遠的不動。
+    // 不完整時間的單位不平移、不吸收。回傳 { ok, reason, message, changed: [{ index, from, to }] }；
+    // reason：'stay'（停留 ≤ 0）、'length'（移動長度 < 0）、'overflow'（超出 00:00–23:59）、'incomplete'（單位沒有完整時間）、'invalid-time'、'not-move'、'invalid'（單位索引超出範圍等）
     function moveEdge(day, unitIndex, side, value, mode) {
         const fail = (reason, message) => ({ ok: false, reason, message: `DAY ${day.day}：${message}`, changed: [] });
         const units = getEdgeUnits(day);
         const u = units[unitIndex];
-        if (!u || !u.range) return fail('incomplete', '這個項目沒有完整的時間區間，不能調整');
+        if (!u) return fail('invalid', '沒有這個單位');
+        if (!u.range) return fail('incomplete', '這個項目沒有完整的時間區間，不能調整');
         const delta = value - u.range[side];
         const plan = new Map();   // 單位索引 → 新區間
         const rangeOf = k => (plan.get(k) || units[k].range);
@@ -602,7 +604,7 @@
         DEFAULT_ROUTING, formatCoord, legKey, getLegs, getTrafficFactor, displayMinutes,
         formatDuration, formatDistance, formatLeg, formatFactorNote, parseTimeRange, getStayMinutes, formatStay, getStayLabel, isUsableLeg, getLegSchedule, getTimeWarnings, deriveMoves, applyMoves,
         getMoveMinutes, getMoveMinutesAt, cascadeDay, fitMoves, setTimeRange, rescheduleDay,
-        adjustSpotEdge, adjustMoveBuffer
+        adjustSpotEdge, adjustMoveBuffer, moveEdge
     };
     if (typeof module !== 'undefined') module.exports = Trip.model;
 })(typeof window !== 'undefined' ? window : globalThis);
