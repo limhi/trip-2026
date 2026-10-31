@@ -167,6 +167,20 @@
     }
 
     // 移動列（物件）→ 綁定路段的 key；改動前後各取一次，路段變了的列才需要重算長度
+    // 欄位值（輸入框文字）與資料不同＝待套用：開始／結束（只看有完整區間的項目）、移動列緩衝（空白＝0；不是整數也算，套用時才被拒絕）。其他欄位沒有待套用
+    function isPendingEdit(item, field, value) {
+        const text = String(value == null ? '' : value).trim();
+        if (field === 'start' || field === 'end') {
+            const parts = timeParts(item.time);
+            return !!parts && parts[field] !== text;
+        }
+        if (field === 'buffer' && item.type === 'move') {
+            const n = text === '' ? 0 : Number(text);
+            return !Number.isInteger(n) || n !== (item.buffer || 0);
+        }
+        return false;
+    }
+
     function moveKeys(day, places) {
         const keys = new Map();
         M.getLegs(day, places).forEach(leg => {
@@ -233,7 +247,7 @@
     const itemErrors = (errors, dayNo, ii) => errors.filter(e => e.startsWith(`DAY ${dayNo} 第 ${ii + 1} 項：`));
     const dayErrors = (errors, dayNo) => errors.filter(e => e.startsWith(`DAY ${dayNo} `));
 
-    const api = { TYPES, moveItem, stepItem, changeType, newItem, altPosition, canJoinAlt, joinAlt, leaveAlt, stayHint, timeParts, setItemTime, setMoveBuffer, moveKeys, syncMoves, rescheduleDay, moveWarnings, getPath, setPath, itemErrors, dayErrors };
+    const api = { TYPES, moveItem, stepItem, changeType, newItem, altPosition, canJoinAlt, joinAlt, leaveAlt, stayHint, timeParts, setItemTime, setMoveBuffer, isPendingEdit, moveKeys, syncMoves, rescheduleDay, moveWarnings, getPath, setPath, itemErrors, dayErrors };
     root.DaysLogic = api;
     if (typeof module !== 'undefined') module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
