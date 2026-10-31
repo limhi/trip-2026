@@ -676,3 +676,26 @@ test('路線重算後（fitMoves 預設向後傳）：長度變了的移動列�
     assert.deepEqual(timesOf(day), ['09:00 - 10:00', '10:00 - 10:45', '10:45 - 11:45 午餐', '11:45 - 12:15', '12:15 - 13:15']);
     for (let i = 1; i < day.items.length; i++) assert.equal(M.parseTimeRange(day.items[i].time).start, M.parseTimeRange(day.items[i - 1].time).end);
 });
+
+test('setItemTime：不認得的欄位拒絕且資料不變', () => {
+    const day = threeDay();
+    const before = JSON.stringify(day);
+    const r = L.setItemTime(day, 2, 'bogus', 'x');
+    assert.equal(r.ok, false);
+    assert.equal(r.reason, 'invalid');
+    assert.equal(r.message, '這個欄位不能修改');
+    assert.equal(JSON.stringify(day), before);
+});
+
+test('setItemTime tail：完整區間可改後註（空白清掉）；沒有完整區間時拒絕且不改', () => {
+    const day = threeDay();
+    assert.equal(L.setItemTime(day, 2, 'tail', '晚餐').ok, true);
+    assert.equal(day.items[2].time, '10:30 - 11:30 晚餐');
+    assert.equal(L.setItemTime(day, 2, 'tail', '  ').ok, true);
+    assert.equal(day.items[2].time, '10:30 - 11:30');
+    const inc = dayOf([sp('a', '15:30 後')]);
+    const r = L.setItemTime(inc, 0, 'tail', 'x');
+    assert.equal(r.ok, false);
+    assert.equal(r.reason, 'invalid');
+    assert.equal(inc.items[0].time, '15:30 後');
+});
