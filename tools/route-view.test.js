@@ -49,8 +49,8 @@ test('dayRoutes：有快取的段落算出顯示分鐘、文字、是否超過�
     assert.equal(info.factor, 1.25);
     assert.equal(info.hasCache, true);
     assert.deepEqual(info.legs.map(l => [l.minutes, l.over]), [[81, false], [188, true]]);
-    assert.equal(info.legs[0].text, '約 1 小時 21 分・75.3 km');
-    assert.equal(info.factorNote, '查詢・含路況緩衝 ×1.25');
+    assert.equal(info.legs[0].text, '1小時21分・75.3 km');
+    assert.equal(info.factorNote, '預估・含路況係數 ×1.25');
 });
 
 test('dayRoutes：autoByRow（綁定的交通列）與 autoAfter（沒有交通列時補在前一項後面），只含有快取的路段', () => {
@@ -59,11 +59,20 @@ test('dayRoutes：autoByRow（綁定的交通列）與 autoAfter（沒有交通�
         [KEY_AB]: { distance: 75323, duration: 3900 },
         [KEY_BC]: { distance: 20000, duration: 1200 }
     }), SITE);
-    const note = '查詢・含路況緩衝 ×1.25';
-    assert.deepEqual(info.autoByRow, { 1: { text: '約 1 小時 21 分・75.3 km', note, scheduled: 60, needed: 81, short: true } });
-    assert.deepEqual(info.autoAfter, { 2: { text: '約 25 分・20.0 km', note, scheduled: null, needed: 25, short: false } });
+    const note = '預估・含路況係數 ×1.25';
+    // 查詢 65（原始）、預估 81、排定 60；排定 ≠ 預估 + 緩衝（0）所以 mismatch，且不足
+    assert.deepEqual(info.autoByRow, { 1: { text: '1小時21分・75.3 km', distance: '75.3 km', note, query: 65, scheduled: 60, needed: 81, short: true, mismatch: true } });
+    assert.deepEqual(info.autoAfter, { 2: { text: '0小時25分・20.0 km', distance: '20.0 km', note, query: 20, scheduled: null, needed: 25, short: false, mismatch: false } });
     const none = routeView.dayRoutes(day, P, routes({}), SITE);
     assert.deepEqual([none.autoByRow, none.autoAfter], [{}, {}]);
+});
+
+test('dayRoutes：有些路段有快取時，沒有快取的移動列也有一筆（query、needed 為 null、missing），只有排定時間；整天都沒有快取時不產生', () => {
+    const day = { items: [spot('a'), { type: 'move', time: '08:00 - 09:00' }, spot('b'), { type: 'move', time: '09:00 - 09:30' }, spot('c')] };
+    const info = routeView.dayRoutes(day, P, routes({ [KEY_AB]: { distance: 1000, duration: 2400 } }), SITE);
+    assert.deepEqual([info.autoByRow[1].query, info.autoByRow[1].needed, info.autoByRow[1].missing], [40, 50, undefined]);
+    assert.deepEqual(info.autoByRow[3], { text: '', distance: '', note: '預估・含路況係數 ×1.25', query: null, needed: null, scheduled: 30, short: false, mismatch: false, missing: true });
+    assert.deepEqual(routeView.dayRoutes(day, P, routes({}), SITE).autoByRow, {});
 });
 
 test('dayRoutes：剛好等於門檻不算超過', () => {
@@ -96,10 +105,10 @@ test('dayRoutes：summary 加總有快取路段的顯示分鐘與里程；缺段
         [KEY_BC]: { distance: 20000, duration: 3900 }
     }), SITE);
     assert.deepEqual(full.summary, { minutes: 162, meters: 30000, missing: 0 });
-    assert.equal(full.summaryText, '總車程 約 2 小時 42 分・總里程 30.0 km');
+    assert.equal(full.summaryText, '總車程 2小時42分・總里程 30.0 km');
     const partial = routeView.dayRoutes(day, P, routes({ [KEY_AB]: { distance: 10000, duration: 3900 } }), SITE);
     assert.deepEqual(partial.summary, { minutes: 81, meters: 10000, missing: 1 });
-    assert.equal(partial.summaryText, '總車程 約 1 小時 21 分・總里程 10.0 km（部分路段未計算）');
+    assert.equal(partial.summaryText, '總車程 1小時21分・總里程 10.0 km（部分路段未計算）');
 });
 
 test('dayRoutes：leg 帶有 rowIndex／needsRow／closeLoop，供綁定交通列與補連接列', () => {
@@ -143,7 +152,7 @@ test('dayRoutes：擇一組前綁定的交通列只有一個 autoByRow，並列�
     const auto = info.autoByRow[1];
     assert.deepEqual([auto.scheduled, auto.needed, auto.short], [40, 50, true]);
     assert.deepEqual(auto.paths.map(p => [p.label, p.needed, p.short]), [['→ B', 50, true], ['→ C', 25, false]]);
-    assert.equal(auto.paths[0].text, '約 50 分・40.0 km');
+    assert.equal(auto.paths[0].text, '0小時50分・40.0 km');
 });
 
 test('dayRoutes：兩條路徑都足夠時沒有任何不足；缺快取的路徑不判斷、不出現', () => {
@@ -160,7 +169,7 @@ test('dayRoutes：沒有交通列時，組前一條、組後一條連接列（�
     const info = routeView.dayRoutes(day, PA, ALT_CACHE, SITE);
     assert.deepEqual(Object.keys(info.autoAfter).sort(), ['0', '1']);
     const before = info.autoAfter[0], after = info.autoAfter[1];
-    assert.deepEqual(before.paths.map(p => [p.label, p.needed, p.short]), [['→ B', 50, true], ['→ C', 25, false]]);
+    assert.deepEqual(before.paths.map(p => [p.label, p.query, p.needed, p.short]), [['→ B', 40, 50, true], ['→ C', 20, 25, false]]);
     assert.equal(before.scheduled, 30);
     assert.deepEqual(after.paths.map(p => [p.label, p.needed, p.short]), [['B →', 10, false], ['C →', 60, true]]);
     assert.equal(after.scheduled, 20);
@@ -172,7 +181,7 @@ test('dayRoutes：總車程在有擇一組時取較長的那條路徑，並標�
     const info = routeView.dayRoutes(day, PA, ALT_CACHE, SITE);
     // 經 b：50 + 10 = 60；經 c：25 + 60 = 85
     assert.deepEqual(info.summary, { minutes: 85, meters: 68000, missing: 0 });
-    assert.equal(info.summaryText, '總車程 約 1 小時 25 分・總里程 68.0 km（含擇一組取較長）');
+    assert.equal(info.summaryText, '總車程 1小時25分・總里程 68.0 km（含擇一組取較長）');
     const plain = routeView.dayRoutes({ items: [spot('a'), spot('b')] }, PA, ALT_CACHE, SITE);
     assert.ok(!plain.summaryText.includes('擇一組'));
 });
@@ -183,7 +192,7 @@ test('dayRoutes：擇一組缺路段時總車程沿用「（部分路段未計�
     delete cache.legs[key('c', 'd')];
     const info = routeView.dayRoutes(day, PA, cache, SITE);
     assert.deepEqual(info.summary, { minutes: 60, meters: 48000, missing: 1 });
-    assert.equal(info.summaryText, '總車程 約 1 小時・總里程 48.0 km（含擇一組取較長）（部分路段未計算）');
+    assert.equal(info.summaryText, '總車程 1小時00分・總里程 48.0 km（含擇一組取較長）（部分路段未計算）');
 });
 
 test('dayRoutes：沒有擇一組、中間一段沒有快取時，總車程仍是有快取路段的全部加總', () => {

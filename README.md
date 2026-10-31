@@ -13,8 +13,8 @@ data/
   trip.js, places.js, routes.js, routes-geo.js
                   由上面三個 JSON 產生、網頁實際載入的檔案，請勿手改（node tools/build-data.js 產生）
 js/
-  model.js        資料處理與檢查（組出地圖標記、聯絡資訊、路段與顯示時間、找資料錯誤）
-  route-view.js   路線顯示邏輯（把快取套到每段：顯示時間、是否超過門檻、當天總車程）
+  model.js        資料處理與檢查（組出地圖標記、聯絡資訊、路段與三種長度（查詢、預估、排定）、找資料錯誤）
+  route-view.js   路線顯示邏輯（把快取套到每段：查詢、預估、排定時間、是否超過門檻、當天總車程）
   blocks.js       每種區塊的樣板與顏色表                          ← 想統一改區塊顏色改這裡
   modal.js        聯絡與導航彈窗
   map.js          每日地圖（標記顏色、圖例、道路路線與時間標示）
@@ -92,10 +92,10 @@ node tools/editor/server.js          # 預設 http://127.0.0.1:8780/ ，只綁�
 | 改區塊顏色 | `js/blocks.js` 最上方的顏色表 |
 | 改景點攻略的文字 | `reference/guides.js`（並同步 `reference/guides.md`）；彈窗會顯示，標 `hidden: true` 的項目不顯示。編輯器不處理攻略 |
 | 調整攻略區塊的順序或預設展開 | `js/guides.js` 最上方的 `SECTIONS` |
-| 改路況係數（預設值） | 編輯器路線列的「預設係數」；或 `data/trip.json` 的 `site.routing.trafficFactor`（預設 1.25，顯示時間 = 原始時間 × 係數） |
+| 改路況係數（預設值） | 編輯器路線列的「預設係數」；或 `data/trip.json` 的 `site.routing.trafficFactor`（預設 1.25，預估時間 = 查詢時間 × 係數） |
 | 某一天的係數不同 | 編輯器該天的「路況係數」；或 `data/trip.json` 該天加 `trafficFactor` |
-| 改「路段過長」門檻（超過標紅） | 編輯器路線列的「每段上限（分鐘）」；或 `data/trip.json` 的 `site.routing.maxLegMinutes`（預設 180，用顯示時間判斷） |
-| 重算路線 | 編輯器路線列的「全部重算」（忽略快取）或某段旁的「重新計算」，再按存檔。改係數與門檻不需要重算（快取存的是原始時間） |
+| 改「路段過長」門檻（超過標紅） | 編輯器路線列的「每段上限（分鐘）」；或 `data/trip.json` 的 `site.routing.maxLegMinutes`（預設 180，用預估時間判斷） |
+| 重算路線 | 編輯器路線列的「全部重算」（忽略快取）或某段旁的「重新計算」，再按存檔。改係數與門檻不需要重算（快取存的是查詢時間） |
 | 改路線顯示（時間標示、紅色門檻、自動連接列） | `js/route-view.js`、`js/map.js`、`js/blocks.js`；路線資料（`data/routes.json` 與產生的 `data/routes*.js`）由編輯器產生，不手改 |
 | 改地圖標記顏色 | `js/map.js` 最上方的 `MAP_TYPES`（左邊卡片的編號圓點會跟著變） |
 | 某個起點不想編號 | `data/trip.json` 該項目加 `numbered: false` |

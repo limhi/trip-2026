@@ -126,6 +126,16 @@
         return M.getStayLabel(it);
     }
 
+    // 清單每一列的長度標籤（唯讀，不寫入資料）：景點／用餐是停留；移動是「排定 X小時YY分」（time 區間的長度）；其他或時間不完整回傳空字串
+    function rowLength(day, ii) {
+        const it = day.items[ii];
+        if (it && it.type === 'move') {
+            const r = M.parseTimeRange(it.time);
+            return r ? `排定 ${M.formatHM(r.end - r.start)}` : '';
+        }
+        return stayHint(day, ii);
+    }
+
     // ---- 邊界連動與伸縮（ADR 0007）：長度與平移規則全在 model（adjustSpotEdge、fitMoves），這裡只決定「哪個欄位怎麼改」 ----
 
     const TIME_HEAD = /^\s*(\d{1,2}):(\d{2})\s*[-–—~]\s*(\d{1,2}):(\d{2})(?!\d)/;
@@ -164,6 +174,33 @@
         const n = text === '' ? 0 : Number(text);
         if (!Number.isInteger(n)) return { ok: false, reason: 'invalid', message: '緩衝必須是整數分鐘', changed: [] };
         return M.adjustMoveBuffer(day, ii, n, direction, mode);
+    }
+
+    // ---- 暫時套用（連動／伸縮之後先試算；「確認」才算數、「還原」回到操作前）----
+
+    // 整天項目的快照：項目物件本身（還原後仍是同一個物件）與它們當時的欄位內容
+    function snapshotDay(day) {
+        return { refs: day.items.slice(), data: JSON.parse(JSON.stringify(day.items)) };
+    }
+
+    // 就地還原成快照：項目物件、順序、欄位都回到快照當時，被加進來的項目被丟掉
+    function restoreDay(day, snap) {
+        snap.refs.forEach((item, i) => {
+            Object.keys(item).forEach(k => delete item[k]);
+            Object.assign(item, JSON.parse(JSON.stringify(snap.data[i])));
+        });
+        day.items.splice(0, day.items.length, ...snap.refs);
+    }
+
+    // 試算一次待套用的欄位（field 'start'｜'end'｜'buffer'）：先拍快照，再就地套用連動或伸縮，結果暫時留在 day 上。
+    // opts：{ mode 'link'｜'stretch', direction 'forward'｜'back'（只有 buffer 用）}。
+    // 成功回傳 { ok: true, snap, changed }，之後「確認」不用再改資料、「還原」用 restoreDay(day, snap)；
+    // 被拒絕（停留 ≤ 0、超出一天、格式不對）回傳 { ok: false, message }，資料一個字都不變（沒有 snap）
+    function startTrial(day, ii, field, value, { mode = 'link', direction = 'back' } = {}) {
+        const snap = snapshotDay(day);
+        const r = field === 'buffer' ? setMoveBuffer(day, ii, value, direction, mode) : setItemTime(day, ii, field, value, mode);
+        if (!r.ok) { restoreDay(day, snap); return { ok: false, message: r.message, reason: r.reason }; }
+        return { ok: true, snap, changed: r.changed };
     }
 
     // 移動列（物件）→ 綁定路段的 key；改動前後各取一次，路段變了的列才需要重算長度
@@ -247,7 +284,7 @@
     const itemErrors = (errors, dayNo, ii) => errors.filter(e => e.startsWith(`DAY ${dayNo} 第 ${ii + 1} 項：`));
     const dayErrors = (errors, dayNo) => errors.filter(e => e.startsWith(`DAY ${dayNo} `));
 
-    const api = { TYPES, moveItem, stepItem, changeType, newItem, altPosition, canJoinAlt, joinAlt, leaveAlt, stayHint, timeParts, setItemTime, setMoveBuffer, isPendingEdit, moveKeys, syncMoves, rescheduleDay, moveWarnings, getPath, setPath, itemErrors, dayErrors };
+    const api = { TYPES, moveItem, stepItem, changeType, newItem, altPosition, canJoinAlt, joinAlt, leaveAlt, stayHint, rowLength, timeParts, setItemTime, setMoveBuffer, isPendingEdit, snapshotDay, restoreDay, startTrial, moveKeys, syncMoves, rescheduleDay, moveWarnings, getPath, setPath, itemErrors, dayErrors };
     root.DaysLogic = api;
     if (typeof module !== 'undefined') module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

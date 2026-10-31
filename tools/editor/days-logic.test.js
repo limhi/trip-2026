@@ -301,10 +301,18 @@ test('altPosition：回傳項目在擇一組裡是首／中／尾，不在組內
 
 test('stayHint：spot／meal 有完整區間時回傳停留時間，隨時間改動變化', () => {
     const day = { day: 1, items: [{ type: 'spot', place: 'x', time: '09:00 - 10:40' }, { type: 'meal', title: 'm', time: '12:00 - 12:45' }] };
-    assert.equal(L.stayHint(day, 0), '停留 1 小時 40 分');
-    assert.equal(L.stayHint(day, 1), '停留 45 分');
+    assert.equal(L.stayHint(day, 0), '停留 1小時40分');
+    assert.equal(L.stayHint(day, 1), '停留 0小時45分');
     day.items[0].time = '09:00 - 11:00';
-    assert.equal(L.stayHint(day, 0), '停留 2 小時');
+    assert.equal(L.stayHint(day, 0), '停留 2小時00分');
+});
+
+test('rowLength：景點與用餐是停留；移動是「排定」（時間區間長度）；不完整時間與其他類型為空字串', () => {
+    const day = { day: 1, items: [{ type: 'spot', place: 'x', time: '09:00 - 10:40' }, { type: 'move', text: 'm', time: '10:40 - 11:45' }, { type: 'move', text: 'n', time: '15:30 後' }, { type: 'stay', title: 's', time: '18:00 - 20:00' }] };
+    assert.equal(L.rowLength(day, 0), '停留 1小時40分');
+    assert.equal(L.rowLength(day, 1), '排定 1小時05分');
+    assert.equal(L.rowLength(day, 2), '');
+    assert.equal(L.rowLength(day, 3), '');
 });
 
 test('stayHint：不完整、結束 ≤ 開始、沒時間都沒有提示', () => {
@@ -325,7 +333,7 @@ test('stayHint：擇一組只在持有共用時間的第一成員顯示一次，
         { type: 'spot', place: 'c', time: '12:00 - 13:00' }
     ] };
     const before = JSON.stringify(day);
-    assert.deepEqual([0, 1, 2].map(i => L.stayHint(day, i)), ['停留 2 小時', '', '停留 1 小時']);
+    assert.deepEqual([0, 1, 2].map(i => L.stayHint(day, i)), ['停留 2小時00分', '', '停留 1小時00分']);
     assert.equal(JSON.stringify(day), before);
     day.items[1].time = '09:00 - 12:00';   // 非第一成員即使有 time 也不顯示
     assert.equal(L.stayHint(day, 1), '');
@@ -723,4 +731,83 @@ test('isPendingEdit：移動列緩衝，空白與沒有欄位＝0 視為相同�
 test('isPendingEdit：沒有完整區間的項目、其他欄位一律不算待套用', () => {
     assert.equal(L.isPendingEdit({ type: 'spot', time: '15:30 後' }, 'start', '16:00'), false);
     assert.equal(L.isPendingEdit({ type: 'spot', time: '10:00 - 11:00' }, 'tail', 'x'), false);
+});
+
+// ---- 暫時套用（連動／伸縮之後先試算，按「確認」才算數，按「還原」回到操作前）----
+// startTrial 就地試算並回傳 snap；確認不需要再改資料；restoreDay(day, snap) 讓資料與操作前完全相同（項目物件保持同一個，編輯器的展開狀態靠它）
+const clone = o => JSON.parse(JSON.stringify(o));
+
+test('startTrial（景點結束 +15、連動）：資料暫時改成連動結果，回傳 snap；restoreDay 後與操作前完全相同', () => {
+    const day = threeDay();
+    const before = clone(day);
+    const r = L.startTrial(day, 2, 'end', '11:45', { mode: 'link' });
+    assert.equal(r.ok, true);
+    assert.deepEqual(timesOf(day), ['09:00 - 10:00', '10:00 - 10:30', '10:30 - 11:45 午餐', '11:45 - 12:15', '12:15 - 13:15']);
+    assert.ok(r.snap);
+    L.restoreDay(day, r.snap);
+    assert.deepEqual(day, before);
+});
+
+test('startTrial：確認＝什麼都不用再做，資料維持試算結果；還原後再試一次結果相同（可重複）', () => {
+    const day = threeDay();
+    const r = L.startTrial(day, 2, 'end', '11:45', { mode: 'link' });
+    const confirmed = clone(day);
+    assert.equal(r.ok, true);
+    L.restoreDay(day, r.snap);
+    const r2 = L.startTrial(day, 2, 'end', '11:45', { mode: 'link' });
+    assert.deepEqual(day, confirmed);
+    assert.equal(r2.ok, true);
+});
+
+test('startTrial（伸縮）與連動結果不同：伸縮只動緊鄰；還原都能回到原樣', () => {
+    const link = threeDay(), stretch = threeDay(), original = clone(link);
+    const a = L.startTrial(link, 2, 'end', '11:45', { mode: 'link' });
+    const b = L.startTrial(stretch, 2, 'end', '11:45', { mode: 'stretch' });
+    assert.notDeepEqual(timesOf(link), timesOf(stretch));
+    L.restoreDay(link, a.snap);
+    L.restoreDay(stretch, b.snap);
+    assert.deepEqual(link, original);
+    assert.deepEqual(stretch, original);
+});
+
+test('startTrial（移動列緩衝，向前）：試算後 buffer 與時間都變，還原後 buffer 欄位也消失', () => {
+    const day = threeDay();
+    const before = clone(day);
+    const r = L.startTrial(day, 1, 'buffer', '10', { direction: 'forward', mode: 'link' });
+    assert.equal(r.ok, true);
+    assert.equal(day.items[1].buffer, 10);
+    assert.deepEqual(timesOf(day), ['08:50 - 09:50', '09:50 - 10:30', '10:30 - 11:30 午餐', '11:30 - 12:00', '12:00 - 13:00']);
+    L.restoreDay(day, r.snap);
+    assert.deepEqual(day, before);
+    assert.equal('buffer' in day.items[1], false);
+});
+
+test('startTrial 被拒絕（停留 ≤ 0、格式不對、不是整數）：ok false、有 message、不回 snap、資料一個字都不變', () => {
+    const cases = [
+        [2, 'end', '10:30', { mode: 'link' }],                                  // 停留 0
+        [2, 'start', '11:30', { mode: 'link' }],                                // 停留 0
+        [2, 'end', '25:00', { mode: 'link' }],                                  // 格式不對
+        [1, 'buffer', '1.5', { direction: 'back', mode: 'link' }]               // 不是整數
+    ];
+    for (const [ii, field, value, opts] of cases) {
+        const day = threeDay(), before = clone(day);
+        const r = L.startTrial(day, ii, field, value, opts);
+        assert.equal(r.ok, false, `${field} ${value}`);
+        assert.ok(r.message);
+        assert.equal(r.snap, undefined);
+        assert.deepEqual(day, before);
+    }
+});
+
+test('restoreDay 就地還原：項目物件仍是同一個（編輯器的展開狀態靠物件相同）；項目數有變時也能還原', () => {
+    const day = threeDay();
+    const same = day.items.slice();
+    const r = L.startTrial(day, 2, 'end', '11:45', { mode: 'link' });
+    L.restoreDay(day, r.snap);
+    day.items.forEach((it, i) => assert.equal(it, same[i]));
+    const snap = L.snapshotDay(day);
+    day.items.pop();
+    day.items.push({ type: 'spot', place: 'zzz' });
+    L.restoreDay(day, snap);
+    assert.deepEqual(day, threeDay());
 });

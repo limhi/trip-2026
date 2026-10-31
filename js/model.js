@@ -214,29 +214,36 @@
         return (day && day.trafficFactor) || (site && site.routing && site.routing.trafficFactor) || DEFAULT_ROUTING.trafficFactor;
     }
 
-    // 顯示分鐘 = 四捨五入（原始秒數 ÷ 60 × 係數）
+    // 查詢時間（分）= 四捨五入（原始秒數 ÷ 60），順暢路況、不含係數
+    function queryMinutes(duration) {
+        return Math.round(duration / 60);
+    }
+
+    // 預估時間（分）= 四捨五入（原始秒數 ÷ 60 × 係數）
     function displayMinutes(duration, factor) {
         return Math.round(duration / 60 * factor);
     }
 
-    // 45 → 「約 45 分」、60 → 「約 1 小時」、65 → 「約 1 小時 5 分」
-    function formatDuration(minutes) {
-        const h = Math.floor(minutes / 60), m = minutes % 60;
-        if (h === 0) return `約 ${m} 分`;
-        return m === 0 ? `約 ${h} 小時` : `約 ${h} 小時 ${m} 分`;
+    // 所有時間長度的唯一格式（公開頁面與編輯器共用）：一律「X小時YY分」，小時為 0 也寫；65 → 「1小時05分」、30 → 「0小時30分」。
+    // 負數帶「−」；signed 為 true 時正數帶「+」（緩衝用）；不是有限數字回傳「—」
+    function formatHM(minutes, signed) {
+        if (typeof minutes !== 'number' || !Number.isFinite(minutes)) return '—';
+        const abs = Math.abs(Math.round(minutes));
+        const sign = minutes < 0 ? '−' : signed && minutes > 0 ? '+' : '';
+        return `${sign}${Math.floor(abs / 60)}小時${String(abs % 60).padStart(2, '0')}分`;
     }
 
     function formatDistance(meters) {
         return `${(meters / 1000).toFixed(1)} km`;
     }
 
-    // leg = { distance, duration }（快取的原始值）→ 「約 1 小時 5 分・75.3 km」
+    // leg = { distance, duration }（快取的原始值）→ 「1小時05分・75.3 km」（預估時間）
     function formatLeg(leg, factor) {
-        return `${formatDuration(displayMinutes(leg.duration, factor))}・${formatDistance(leg.distance)}`;
+        return `${formatHM(displayMinutes(leg.duration, factor))}・${formatDistance(leg.distance)}`;
     }
 
     function formatFactorNote(factor) {
-        return `查詢・含路況緩衝 ×${factor}`;
+        return `預估・含路況係數 ×${factor}`;
     }
 
     // 「HH:MM - HH:MM」（後面可接說明文字）→ 分鐘區間；「17:10 後」「12:15」等不完整時間回傳 null
@@ -253,25 +260,23 @@
         return range && range.end > range.start ? range.end - range.start : null;
     }
 
-    // 100 → 「1 小時 40 分」、45 → 「45 分」（formatDuration 的寫法，不帶「約」）
-    function formatStay(minutes) {
-        return formatDuration(minutes).replace(/^約 /, '');
-    }
-
-    // 項目的停留時間文字「停留 1 小時 40 分」：只有 spot／meal，且時間是完整區間、結束晚於開始才有，否則空字串。公開頁面與編輯器共用
+    // 項目的停留時間文字「停留 1小時40分」：只有 spot／meal，且時間是完整區間、結束晚於開始才有，否則空字串。公開頁面與編輯器共用
     function getStayLabel(item) {
         const minutes = item && (item.type === 'spot' || item.type === 'meal') ? getStayMinutes(item.time) : null;
-        return minutes == null ? '' : `停留 ${formatStay(minutes)}`;
+        return minutes == null ? '' : `停留 ${formatHM(minutes)}`;
     }
 
     // 路段快取的一筆是否可用：distance 與 duration 都是有限數字（getLegSchedule 與公開頁面的 dayRoutes 共用這一個判斷）
     const isUsableLeg = c => !!c && [c.distance, c.duration].every(v => typeof v === 'number' && Number.isFinite(v));
 
-    // 每一段的排定時間與查詢時間（公開頁面的紅字與編輯器的警告列表共用這一個判斷）。
-    // 回傳 [{ leg, legIndex, scheduled, needed, short }]，順序同 getLegs：
+    // 每一段的查詢、預估、排定三種長度（公開頁面與編輯器共用這一個判斷）。
+    // 回傳 [{ leg, legIndex, query, buffer, scheduled, needed, short, mismatch }]，順序同 getLegs：
+    //   query：查詢時間（分，路線原始時間、不含係數）；沒有路線快取時 null。
+    //   buffer：綁定的移動列的緩衝（分，沒有或 0 為 0）。
+    //   mismatch：只看綁定移動列——排定時間 ≠ 預估時間 + 緩衝（資料與路線不一致，標 ⚠）；沒有排定或沒有預估時 false。
     //   scheduled：排定時間（分）。有綁定交通列：該列 time 的完整區間長度；沒有交通列：前一項結束到後一項開始之差；
     //             time 不是完整區間（「15:30 後」等）、多個交通列未綁定、closeLoop 回程都是 null。note 欄位只是備註，不參與。
-    //   needed：查詢時間（分，含路況係數）；沒有路線快取時 null。
+    //   needed：預估時間（分，查詢時間 × 路況係數；內部名稱沿用 needed）；沒有路線快取時 null。
     //   short：兩者都有值且 scheduled < needed（排太緊）。
     // routes = { legs: { key: { distance, duration } } }，可為 undefined。
     function getLegSchedule(day, places, routes, site) {
@@ -284,7 +289,10 @@
         };
         return getLegs(day, places).map((leg, legIndex) => {
             const cached = cache[leg.key];
-            const needed = isUsableLeg(cached) ? displayMinutes(cached.duration, factor) : null;
+            const usable = isUsableLeg(cached);
+            const needed = usable ? displayMinutes(cached.duration, factor) : null;
+            const query = usable ? queryMinutes(cached.duration) : null;
+            const buffer = leg.rowIndex != null && !leg.closeLoop ? ((day.items[leg.rowIndex].buffer) || 0) : 0;
             let scheduled = null;
             if (!leg.closeLoop) {
                 if (leg.rowIndex != null) {
@@ -296,7 +304,9 @@
                     if (prev && next) scheduled = next.start - prev.end;
                 }
             }
-            return { leg, legIndex, scheduled, needed, short: scheduled != null && needed != null && scheduled < needed };
+            const known = scheduled != null && needed != null;
+            return { leg, legIndex, query, buffer, scheduled, needed, short: known && scheduled < needed,
+                mismatch: known && leg.rowIndex != null && !leg.closeLoop && scheduled !== needed + buffer };
         });
     }
 
@@ -362,7 +372,7 @@
 
     // ───────── 移動列長度、連動、整天重排（docs/adr/0007；編輯器、CLI、測試共用）─────────
 
-    // 移動列長度（分）= 查詢時間（四捨五入（原始秒數 ÷ 60 × 係數））+ item.buffer（整數分、可為負、缺值視為 0）。
+    // 移動列長度（分）= 預估時間（四捨五入（原始秒數 ÷ 60 × 係數））+ item.buffer（整數分、可為負、缺值視為 0）。
     // leg 是該移動列綁定路段的快取 { distance, duration }；沒有可用的查詢結果回 null
     function getMoveMinutes(item, leg, factor) {
         if (!isUsableLeg(leg)) return null;
@@ -401,7 +411,7 @@
             if (!range) continue;
             const start = range.start + delta, end = range.end + delta;
             if (start < 0 || end > DAY_END) {
-                out.warnings.push({ type: 'overflow', index: i, message: `DAY ${day.day} 第 ${i + 1} 項：平移 ${delta} 分後超出當天，時間未更動` });
+                out.warnings.push({ type: 'overflow', index: i, message: `DAY ${day.day} 第 ${i + 1} 項：平移 ${formatHM(delta)} 後超出當天，時間未更動` });
                 continue;
             }
             const to = setTimeRange(item.time, start, end);
@@ -547,7 +557,7 @@
                 delta = next ? start + length - next.start : 0;
             }
             if (start + length > DAY_END) {
-                out.warnings.push({ type: 'overflow', index: i, message: `DAY ${day.day} 第 ${i + 1} 項：移動 ${length} 分後超出當天，時間未更動` });
+                out.warnings.push({ type: 'overflow', index: i, message: `DAY ${day.day} 第 ${i + 1} 項：移動 ${formatHM(length)} 後超出當天，時間未更動` });
                 return;
             }
             const to = setTimeRange(item.time, start, start + length);
@@ -595,14 +605,14 @@
         const nameOf = id => (places[id] && places[id].name) || id;
         return getLegSchedule(day, places, routes, site).filter(s => s.short).map(({ leg, legIndex, scheduled, needed }) => ({
             legKey: leg.key, legIndex, scheduled, needed,
-            message: `DAY ${day.day} 第 ${legIndex + 1} 段（${nameOf(leg.fromId)} → ${nameOf(leg.toId)}）：排定 ${scheduled} 分，至少需要${formatDuration(needed)}（${formatFactorNote(factor)}）`
+            message: `DAY ${day.day} 第 ${legIndex + 1} 段（${nameOf(leg.fromId)} → ${nameOf(leg.toId)}）：排定 ${formatHM(scheduled)} < 預估 ${formatHM(needed)}（${formatFactorNote(factor)}）`
         }));
     }
 
     Trip.model = {
         getContact, getMapPoints, getAltGroups, getAltGroupAt, validate, forEachPlaceRef, lacksCoords, CARD_TYPES, ROW_TYPES,
-        DEFAULT_ROUTING, formatCoord, legKey, getLegs, getTrafficFactor, displayMinutes,
-        formatDuration, formatDistance, formatLeg, formatFactorNote, parseTimeRange, getStayMinutes, formatStay, getStayLabel, isUsableLeg, getLegSchedule, getTimeWarnings, deriveMoves, applyMoves,
+        DEFAULT_ROUTING, formatCoord, legKey, getLegs, getTrafficFactor, displayMinutes, queryMinutes,
+        formatHM, formatDistance, formatLeg, formatFactorNote, parseTimeRange, getStayMinutes, getStayLabel, isUsableLeg, getLegSchedule, getTimeWarnings, deriveMoves, applyMoves,
         getMoveMinutes, getMoveMinutesAt, cascadeDay, fitMoves, setTimeRange, rescheduleDay,
         adjustSpotEdge, adjustMoveBuffer, moveEdge
     };

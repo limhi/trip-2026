@@ -29,11 +29,21 @@
             failed: ['失敗', 'bg-rose-100 text-rose-700']
         };
 
+        // 三種長度標籤：查詢（路線原始時間）、預估（× 路況係數）、排定（time 區間）；排定不足或與「預估 + 緩衝」不一致標紅加 ⚠；沒有值顯示「—」
+        const chip = (label, text, cls, flag = '') => `<span class="inline-flex gap-1 rounded px-1.5 py-0.5 text-xs font-bold ${cls}"><span class="font-medium opacity-70">${label}</span>${flag}${esc(text)}</span>`;
+        function lengthChips(s) {
+            const t = L.legLengths(s);
+            const bad = !!t.problem;
+            const note = t.problem === 'short' ? '排定不足（排定 &lt; 預估）' : t.problem === 'mismatch' ? '排定與預估＋緩衝不一致' : '';
+            return `<span data-lengths class="inline-flex flex-wrap items-center gap-1">${chip('查詢', t.query, 'bg-slate-200 text-slate-800')}${chip('預估', t.estimate, 'bg-amber-100 text-amber-900')}${chip('排定', t.scheduled, bad ? 'bg-rose-100 text-rose-700 border border-rose-300' : 'bg-sky-100 text-sky-900', bad ? '⚠ ' : '')}${t.buffer ? chip('緩衝', t.buffer, 'bg-violet-100 text-violet-800') : ''}${note ? `<span class="font-bold text-rose-600">⚠ ${note}</span>` : ''}</span>`;
+        }
+
         // 某個項目後面接著的路段（fromItemIndex === ii）
         function legHtml(di, ii) {
             const { trip, places } = data();
             const day = trip.days[di];
             const factor = M.getTrafficFactor(day, trip.site);
+            const sched = M.getLegSchedule(day, places, { legs: ctl.known }, trip.site);
             return M.getLegs(day, places).map((leg, n) => ({ leg, n })).filter(x => x.leg.fromItemIndex === ii).map(({ leg, n }) => {
                 const status = ctl.status(leg.key) || 'pending';
                 const [label, cls] = BADGE[status];
@@ -41,10 +51,10 @@
                 let body;
                 if (status === 'ok') {
                     const t = L.legText(ctl.known[leg.key], factor, maxMinutes());
-                    body = `<span class="${t.over ? 'font-bold text-rose-600' : ''}">${esc(t.text)}${t.over ? `（超過 ${maxMinutes()} 分）` : ''}</span> <span class="text-slate-400">${esc(M.formatFactorNote(factor))}</span>`;
+                    body = `${lengthChips(sched[n])} <span class="${t.over ? 'font-bold text-rose-600' : ''}">${esc(M.formatDistance(ctl.known[leg.key].distance))}${t.over ? `（預估超過 ${esc(M.formatHM(maxMinutes()))}）` : ''}</span> <span class="text-slate-400">${esc(M.formatFactorNote(factor))}</span>`;
                 } else if (status === 'failed') {
-                    body = `<span class="text-rose-600">${esc(ctl.error(leg.key))}；退回直線，不會自動重試</span>`;
-                } else body = '';
+                    body = `${lengthChips(sched[n])} <span class="text-rose-600">${esc(ctl.error(leg.key))}；退回直線，不會自動重試</span>`;
+                } else body = lengthChips(sched[n]);
                 const btn = status === 'computing' ? '' : `<button data-leg-act="recompute" data-key="${esc(leg.key)}" class="rounded border bg-white px-1.5 text-slate-600 hover:bg-slate-100">重新計算</button>`;
                 return `<div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 border-b bg-slate-50 px-3 py-0.5 text-xs text-slate-600"><span>↓ ${label2}</span><span class="rounded px-1 ${cls}">${label}</span>${body}${btn}</div>`;
             }).join('');
@@ -56,7 +66,7 @@
             const t = L.dayTotals(trip.days[di], places, ctl.known, trip.site);
             if (!t.count) return '';
             const miss = t.missing && t.missing !== t.count ? `（${t.missing} 段未算）` : '';
-            const text = t.missing === t.count ? '車程：尚未計算' : `車程 ${M.formatDuration(t.minutes)}・${M.formatDistance(t.meters)}`;
+            const text = t.missing === t.count ? '車程：尚未計算' : `車程 ${M.formatHM(t.minutes)}・${M.formatDistance(t.meters)}`;
             return `<span class="shrink-0 rounded bg-white px-1.5 text-xs text-slate-600">${text}${miss}</span>`;
         }
 

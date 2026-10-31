@@ -86,7 +86,7 @@
 | `tools/editor/test-helpers.js`、`tools/*.test.js`、`tools/editor/*.test.js`、`tools/routing/*.test.js` | `node:test` 測試（假路線服務、暫存 git repo、假 DOM） | 見第 10.3 節 |
 | `js/model.js` | 資料處理與檢查 | 純函式，`tools/check.js` 會載入它 |
 | `js/route-view.js` | 路線快取套到某一天的路段（顯示分鐘、是否超過門檻、當天總車程）、polyline 解碼、中點 | 純函式；`blocks.js` 與 `map.js` 共用，路段規則仍在 `model.getLegs`。測試：`tools/route-view.test.js` |
-| `js/blocks.js` | 各類區塊的 HTML 樣板與 Tailwind 顏色表 | 統一改顏色改最上方的表。有路線快取時：綁定的 `move` 列一律顯示查詢時間與排定時間（`note` 只是備註）；相鄰標記間沒有移動列就補唯讀連接列；標題列顯示總車程。沒有快取時畫面與沒有這個功能時相同。測試：`tools/public-blocks.test.js` |
+| `js/blocks.js` | 各類區塊的 HTML 樣板與 Tailwind 顏色表 | 統一改顏色改最上方的表。時間區間一律深色粗體，停留與各種長度是彩色標籤（長度文字一律經 `model.formatHM`）。有路線快取時：每個綁定的 `move` 列都並列查詢、預估、排定三種長度（`note` 只是備註；沒有查詢結果顯示「—」）；相鄰標記間沒有移動列就補唯讀連接列；標題列顯示總車程。完全沒有快取時畫面與沒有這個功能時相同。測試：`tools/public-blocks.test.js` |
 | `js/modal.js` | 聯絡／導航彈窗 | 事件委派：任何有 `data-place` 的元素都能開彈窗 |
 | `js/map.js` | 每日地圖（Leaflet + OpenStreetMap 圖磚） | `MAP_TYPES` 是標記顏色／圖示／圖例。有路線快取時：道路路線（沒有 geo 的段落退回虛線）、路段中點「時間・距離」標示、超過 `maxLegMinutes` 紅色；載入 `routes-geo.js` 失敗就維持虛線。沒有快取時維持單一灰色虛線。測試：`tools/public-map.test.js`（假 Leaflet） |
 | `js/guides.js` | 彈窗內的景點攻略（折疊區塊） | `SECTIONS` 設定順序與預設展開 |
@@ -124,18 +124,18 @@
 
 共通欄位：
 - `place`：引用地點 id。卡片標題預設用地點名稱（要改標題就寫 `title`）；該地點有 `infoType` 時，卡片可點開聯絡與導航彈窗；該項目會依出現順序自動成為當天地圖的標記。
-- 停留時間（GLOSSARY）：`spot`／`meal` 的 `time` 是完整區間且結束晚於開始時，`Trip.model.getStayLabel(item)` 推導出「停留 1 小時 40 分」（`getStayMinutes`／`formatStay`），不存檔。公開頁面在時間旁顯示「（停留 …）」，擇一組只在共用時間框顯示一次（`altGroup`）；編輯器在時間文字旁顯示唯讀提示（`days-logic.js` 的 `stayHint`，擇一組只在第一成員）。只是資訊，不標紅、不進 `getTimeWarnings`。
+- 停留時間（GLOSSARY）：`spot`／`meal` 的 `time` 是完整區間且結束晚於開始時，`Trip.model.getStayLabel(item)` 推導出「停留 1小時40分」（`getStayMinutes`；格式由 `formatHM` 統一），不存檔。公開頁面以彩色標籤顯示在時間旁，擇一組只在共用時間框顯示一次（`altGroup`）；編輯器清單列以標籤顯示（`days-logic.js` 的 `rowLength`：景點與用餐是停留、移動是「排定 …」，擇一組只在第一成員）。只是資訊，不標紅、不進 `getTimeWarnings`。
 - `alt`（只限 `spot`）：相鄰、`alt` 字串相同的項目組成擇一組（ADR 0006）；共用時間寫在組內第一項的 `time`，其他成員不寫。`Trip.model.getAltGroups(day)` 推導出 `[{ alt, start, end }]`；`validate` 擋下非 `spot`、不相鄰、少於 2 項、非第一項寫 `time`。公開頁面（`js/blocks.js`）畫成「二選一」外框，成員卡片桌機（md 以上）並排、手機堆疊。地圖編號用同號加字母（`getMapPoints` 的 `label`：3a、3b，下一站接 4）；路段方面，`getLegs` 把相鄰同 `alt` 的標記併成一站，前一站→每個成員、每個成員→下一站各一段（分岔再合流，成員之間不連線；`leg.fromAlt`／`leg.toAlt` 標出所屬擇一組），車程顯示見第 15.6 節。
 - `map:false`：有 `place` 但不放上地圖。
 - `numbered:false`：放上地圖但不編號（`waypoint` 不會在左邊出現，地圖上以小圖示呈現）。
 
 每天的選項（`stay`、`badge`、`theme`、`closeLoop`、`trafficFactor`）見 EDIT-GUIDE 第 2 節；`closeLoop` 讓地圖路線連回起點，`trafficFactor` 覆寫當天的路況係數（沒有就用 `site.routing.trafficFactor`）。
 
-`site.routing`（選填）：`{trafficFactor: 1.25, maxLegMinutes: 180}`，路況係數預設值與「路段過長」門檻（顯示分鐘），都必須是正數。
+`site.routing`（選填）：`{trafficFactor: 1.25, maxLegMinutes: 180}`，路況係數預設值與「路段過長」門檻（預估分鐘），都必須是正數。
 
 編號：每天的地圖標記由上而下自動編號（1、2、3…），左邊對應的卡片／起訖點列顯示同一個編號。調整順序就是在 `items` 裡上下搬移那一項，卡片與地圖會一起更新。
 
-**移動列（`move`，`docs/adr/0007`）**：只有 `move` 一種交通列（`drive` 已移除，`validate` 遇到會報錯）。長度 = 查詢時間（原始 × 路況係數，四捨五入）+ `buffer`；`time` 由系統算、編輯器唯讀，資料仍存起訖 `time`（公開頁面與排定不足的比對照舊讀它）。
+**移動列（`move`，`docs/adr/0007`）**：只有 `move` 一種交通列（`drive` 已移除，`validate` 遇到會報錯）。長度 = 預估時間（查詢時間 × 路況係數，四捨五入）+ `buffer`＝排定時間；`time` 由系統算、編輯器唯讀，資料仍存起訖 `time`（公開頁面與排定不足的比對照舊讀它；起迄時間以排定為準）。
 
 純函式在 `js/model.js`：
 - `getMoveMinutes`／`getMoveMinutesAt`：移動列長度。
@@ -143,15 +143,18 @@
 - `adjustSpotEdge(day, index, side, newTime, mode)`：改景點的開始或結束。連動（`link`）：改結束平移後面全部、改開始平移前面全部；伸縮（`stretch`）：鄰近的移動整個平移、再外一個單位吸收，更遠的不動。不完整時間的項目不平移、不吸收。
 - `adjustMoveBuffer(day, index, buffer, direction, mode)`：改移動列緩衝。向後（`back`）＝結束邊動、後面跟著動；向前（`forward`）＝開始邊動、前面跟著動；伸縮由該方向鄰近景點吸收。移動沒有完整時間時只存 `buffer`（0 刪除欄位）。被拒絕時 `buffer` 與時間都不變。
 - `fitMoves`：依路線查詢長度調整指定移動列並平移後面（用 `cascadeDay(day, index, delta)`：後面完整區間的項目整段平移、不完整時間不動、超出當天不動並警告）。
-- `rescheduleDay`：整天重排。以第一個完整時間項目的開始為起點，停留與移動長度不變；沒有查詢結果的移動列沿用現有長度並警告；可重複執行。
+- `rescheduleDay`：整天重排。以第一個完整時間項目的開始為起點，停留與移動長度不變；沒有路線查詢結果的移動列沿用現有長度並警告；可重複執行。
 - `deriveMoves`／`applyMoves`：找出缺的移動列並補列，另有多個、多餘的警告；只補不刪。
 
 編輯器（`days-logic.js`、`days.js`）：
-- 景點所有開始與結束欄位都可改（沒有第一項例外、沒有唯讀）。**待套用**：欄位值與資料不同（`days-logic.isPendingEdit`）就進入待套用，欄位變黃底、旁邊出現「待套用：連動／伸縮」與「連動」「伸縮」「取消」三鈕；離開焦點不套用也不還原，待套用期間資料與預覽都不動。按「連動」（或在欄位按 Enter）／「伸縮」才呼叫 `days-logic.setItemTime` → `model.adjustSpotEdge`（mode `link`／`stretch`，伸縮只動緊鄰，不存模式）；「取消」把欄位還原成資料的值。三鈕 mousedown 不搶焦點。
-- 待套用狀態只存在 DOM（`input.dataset.pend`），不進資料；結構改動（rerender、展開／收合重畫表單）整個重畫，等於捨棄待套用；`refreshTimes` 非強制更新時不覆蓋待套用欄位。
-- 被拒絕（停留 ≤ 0、超出當天、格式不對）時 toast 提示並把欄位還原；套用時不補列、不重畫、焦點不丟。
-- 移動列的 `time` 唯讀。「緩衝」欄位旁有「向前／向後」選擇（預設向後，不存）；緩衝值改了同樣進入待套用，按「連動」（Enter）或「伸縮」時依當下方向呼叫 `days-logic.setMoveBuffer` → `model.adjustMoveBuffer`，「取消」還原。資料只存 `buffer` 總值，拒絕時 toast 並還原欄位。
+- 景點所有開始與結束欄位都可改（沒有第一項例外、沒有唯讀）。**待套用**：欄位值與資料不同（`days-logic.isPendingEdit`）就進入待套用，欄位變黃底、旁邊出現「待套用：連動／伸縮」與「連動」「伸縮」「取消」三鈕；離開焦點不套用也不還原，待套用期間資料與預覽都不動。「取消」把欄位還原成資料的值。三鈕 mousedown 不搶焦點。
+- **暫時套用（確認／還原）**：按「連動」（或欄位按 Enter）／「伸縮」不是直接生效，而是 `days-logic.startTrial`：先 `snapshotDay`（項目物件參照＋欄位內容快照），再呼叫 `setItemTime` → `model.adjustSpotEdge`（或緩衝：`setMoveBuffer` → `model.adjustMoveBuffer`；mode `link`／`stretch`，伸縮只動緊鄰，不存模式），結果暫時留在草稿上，清單、路線列、預覽立即呈現整天變化。此時待套用的三鈕換成「確認」「還原」（`data-trialbar`）：「確認」＝什麼資料都不再改，只解除暫時狀態並 `changed()`（這時才算有未存檔修改）；「還原」＝`restoreDay` 就地還原（項目物件仍是同一個、欄位完全回到操作前，連剛加上的 `buffer` 欄位也會消失）。被拒絕（停留 ≤ 0、超出當天、格式不對、緩衝不是整數）時 toast 提示並把欄位還原，不進入暫時套用，資料不變。
+- **暫時套用期間的擋法（最小可行）**：`ui.trial` 有值時，`days.js` 擋下所有其他操作並 toast「請先確認或還原」——點列／收合展開、新增刪除搬移、併成擇一、整天重排、日設定、拖拉、任何欄位輸入（欄位會被重畫成資料的值）；`app.js` 的 `state.trial`（由 `ctx.setTrial` 設定）讓存檔鈕停用、`save()` 與「發布…」直接拒絕，狀態列顯示「暫時套用中（請先確認或還原，才能存檔與發布）」。這樣半成品不會被存檔或發布帶出去；「放棄未存檔的修改」（`reset()`）會一併清掉暫時套用。已知限制：暫時套用期間若剛好有路線算完（`applyComputed`），那次調整也會隨「還原」一起退回。
+- 待套用狀態（按下連動／伸縮之前）只存在 DOM（`input.dataset.pend`），不進資料；結構改動（rerender、展開／收合重畫表單）整個重畫，等於捨棄待套用；`refreshTimes` 非強制更新時不覆蓋待套用欄位。
+- 暫時套用時不補列、不重畫、焦點不丟。
+- 移動列的 `time` 唯讀。「緩衝」欄位旁有「向前／向後」選擇（預設向後，不存）；緩衝值改了同樣進入待套用，按「連動」（Enter）或「伸縮」時依當下方向暫時套用，之後同樣「確認」或「還原」。資料只存 `buffer` 總值。
 - 路線重算完成（`applyComputed`→`fitMoves`）後，長度變的移動列預設向後傳。
+- 時間顯示（使用者驗收後）：清單列的起迄時間是深色粗體較大字（`text-sm font-black`），停留（綠）與移動的「排定」（藍）是彩色標籤；每段路線列（`routes.js` 的 `legHtml`）並列「查詢」（灰）「預估」（黃）「排定」（藍；不足或不一致時紅底加 ⚠，文字說明）三個標籤與緩衝標籤，純邏輯在 `routes-logic.legLengths`。沒有查詢結果顯示「—」。公開頁面風格一致（第 15.6 節）。
 - 清單層次：展開的細節是縮排的白底卡片（類型色左色條），移動列淺藍底加 🚗、與景點同級。
 - 新增、刪除、搬移（含跨天）、換地點、轉類型、擇一組變動後補列；只有「路段變了或新補的」移動列才依查詢長度調整並平移後面。補列發生在這些結構改動，不在輸入時間的過程。
 - 路線重算完成後（`routes-controller` 的 `onComputed`），綁定新算出路段的移動列依新長度調整。
@@ -162,7 +165,7 @@
 - `node tools/sync-moves.js [--dry-run]` 只補缺的移動列；`--reschedule <day>` 對指定天補列並整天重排（查詢時間讀 `data/routes.json`）。
 - `check.js` 對缺列、多個、多餘只印警告。公開頁面的自動連接列保留作備援。
 - 規則摘要：「邊界連動」——改結束邊平移後面全部、改開始邊平移前面全部，整天沒有固定起點；移動列用緩衝加方向（向前／向後）；另有一次性的「伸縮」，只影響緊鄰的移動與景點；欄位改完要按「連動」或「伸縮」才套用。見 ADR 0007 與 GLOSSARY 的連動、伸縮、緩衝。景點邊界與移動列緩衝的編輯器部分都已實作。
-- `buffer`（只限 `move`）：緩衝，整數分鐘、可為負，預設 0，0 不寫入資料；`validate` 檢查非 `move` 或非整數會報錯。編輯器移動列有「緩衝」欄（`time` 仍唯讀）；公開頁面緩衝非 0 時在移動列加註「含緩衝 ±N 分」，查詢時間文字不受影響。
+- `buffer`（只限 `move`）：緩衝，整數分鐘、可為負，預設 0，0 不寫入資料；`validate` 檢查非 `move` 或非整數會報錯。編輯器移動列有「緩衝」欄（`time` 仍唯讀）；公開頁面緩衝非 0 時在移動列加「緩衝 +0小時10分」標籤，查詢與預估文字不受影響。
 
 ### 4.3 地圖標記與編號是「推導」出來的
 `model.getMapPoints(day, places)` 依 `items` 的順序，把有 `place` 且該地點有座標的項目變成標記：
@@ -300,7 +303,7 @@ node tools/e2e.js
 | 編輯器只在本機跑、綁 `127.0.0.1`（`docs/adr/0002`） | 它能 push 到 `main`；不做登入與金鑰，公開頁面沒有任何能寫入的程式 |
 | 發布按鈕＝使用者確認（`docs/adr/0003`） | 使用者要「改完直接發布」；確認視窗列出異動與可編輯的 commit 訊息，失敗不重試、不強推、只能在 `main`、不附 AI 署名 |
 | 路線預先計算並快取，公開頁面不呼叫 API（`docs/adr/0004`） | 免金鑰、離線可看、服務掛掉不影響已發布頁面；代價是 `routes-geo.js` 讓 repo 變大（已拆成展開地圖才載入）、沒有路況預測（用係數） |
-| 快取存原始時間，顯示時間 = 原始 × 係數 | OSRM 沒有路況預測；係數在資料裡，之後只調係數不用重算 |
+| 快取存原始時間（查詢時間），預估時間 = 查詢 × 係數 | OSRM 沒有路況預測；係數在資料裡，之後只調係數不用重算 |
 | 路線失敗不擋存檔與發布 | 路線只是輔助資訊；失敗時退回直線並警告 |
 | 發布時以記憶體中的 `trip`、`places` 與磁碟比對（body 必填 `trip`、`places`） | 確認「畫面上看到的」就是「要 commit 的」，有未存檔修改就拒絕 |
 | 大鯖魚、冷泉停留時間**沒有**延長 | 要動到當天其他安排；列在 TODO 讓使用者決定 |
@@ -465,12 +468,12 @@ node tools/e2e.js
 ### 15.3 係數與門檻
 | 名稱 | 位置 | 預設 | 作用 |
 |---|---|---|---|
-| 路況係數 `trafficFactor` | `site.routing.trafficFactor`；每天可用 `days[].trafficFactor` 覆寫 | 1.25 | 顯示分鐘 = 四捨五入（`duration ÷ 60 × 係數`） |
-| 門檻 `maxLegMinutes` | `site.routing.maxLegMinutes` | 180 | 顯示分鐘**大於**門檻的段落在地圖上標紅（`>`，等於不算） |
+| 路況係數 `trafficFactor` | `site.routing.trafficFactor`；每天可用 `days[].trafficFactor` 覆寫 | 1.25 | 預估分鐘 = 四捨五入（`duration ÷ 60 × 係數`）；查詢分鐘 = 四捨五入（`duration ÷ 60`） |
+| 門檻 `maxLegMinutes` | `site.routing.maxLegMinutes` | 180 | 預估分鐘**大於**門檻的段落在地圖上標紅（`>`，等於不算） |
 
 - 當天使用的係數：`day.trafficFactor` > `site.routing.trafficFactor` > 預設 1.25（`model.getTrafficFactor`）。
-- 門檻判斷與「排太緊」警告都用**顯示分鐘**，不是原始時間。
-- 顯示格式：`約 1 小時 5 分・75.3 km`；不滿 1 小時寫 `約 45 分`；整點寫 `約 2 小時`；距離取一位小數公里。標示文字：`查詢・含路況緩衝 ×1.25`（係數用實際值）。
+- 門檻判斷與「排太緊」警告都用**預估分鐘**，不是查詢（原始）時間。
+- 顯示格式：所有時間長度一律「X小時YY分」（`model.formatHM`，小時為 0 也寫：`0小時45分`、`1小時05分`、`2小時00分`；沒有值「—」；緩衝帶正負號）；距離取一位小數公里。標示文字：`預估・含路況係數 ×1.25`（係數用實際值）；地圖路段標籤寫「預估 ×1.25」。
 - 因為快取存原始時間，**調係數與門檻不需要重算路線**。
 
 ### 15.4 計算服務與 OSRM 使用限制（`tools/routing/provider.js`）
@@ -488,19 +491,20 @@ node tools/e2e.js
 - 同一段同時只算一次（`inflight`），避免重複呼叫。
 
 ### 15.6 公開頁面行為（`js/route-view.js`、`js/blocks.js`、`js/map.js`）
-- 地圖：有快取的段落畫道路路線（`geometry` 解碼）取代灰色虛線；沒有 geo 或沒有快取的段落仍畫虛線直線；每段中點（沿路線一半長度處）標示「時間・距離」，並一律帶「查詢 ×係數」（title 為完整的「查詢・含路況緩衝 ×係數」）；超過門檻的段落紅色。完全沒有快取時維持原本單一灰色虛線。
+- 地圖：有快取的段落畫道路路線（`geometry` 解碼）取代灰色虛線；沒有 geo 或沒有快取的段落仍畫虛線直線；每段中點（沿路線一半長度處）標示「預估時間・距離」，並一律帶「預估 ×係數」（title 為完整的「預估・含路況係數 ×係數」）；超過門檻的段落紅色。完全沒有快取時維持原本單一灰色虛線。
 - 當天標題列顯示「總車程・總里程」（有快取的路段加總；缺段時加「（部分路段未計算）」）。有擇一組時，擇一組取較長的那條路徑加總，並標註「（含擇一組取較長）」（`routeView.dayRoutes` 沿站點累計各成員的最大值）。
-- 擇一組前後的移動列（綁定的 `move` 與自動連接列）各只有一列，同一列並列每條路徑的查詢時間（「→ 大坡池 約 X 分／→ 伯朗大道 約 Y 分」），各路徑分別與同一個排定時間比對，只有不足的那條帶「⚠ 排定不足」。`autoByRow`／`autoAfter` 的值多一個 `paths: [{ label, text, needed, short }]`（沒有擇一組時沒有 `paths`）；整組的排定時間用組內第一項的 `time`（`getLegSchedule`）。
-- 綁定的 `move` 列：**一律並列顯示查詢時間與排定時間**（有快取且 `time` 是完整區間時才有排定時間）；`note` 只是備註文字，不參與計算；`text` 不變。排定時間 < 查詢時間時該列（含自動連接列）紅字加「⚠ 排定不足」；地圖標籤的紅色仍只代表單段超過門檻，兩者不合併。
-- 兩個標記之間沒有移動列時，自動補一條唯讀連接列「車程約 …（自動）」。
-- 圖例下方的說明文字有快取時改寫：實線為道路查詢路線、虛線為尚未計算、紅色表示單段超過門檻、附係數說明，並寫「實際請以導航為準」。
+- 擇一組前後的移動列（綁定的 `move` 與自動連接列）各只有一列，同一列並列每條路徑的查詢與預估（「→ 大坡池 查詢 … 預估 …　→ 伯朗大道 …」）與一個共用的排定時間，各路徑分別與同一個排定時間比對，只有不足的那條帶「⚠ 排定不足」。`autoByRow`／`autoAfter` 的值多一個 `paths: [{ label, text, distance, query, needed, short }]`（沒有擇一組時沒有 `paths`）；整組的排定時間用組內第一項的 `time`（`getLegSchedule`）。
+- 綁定的 `move` 列：**一律並列顯示查詢、預估、排定三種長度**（各自標名稱；有快取才有查詢與預估，`time` 是完整區間才有排定，沒有的寫「—」並說明；有快取的那天，沒有查詢結果的移動列也有一筆，`missing: true`）；`note` 只是備註文字，不參與計算；`text` 不變。排定 < 預估時該列（含自動連接列）紅字加「⚠ 排定不足（排定 X < 預估 Y）」；排定 ≠ 預估 + 緩衝（但不是不足）時排定標籤標 ⚠ 並寫「排定與預估不一致」（`getLegSchedule` 的 `mismatch`，只看綁定移動列）。地圖標籤的紅色仍只代表單段超過門檻，兩者不合併。
+- 兩個標記之間沒有移動列時，自動補一條唯讀連接列「車程（自動）」，同樣並列三種長度。
+- 圖例下方的說明文字有快取時改寫：實線為道路路線、虛線為尚未計算、紅色表示單段超過門檻、附係數說明，並寫「實際請以導航為準」。
 - 載入失敗或沒有快取時整個功能靜默退回現狀，不出現紅色提示列或 JS 錯誤。
 
 ### 15.7 「排太緊」判斷（`model.getLegSchedule(day, places, routes, site)`；公開頁面紅字與編輯器警告列表共用，不擋存檔與發布）
-- `getLegSchedule` 回傳每段 `{ leg, legIndex, scheduled, needed, short }`；`model.getTimeWarnings` 與 `Trip.routeView.dayRoutes` 都由它而來（`dayRoutes` 的 `legs[i].scheduled／short`、`autoByRow／autoAfter` 的 `scheduled／needed／short`）。
+- `getLegSchedule` 回傳每段 `{ leg, legIndex, query, buffer, scheduled, needed, short, mismatch }`（`query` 查詢時間、`needed` 預估時間、`scheduled` 排定時間，單位分）；`model.getTimeWarnings` 與 `Trip.routeView.dayRoutes` 都由它而來（`dayRoutes` 的 `legs[i].scheduled／short／query／mismatch`、`autoByRow／autoAfter` 的 `query／scheduled／needed／short／mismatch`）。
 - 只在兩端都有可解析的 `HH:MM` 時比對；「17:10 後」「12:15」這類不完整時間不比對。
-- 有綁定移動列、且其 `time` 是區間（`07:30 - 09:20`）：區間長度 < 顯示時間就警告。
-- 沒有移動列：「前一項結束時間」與「後一項開始時間」之差 < 顯示時間就警告（前後項的 `time` 都要是區間）。
+- 有綁定移動列、且其 `time` 是區間（`07:30 - 09:20`）：區間長度（排定）< 預估時間就警告。
+- 沒有移動列：「前一項結束時間」與「後一項開始時間」之差（排定）< 預估時間就警告（前後項的 `time` 都要是區間）。
+- 長度文字一律 `model.formatHM`（X小時YY分）；警告訊息格式：`DAY n 第 k 段（A → B）：排定 0小時30分 < 預估 0小時50分（預估・含路況係數 ×1.25）`。
 - 沒有快取的路段、未綁定的路段（多個移動列）、`closeLoop` 回程段都不比對。
 - 警告文字寫明哪一天、第幾段、排定幾分、至少需要多久。
 - 編輯器還會警告：路線計算失敗、有地點沒有座標。

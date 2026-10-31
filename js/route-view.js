@@ -1,6 +1,6 @@
 /*
  * 公開頁面的路線顯示邏輯（不碰 DOM）：把路線快取（window.TRIP_ROUTES）套到某一天的路段上，
- * 算出每段的顯示時間、是否超過門檻、當天總車程。blocks.js（列與標題）與 map.js（地圖）共用。
+ * 算出每段的查詢、預估、排定時間、是否超過門檻、當天總車程。blocks.js（列與標題）與 map.js（地圖）共用。
  * 路段的規則在 js/model.js 的 getLegs，這裡不複製。沒有快取時每段 cached 為 null，呼叫端照舊畫面。
  */
 (function (root) {
@@ -48,18 +48,19 @@
     }
 
     // 某一天每個路段的顯示資料。routes = window.TRIP_ROUTES（可為 undefined）。
-    // legs[i]：{ leg（getLegs 的結果）, cached（{distance, duration} 或 null）, minutes（查詢時間）, over（單段超過門檻）, text, scheduled（排定時間或 null）, short（排定不足）}
+    // 三種長度：查詢時間（路線原始時間）、預估時間（查詢 × 路況係數；內部欄位 minutes／needed）、排定時間（time 區間長度，scheduled）。
+    // legs[i]：{ leg（getLegs 的結果）, cached（{distance, duration} 或 null）, minutes（預估時間）, over（單段超過門檻）, text, scheduled（排定時間或 null）, short（排定不足）}
     // summary：有快取的路段加總 { minutes, meters, missing }；一段都沒有快取時為 null
     function dayRoutes(day, places, routes, site) {
         const cache = (routes && routes.legs) || {};
         const factor = model.getTrafficFactor(day, site);
         const max = (site && site.routing && site.routing.maxLegMinutes) || model.DEFAULT_ROUTING.maxLegMinutes;
-        const legs = model.getLegSchedule(day, places, routes, site).map(({ leg, scheduled, short }) => {
+        const legs = model.getLegSchedule(day, places, routes, site).map(({ leg, scheduled, short, query, mismatch }) => {
             const c = cache[leg.key];
             // 排定時間與是否不足由 model.getLegSchedule 判斷（編輯器的警告列表用同一個）
-            if (!model.isUsableLeg(c)) return { leg, cached: null, minutes: null, over: false, text: '', scheduled, short: false };
+            if (!model.isUsableLeg(c)) return { leg, cached: null, minutes: null, over: false, text: '', scheduled, short: false, query: null, mismatch: false };
             const minutes = model.displayMinutes(c.duration, factor);
-            return { leg, cached: c, minutes, over: minutes > max, text: model.formatLeg(c, factor), scheduled, short };
+            return { leg, cached: c, minutes, over: minutes > max, text: model.formatLeg(c, factor), scheduled, short, query, mismatch };
         });
         const have = legs.filter(l => l.cached);
         // 給 blocks.js 用：綁定到交通列的、沒有交通列時補在前一項後面的計算結果（key 是 day.items 的索引）
@@ -81,15 +82,20 @@
         const autoByRow = {}, autoAfter = {};
         slots.forEach(members => {
             const first = members[0];
-            const auto = { text: first.text, note: factorNote, scheduled: first.scheduled, needed: first.minutes, short: first.short };
+            const auto = { text: first.text, distance: model.formatDistance(first.cached.distance), note: factorNote, query: first.query, scheduled: first.scheduled, needed: first.minutes, short: first.short, mismatch: first.mismatch };
             if (members.length > 1 || first.leg.fromAlt || first.leg.toAlt) {
-                auto.paths = members.map(l => ({ label: pathLabel(l.leg), text: l.text, needed: l.minutes, short: l.short }));
+                auto.paths = members.map(l => ({ label: pathLabel(l.leg), text: l.text, distance: model.formatDistance(l.cached.distance), query: l.query, needed: l.minutes, short: l.short }));
                 auto.text = auto.paths.map(p => `${p.label} ${p.text}`).join('／');
                 auto.needed = Math.max(...members.map(l => l.minutes));
                 auto.short = members.some(l => l.short);
             }
             if (first.leg.rowIndex != null) autoByRow[first.leg.rowIndex] = auto;
             else autoAfter[first.leg.fromItemIndex] = auto;
+        });
+        // 有快取的天裡，沒有查詢結果的移動列：只有排定時間（query、needed 為 null，畫面顯示「—」並說明）
+        if (have.length) legs.forEach(l => {
+            if (l.cached || l.leg.rowIndex == null || l.leg.closeLoop || autoByRow[l.leg.rowIndex]) return;
+            autoByRow[l.leg.rowIndex] = { text: '', distance: '', note: factorNote, query: null, needed: null, scheduled: l.scheduled, short: false, mismatch: false, missing: true };
         });
         // 總車程：沿站點累加；擇一組取較長的那條路徑（各成員的累計取最大），沒有擇一組時等於全部加總
         const best = {};
@@ -112,7 +118,7 @@
             hasCache: have.length > 0,
             factorNote,
             summaryText: summary
-                ? `總車程 ${model.formatDuration(summary.minutes)}・總里程 ${model.formatDistance(summary.meters)}${hasAlt ? '（含擇一組取較長）' : ''}${summary.missing ? '（部分路段未計算）' : ''}`
+                ? `總車程 ${model.formatHM(summary.minutes)}・總里程 ${model.formatDistance(summary.meters)}${hasAlt ? '（含擇一組取較長）' : ''}${summary.missing ? '（部分路段未計算）' : ''}`
                 : ''
         };
     }
