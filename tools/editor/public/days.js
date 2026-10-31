@@ -24,6 +24,9 @@
             return it.title || placeName(it.place) || it.text || '(空白)';
         };
 
+        // 待套用列：欄位值與資料不同時才顯示（syncPending）。連動／伸縮／取消；buffer 另有向前／向後選擇（在 pendBar 外，常駐）
+        const pendBar = field => `<div data-pendbar="${field}" style="display:none" class="mt-1 flex flex-wrap items-center gap-1"><span class="text-[11px] text-amber-700">待套用：連動／伸縮</span><button type="button" data-act="pendlink" data-field="${field}" class="shrink-0 rounded border bg-white px-1.5 text-[11px] text-slate-700 hover:bg-slate-100" title="連動：${field === 'start' ? '前面整串跟著動' : field === 'end' ? '後面整串跟著動' : '依方向，該側整串跟著動'}（Enter 也是連動）">連動</button><button type="button" data-act="pendstretch" data-field="${field}" class="shrink-0 rounded border bg-white px-1.5 text-[11px] text-slate-700 hover:bg-slate-100" title="伸縮（單次）：只動緊鄰的移動與景點，更遠的不動">伸縮</button><button type="button" data-act="pendcancel" data-field="${field}" class="shrink-0 rounded border bg-white px-1.5 text-[11px] text-slate-500 hover:bg-slate-100" title="取消：欄位還原成目前資料">取消</button></div>`;
+
         function fieldHtml(name, item, day, ii) {
             const [label, kind] = FIELD[name];
             if (kind === 'bool') {
@@ -39,7 +42,7 @@
             const parts = name === 'time' ? L.timeParts(item.time) : null;
             if (parts) {   // 完整區間：開始、結束都可改（離開欄位後連動：改結束平移後面、改開始平移前面），各有一次性「伸縮」、說明文字
                 const rw = 'class="mt-0.5 w-full rounded border p-1.5"';
-                const edge = (side, label, v) => `<div class="block"><span class="text-xs text-slate-500">${label}</span><div class="mt-0.5 flex gap-1"><input data-f="${side}" value="${esc(v)}" class="min-w-0 flex-1 rounded border p-1.5"><button type="button" data-act="stretch" data-side="${side}" class="shrink-0 rounded border bg-white px-1.5 text-[11px] text-slate-600 hover:bg-slate-100" title="伸縮（單次）：只動緊鄰的移動與景點，更遠的不動；用目前欄位的值">伸縮</button></div></div>`;
+                const edge = (side, label, v) => `<div class="block"><span class="text-xs text-slate-500">${label}</span><input data-f="${side}" value="${esc(v)}" class="mt-0.5 w-full rounded border p-1.5">${pendBar(side)}</div>`;
                 return `<div class="col-span-2 grid grid-cols-3 gap-2">
                     ${edge('start', '開始（改它＝前面整串跟著動）', parts.start)}
                     ${edge('end', '結束（改它＝後面整串跟著動）', parts.end)}
@@ -47,7 +50,7 @@
                 </div>`;
             }
             if (name === 'buffer' && item.type === 'move') {   // 移動列緩衝：向前＝開始邊動（前面跟著動）、向後＝結束邊動（後面跟著動）；方向與伸縮不存，只存總緩衝
-                return `<div class="block"><span class="text-xs text-slate-500">${label}</span><div class="mt-0.5 flex gap-1"><input data-f="buffer" inputmode="numeric" value="${esc(item.buffer)}" class="min-w-0 flex-1 rounded border p-1.5"><select data-f="bufdir" class="shrink-0 rounded border bg-white p-1 text-xs" title="這次調整哪一邊動（不存）"><option value="back" selected>向後</option><option value="forward">向前</option></select><button type="button" data-act="bufstretch" class="shrink-0 rounded border bg-white px-1.5 text-[11px] text-slate-600 hover:bg-slate-100" title="伸縮（單次）：由該方向的鄰近景點吸收，更遠的不動；用目前欄位的值">伸縮</button></div></div>`;
+                return `<div class="block"><span class="text-xs text-slate-500">${label}</span><div class="mt-0.5 flex gap-1"><input data-f="buffer" inputmode="numeric" value="${esc(item.buffer)}" class="min-w-0 flex-1 rounded border p-1.5"><select data-f="bufdir" class="shrink-0 rounded border bg-white p-1 text-xs" title="這次調整哪一邊動（不存）"><option value="back" selected>向後</option><option value="forward">向前</option></select></div>${pendBar('buffer')}</div>`;
             }
             return `<label class="block"><span class="text-xs text-slate-500">${label}</span><input data-f="${name}" value="${esc(item[name])}" class="mt-0.5 w-full rounded border p-1.5"></label>`;
         }
@@ -163,10 +166,34 @@
                 const form = el.querySelector('[data-form]');
                 if (!form) return;
                 const parts = L.timeParts(t) || {};
-                const set = (f, v) => { const input = form.querySelector(`input[data-f="${f}"]`); if (input && (force || input !== document.activeElement) && v != null) input.value = v; };
+                const set = (f, v) => { const input = form.querySelector(`input[data-f="${f}"]`); if (input && (force || (input !== document.activeElement && !input.dataset.pend)) && v != null) input.value = v; };
                 set('time', t); set('start', parts.start); set('end', parts.end); set('tail', parts.tail);
                 set('buffer', String(day.items[ii].buffer || ''));
+                syncPending(form, day.items[ii]);
             });
+        }
+
+        // 待套用狀態（只存在 DOM：input.dataset.pend＋黃底＋按鈕列），不進資料。結構改動（rerender／toggle 重畫）會整個重畫表單，等於直接捨棄待套用
+        function syncPending(form, item) {
+            ['start', 'end', 'buffer'].forEach(f => {
+                const input = form.querySelector(`input[data-f="${f}"]`);
+                if (!input) return;
+                const pend = L.isPendingEdit(item, f, input.value);
+                input.dataset.pend = pend ? '1' : '';
+                input.style.background = pend ? '#fef3c7' : '';
+                const bar = form.querySelector(`[data-pendbar="${f}"]`);
+                if (bar) bar.style.display = pend ? '' : 'none';
+            });
+        }
+
+        // 套用或取消待套用欄位：mode 'link'｜'stretch'｜'cancel'
+        function applyPending(di, ii, field, mode) {
+            const form = pane.querySelector(`[data-item][data-di="${di}"][data-ii="${ii}"] [data-form]`);
+            if (!form) return;
+            if (mode === 'cancel') return refreshTimes(di, true);
+            const value = form.querySelector(`input[data-f="${field}"]`).value;
+            if (field === 'buffer') applyBuffer(di, ii, value, form.querySelector('[data-f="bufdir"]').value, mode);
+            else applyEdge(di, ii, field, value, mode);
         }
 
         // 路線算完（keys = 新算出的路段）：綁定這些路段的移動列依新長度調整，後面平移；不重畫，只更新時間
@@ -222,14 +249,7 @@
             if (itemEl) {
                 const di = +itemEl.dataset.di, ii = +itemEl.dataset.ii, it = days[di].items[ii];
                 if (act === 'toggle') { ui.openItem = ui.openItem === it ? null : it; return render(); }
-                if (act === 'stretch') {
-                    const input = itemEl.querySelector(`[data-form] input[data-f="${el.dataset.side}"]`);
-                    return applyEdge(di, ii, el.dataset.side, input.value, 'stretch');
-                }
-                if (act === 'bufstretch') {
-                    const form = itemEl.querySelector('[data-form]');
-                    return applyBuffer(di, ii, form.querySelector('input[data-f="buffer"]').value, form.querySelector('[data-f="bufdir"]').value, 'stretch');
-                }
+                if (act === 'pendlink' || act === 'pendstretch' || act === 'pendcancel') return applyPending(di, ii, el.dataset.field, act === 'pendlink' ? 'link' : act === 'pendstretch' ? 'stretch' : 'cancel');
                 if (act === 'del') { const b = snap([di]); days[di].items.splice(ii, 1); if (ui.openItem === it) ui.openItem = null; syncDays(b); return rerender(); }
                 if (act === 'joinalt') { const b = snap([di]); L.joinAlt(days[di], ii); syncDays(b); return rerender(); }
                 if (act === 'leavealt') { const b = snap([di]); L.leaveAlt(days[di], ii); syncDays(b); return rerender(); }
@@ -261,7 +281,15 @@
             }
         });
 
-        pane.addEventListener('mousedown', e => { if (e.target.closest('[data-act="stretch"], [data-act="bufstretch"]')) e.preventDefault(); });   // 不讓按鈕搶走焦點，否則欄位會先以連動套用一次
+        pane.addEventListener('mousedown', e => { if (e.target.closest('[data-act^="pend"]')) e.preventDefault(); });   // 按鈕不搶走欄位焦點（離開焦點本來就不套用，只是讓焦點留在原處）
+        // 待套用欄位按 Enter＝連動
+        pane.addEventListener('keydown', e => {
+            if (e.key !== 'Enter' || e.isComposing) return;
+            const el = e.target, form = el.closest && el.closest('[data-form]');
+            if (!form || !['start', 'end', 'buffer'].includes(el.dataset.f) || !el.dataset.pend) return;
+            e.preventDefault();
+            applyPending(+form.closest('[data-item]').dataset.di, +form.dataset.ii, el.dataset.f, 'link');
+        });
 
         // 編輯：文字欄位邊打邊改草稿但不重畫（避免失去焦點）；選單、勾選、地點欄位確定後才重畫
         pane.addEventListener('input', e => handleEdit(e, false));
@@ -282,9 +310,8 @@
                     syncDays(before);
                     return rerender();
                 }
-                if (f === 'start' || f === 'end') {   // 開始／結束：輸入中不動資料；離開欄位後連動，拒絕就提示並還原
-                    if (committed) applyEdge(di, +form.dataset.ii, f, el.value, 'link');
-                    return;
+                if (f === 'start' || f === 'end') {   // 開始／結束：值與資料不同就進入待套用（資料與預覽都不動），離開焦點不套用也不還原；按「連動」「伸縮」才套用
+                    return syncPending(form, it);
                 }
                 if (f === 'tail' || (f === 'time' && it.type !== 'move')) {
                     // 說明文字與整串時間：邊輸入邊改（不補列、不重畫）；離開欄位後才補列並重畫
@@ -296,10 +323,7 @@
                     return ctx.changed();
                 }
                 if (f === 'bufdir') return;   // 方向只在套用緩衝時讀，不存
-                if (f === 'buffer') {   // 緩衝：輸入中不動資料；離開欄位後依方向連動（預設向後），拒絕就提示並還原
-                    if (committed) applyBuffer(di, +form.dataset.ii, el.value, form.querySelector('[data-f="bufdir"]').value, 'link');
-                    return;
-                }
+                if (f === 'buffer') return syncPending(form, it);   // 緩衝：同開始／結束，待套用；方向（向前／向後）在按下連動或伸縮時才讀
                 if (el.value === '') delete it[f]; else it[f] = el.value;
                 if (f === 'place') {
                     if (!committed) {

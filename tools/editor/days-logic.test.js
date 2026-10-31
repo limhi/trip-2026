@@ -699,3 +699,28 @@ test('setItemTime tail：完整區間可改後註（空白清掉）；沒有完�
     assert.equal(r.reason, 'invalid');
     assert.equal(inc.items[0].time, '15:30 後');
 });
+
+// 待套用判斷：欄位值與資料不同才算待套用（開始／結束／移動列緩衝）
+test('isPendingEdit：開始／結束與資料相同不算待套用，不同才算（前後空白忽略）', () => {
+    const it = { type: 'spot', time: '10:00 - 11:00 午餐' };
+    assert.equal(L.isPendingEdit(it, 'start', '10:00'), false);
+    assert.equal(L.isPendingEdit(it, 'start', ' 10:00 '), false);
+    assert.equal(L.isPendingEdit(it, 'start', '10:05'), true);
+    assert.equal(L.isPendingEdit(it, 'end', '11:00'), false);
+    assert.equal(L.isPendingEdit(it, 'end', '11:10'), true);
+    assert.equal(L.isPendingEdit(it, 'end', ''), true);
+});
+
+test('isPendingEdit：移動列緩衝，空白與沒有欄位＝0 視為相同；不是整數也算待套用', () => {
+    assert.equal(L.isPendingEdit({ type: 'move' }, 'buffer', ''), false);
+    assert.equal(L.isPendingEdit({ type: 'move' }, 'buffer', '0'), false);
+    assert.equal(L.isPendingEdit({ type: 'move', buffer: 10 }, 'buffer', '10'), false);
+    assert.equal(L.isPendingEdit({ type: 'move', buffer: 10 }, 'buffer', '15'), true);
+    assert.equal(L.isPendingEdit({ type: 'move', buffer: 10 }, 'buffer', ''), true);
+    assert.equal(L.isPendingEdit({ type: 'move' }, 'buffer', 'abc'), true);
+});
+
+test('isPendingEdit：沒有完整區間的項目、其他欄位一律不算待套用', () => {
+    assert.equal(L.isPendingEdit({ type: 'spot', time: '15:30 後' }, 'start', '16:00'), false);
+    assert.equal(L.isPendingEdit({ type: 'spot', time: '10:00 - 11:00' }, 'tail', 'x'), false);
+});

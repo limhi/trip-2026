@@ -147,10 +147,10 @@
 - `deriveMoves`／`applyMoves`：找出缺的移動列並補列，另有多個、多餘的警告；只補不刪。
 
 編輯器（`days-logic.js`、`days.js`）：
-- 景點所有開始與結束欄位都可改（沒有第一項例外、沒有唯讀）。輸入過程中不動資料；離開欄位時呼叫 `days-logic.setItemTime` → `model.adjustSpotEdge`（預設連動）。
-- 每個邊界欄位旁有一次性「伸縮」按鈕（只動緊鄰，不存模式；按鈕 mousedown 不搶焦點，用欄位目前的值）。
+- 景點所有開始與結束欄位都可改（沒有第一項例外、沒有唯讀）。**待套用**：欄位值與資料不同（`days-logic.isPendingEdit`）就進入待套用，欄位變黃底、旁邊出現「待套用：連動／伸縮」與「連動」「伸縮」「取消」三鈕；離開焦點不套用也不還原，待套用期間資料與預覽都不動。按「連動」（或在欄位按 Enter）／「伸縮」才呼叫 `days-logic.setItemTime` → `model.adjustSpotEdge`（mode `link`／`stretch`，伸縮只動緊鄰，不存模式）；「取消」把欄位還原成資料的值。三鈕 mousedown 不搶焦點。
+- 待套用狀態只存在 DOM（`input.dataset.pend`），不進資料；結構改動（rerender、展開／收合重畫表單）整個重畫，等於捨棄待套用；`refreshTimes` 非強制更新時不覆蓋待套用欄位。
 - 被拒絕（停留 ≤ 0、超出當天、格式不對）時 toast 提示並把欄位還原；套用時不補列、不重畫、焦點不丟。
-- 移動列的 `time` 唯讀。「緩衝」欄位旁有「向前／向後」選擇（預設向後，不存）與一次性「伸縮」按鈕；離開欄位（或按伸縮）時呼叫 `days-logic.setMoveBuffer` → `model.adjustMoveBuffer`。資料只存 `buffer` 總值，拒絕時 toast 並還原欄位。
+- 移動列的 `time` 唯讀。「緩衝」欄位旁有「向前／向後」選擇（預設向後，不存）；緩衝值改了同樣進入待套用，按「連動」（Enter）或「伸縮」時依當下方向呼叫 `days-logic.setMoveBuffer` → `model.adjustMoveBuffer`，「取消」還原。資料只存 `buffer` 總值，拒絕時 toast 並還原欄位。
 - 路線重算完成（`applyComputed`→`fitMoves`）後，長度變的移動列預設向後傳。
 - 清單層次：展開的細節是縮排的白底卡片（類型色左色條），移動列淺藍底加 🚗、與景點同級。
 - 新增、刪除、搬移（含跨天）、換地點、轉類型、擇一組變動後補列；只有「路段變了或新補的」移動列才依查詢長度調整並平移後面。補列發生在這些結構改動，不在輸入時間的過程。
@@ -161,7 +161,7 @@
 - 載入資料時不自動改任何時間。
 - `node tools/sync-moves.js [--dry-run]` 只補缺的移動列；`--reschedule <day>` 對指定天補列並整天重排（查詢時間讀 `data/routes.json`）。
 - `check.js` 對缺列、多個、多餘只印警告。公開頁面的自動連接列保留作備援。
-- 規則摘要：「邊界連動」——改結束邊平移後面全部、改開始邊平移前面全部，整天沒有固定起點；移動列用緩衝加方向（向前／向後）；另有一次性的「伸縮」，只影響緊鄰的移動與景點。見 ADR 0007 與 GLOSSARY 的連動、伸縮、緩衝。景點邊界與移動列緩衝的編輯器部分都已實作。
+- 規則摘要：「邊界連動」——改結束邊平移後面全部、改開始邊平移前面全部，整天沒有固定起點；移動列用緩衝加方向（向前／向後）；另有一次性的「伸縮」，只影響緊鄰的移動與景點；欄位改完要按「連動」或「伸縮」才套用。見 ADR 0007 與 GLOSSARY 的連動、伸縮、緩衝。景點邊界與移動列緩衝的編輯器部分都已實作。
 - `buffer`（只限 `move`）：緩衝，整數分鐘、可為負，預設 0，0 不寫入資料；`validate` 檢查非 `move` 或非整數會報錯。編輯器移動列有「緩衝」欄（`time` 仍唯讀）；公開頁面緩衝非 0 時在移動列加註「含緩衝 ±N 分」，查詢時間文字不受影響。
 
 ### 4.3 地圖標記與編號是「推導」出來的
@@ -256,7 +256,7 @@ node tools/check.js
 ```bash
 node --test
 ```
-只需要 Node（自動找所有 `*.test.js`，目前 448 項）。涵蓋：`build-data`、邊界連動與伸縮（`edges.test.js`）、路線快取與 provider（假伺服器：User-Agent、間隔、逾時、不重試）、`getLegs`／顯示時間／警告、公開頁面的 `blocks`／`map`／`route-view`（假 DOM、假 Leaflet）、編輯器的 `store`、`preview`、`publish`（在**暫存 git repo** 內做，含 bare remote，不碰真的 `main`）、`routes-service`、各 `*-logic.js`（含 `setItemTime`、`setMoveBuffer`）與 `routes-controller.js`。**編輯器前端畫面本身（拖拉、表單、預覽 iframe）沒有自動化測試**，要靠使用者在瀏覽器驗收。
+只需要 Node（自動找所有 `*.test.js`，目前 451 項）。涵蓋：`build-data`、邊界連動與伸縮（`edges.test.js`）、路線快取與 provider（假伺服器：User-Agent、間隔、逾時、不重試）、`getLegs`／顯示時間／警告、公開頁面的 `blocks`／`map`／`route-view`（假 DOM、假 Leaflet）、編輯器的 `store`、`preview`、`publish`（在**暫存 git repo** 內做，含 bare remote，不碰真的 `main`）、`routes-service`、各 `*-logic.js`（含 `setItemTime`、`setMoveBuffer`）與 `routes-controller.js`。**編輯器前端畫面本身（拖拉、表單、預覽 iframe）沒有自動化測試**，要靠使用者在瀏覽器驗收。
 
 ### 10.2 瀏覽器端到端測試（`tools/e2e.js`）
 改到功能（`js/`、`index.html`、`verify.html`、`css/`）就要跑；只改資料文字可以只跑 `check.js`。
