@@ -46,7 +46,9 @@
                     <label class="block"><span class="text-xs text-slate-500">時間說明</span><input data-f="tail" value="${esc(parts.tail)}" ${rw}></label>
                 </div>`;
             }
-            if (kind === 'int') return `<label class="block"><span class="text-xs text-slate-500">${label}</span><input data-f="${name}" inputmode="numeric" value="${esc(item[name])}" class="mt-0.5 w-full rounded border p-1.5"></label>`;
+            if (name === 'buffer' && item.type === 'move') {   // 移動列緩衝：向前＝開始邊動（前面跟著動）、向後＝結束邊動（後面跟著動）；方向與伸縮不存，只存總緩衝
+                return `<div class="block"><span class="text-xs text-slate-500">${label}</span><div class="mt-0.5 flex gap-1"><input data-f="buffer" inputmode="numeric" value="${esc(item.buffer)}" class="min-w-0 flex-1 rounded border p-1.5"><select data-f="bufdir" class="shrink-0 rounded border bg-white p-1 text-xs" title="這次調整哪一邊動（不存）"><option value="back" selected>向後</option><option value="forward">向前</option></select><button type="button" data-act="bufstretch" class="shrink-0 rounded border bg-white px-1.5 text-[11px] text-slate-600 hover:bg-slate-100" title="伸縮（單次）：由該方向的鄰近景點吸收，更遠的不動；用目前欄位的值">伸縮</button></div></div>`;
+            }
             return `<label class="block"><span class="text-xs text-slate-500">${label}</span><input data-f="${name}" value="${esc(item[name])}" class="mt-0.5 w-full rounded border p-1.5"></label>`;
         }
 
@@ -163,6 +165,7 @@
                 const parts = L.timeParts(t) || {};
                 const set = (f, v) => { const input = form.querySelector(`input[data-f="${f}"]`); if (input && (force || input !== document.activeElement) && v != null) input.value = v; };
                 set('time', t); set('start', parts.start); set('end', parts.end); set('tail', parts.tail);
+                set('buffer', String(day.items[ii].buffer || ''));
             });
         }
 
@@ -182,6 +185,17 @@
             const day = draft().trip.days[di];
             const r = L.setItemTime(day, ii, side, value, mode);
             if (!r.ok) ctx.toast(r.message);
+            refreshTimes(di, true);
+            if (r.ok) ctx.changed();
+        }
+
+        // 移動列緩衝（連動或伸縮）：同景點邊界，不補列、不重畫、焦點不丟；拒絕時 toast 並還原欄位
+        function applyBuffer(di, ii, value, direction, mode) {
+            const { trip, places } = draft();
+            const day = trip.days[di];
+            const r = L.setMoveBuffer(day, ii, value, direction, mode);
+            if (!r.ok) ctx.toast(r.message);
+            else if (!M.parseTimeRange(day.items[ii].time)) M.fitMoves(day, places, routesOf(), trip.site, item => item === day.items[ii]);   // 還沒有時間的列：依查詢長度補上
             refreshTimes(di, true);
             if (r.ok) ctx.changed();
         }
@@ -211,6 +225,10 @@
                 if (act === 'stretch') {
                     const input = itemEl.querySelector(`[data-form] input[data-f="${el.dataset.side}"]`);
                     return applyEdge(di, ii, el.dataset.side, input.value, 'stretch');
+                }
+                if (act === 'bufstretch') {
+                    const form = itemEl.querySelector('[data-form]');
+                    return applyBuffer(di, ii, form.querySelector('input[data-f="buffer"]').value, form.querySelector('[data-f="bufdir"]').value, 'stretch');
                 }
                 if (act === 'del') { const b = snap([di]); days[di].items.splice(ii, 1); if (ui.openItem === it) ui.openItem = null; syncDays(b); return rerender(); }
                 if (act === 'joinalt') { const b = snap([di]); L.joinAlt(days[di], ii); syncDays(b); return rerender(); }
@@ -243,7 +261,7 @@
             }
         });
 
-        pane.addEventListener('mousedown', e => { if (e.target.closest('[data-act="stretch"]')) e.preventDefault(); });   // 不讓按鈕搶走焦點，否則欄位會先以連動套用一次
+        pane.addEventListener('mousedown', e => { if (e.target.closest('[data-act="stretch"], [data-act="bufstretch"]')) e.preventDefault(); });   // 不讓按鈕搶走焦點，否則欄位會先以連動套用一次
 
         // 編輯：文字欄位邊打邊改草稿但不重畫（避免失去焦點）；選單、勾選、地點欄位確定後才重畫
         pane.addEventListener('input', e => handleEdit(e, false));
@@ -277,15 +295,10 @@
                     if (committed) { syncDays(before); return rerender(); }
                     return ctx.changed();
                 }
-                if (FIELD[f][1] === 'int') {   // 整數欄位：空白或 0＝刪除；打到一半不是整數就先忽略
-                    const n = el.value.trim() === '' ? 0 : Number(el.value);
-                    if (!Number.isInteger(n)) return;
-                    if (n === 0) delete it[f]; else it[f] = n;
-                    if (f === 'buffer') {   // 緩衝變了＝這個移動列的長度變了：該列改成新長度，後面整天平移差值
-                        const r = M.fitMoves(days[di], places, routesOf(), trip.site, item => item === it);
-                        if (r.changed.length) refreshTimes(di);
-                    }
-                    return committed ? rerender() : ctx.changed();
+                if (f === 'bufdir') return;   // 方向只在套用緩衝時讀，不存
+                if (f === 'buffer') {   // 緩衝：輸入中不動資料；離開欄位後依方向連動（預設向後），拒絕就提示並還原
+                    if (committed) applyBuffer(di, +form.dataset.ii, el.value, form.querySelector('[data-f="bufdir"]').value, 'link');
+                    return;
                 }
                 if (el.value === '') delete it[f]; else it[f] = el.value;
                 if (f === 'place') {

@@ -602,3 +602,77 @@ test('rescheduleDay：不完整時間不動（反向：不會被排進時間軸�
     L.rescheduleDay(day, SP, { routes: undefined, site: SITE });
     assert.equal(day.items.find(i => i.place === 'b').time, '15:30 後');
 });
+
+// ---- 移動列緩衝的方向與伸縮（ticket 03）：資料只存 buffer 總值，方向與模式不存 ----
+test('setMoveBuffer 向後（連動）：結束邊 +10，後面整串平移 10；只多一個 buffer 欄位', () => {
+    const day = threeDay();
+    const r = L.setMoveBuffer(day, 1, '10', 'back', 'link');
+    assert.equal(r.ok, true);
+    assert.deepEqual(timesOf(day), ['09:00 - 10:00', '10:00 - 10:40', '10:40 - 11:40 午餐', '11:40 - 12:10', '12:10 - 13:10']);
+    assert.equal(day.items[1].buffer, 10);
+});
+
+test('setMoveBuffer 向前（連動）：開始邊提早 10，前面整串提早 10，結束與後面不動', () => {
+    const day = threeDay();
+    const r = L.setMoveBuffer(day, 1, '10', 'forward', 'link');
+    assert.equal(r.ok, true);
+    assert.deepEqual(timesOf(day), ['08:50 - 09:50', '09:50 - 10:30', '10:30 - 11:30 午餐', '11:30 - 12:00', '12:00 - 13:00']);
+    assert.equal(day.items[1].buffer, 10);
+});
+
+test('setMoveBuffer 向後（伸縮）：後面的景點吸收，更遠的不動', () => {
+    const day = threeDay();
+    assert.equal(L.setMoveBuffer(day, 1, '10', 'back', 'stretch').ok, true);
+    assert.deepEqual(timesOf(day), ['09:00 - 10:00', '10:00 - 10:40', '10:40 - 11:30 午餐', '11:30 - 12:00', '12:00 - 13:00']);
+});
+
+test('setMoveBuffer 向前（伸縮）：前面的景點吸收，後面不動', () => {
+    const day = threeDay();
+    assert.equal(L.setMoveBuffer(day, 1, '10', 'forward', 'stretch').ok, true);
+    assert.deepEqual(timesOf(day), ['09:00 - 09:50', '09:50 - 10:30', '10:30 - 11:30 午餐', '11:30 - 12:00', '12:00 - 13:00']);
+});
+
+test('setMoveBuffer：負值縮短、空白或 0 刪除 buffer 欄位；差值相對現有 buffer', () => {
+    const day = threeDay();
+    L.setMoveBuffer(day, 1, '10', 'back', 'link');
+    L.setMoveBuffer(day, 1, '-5', 'back', 'link');   // 10 → -5：結束邊提早 15
+    assert.equal(day.items[1].buffer, -5);
+    assert.deepEqual(timesOf(day), ['09:00 - 10:00', '10:00 - 10:25', '10:25 - 11:25 午餐', '11:25 - 11:55', '11:55 - 12:55']);
+    L.setMoveBuffer(day, 1, '', 'back', 'link');
+    assert.ok(!('buffer' in day.items[1]));
+});
+
+test('setMoveBuffer 被拒絕（伸縮吸收的景點停留 ≤ 0）：資料一個字都不變，回傳 message', () => {
+    const day = threeDay();
+    const before = JSON.stringify(day);
+    const r = L.setMoveBuffer(day, 1, '70', 'back', 'stretch');   // 後面景點只有 60 分
+    assert.equal(r.ok, false);
+    assert.ok(r.message);
+    assert.equal(JSON.stringify(day), before);
+});
+
+test('setMoveBuffer 被拒絕：平移超出一天、不是整數（打到一半）、不是移動列', () => {
+    const day = dayOf([sp('a', '22:00 - 23:00'), mv('23:00 - 23:30'), sp('b', '23:30 - 23:50')]);
+    const before = JSON.stringify(day);
+    assert.equal(L.setMoveBuffer(day, 1, '20', 'back', 'link').ok, false);   // 後面會超過 23:59
+    assert.equal(L.setMoveBuffer(day, 1, '1.5', 'back', 'link').ok, false);
+    assert.equal(L.setMoveBuffer(day, 1, '-', 'back', 'link').ok, false);
+    assert.equal(L.setMoveBuffer(day, 0, '5', 'back', 'link').ok, false);
+    assert.equal(JSON.stringify(day), before);
+});
+
+test('setMoveBuffer 反向：向前與向後結果不同', () => {
+    const a = threeDay(), b = threeDay();
+    L.setMoveBuffer(a, 1, '10', 'back', 'link');
+    L.setMoveBuffer(b, 1, '10', 'forward', 'link');
+    assert.notDeepEqual(timesOf(a), timesOf(b));
+});
+
+test('路線重算後（fitMoves 預設向後傳）：長度變了的移動列結束邊動、後面平移，時間軸仍接得起來；開始邊不動', () => {
+    const day = threeDay();
+    day.items[1].buffer = 5;
+    const r = M.fitMoves(day, SP, routesOf([['a', 'b', 2400], ['b', 'c', 1800]]), SITE, () => true);   // a→b 40 分 + 5、b→c 30 分
+    assert.ok(r.changed.some(c => c.index === 1) && r.changed.some(c => c.index === 3));
+    assert.deepEqual(timesOf(day), ['09:00 - 10:00', '10:00 - 10:45', '10:45 - 11:45 午餐', '11:45 - 12:15', '12:15 - 13:15']);
+    for (let i = 1; i < day.items.length; i++) assert.equal(M.parseTimeRange(day.items[i].time).start, M.parseTimeRange(day.items[i - 1].time).end);
+});
