@@ -24,8 +24,8 @@
             return it.title || placeName(it.place) || it.text || '(空白)';
         };
 
-        // 待套用列：欄位值與資料不同時才顯示（syncPending）。連動／伸縮／取消；buffer 另有向前／向後選擇（在 pendBar 外，常駐）
-        const pendBar = field => `<div data-pendbar="${field}" style="display:none" class="mt-1 flex flex-wrap items-center gap-1"><span class="text-[11px] text-amber-700">待套用：連動／伸縮</span><button type="button" data-act="pendlink" data-field="${field}" class="shrink-0 rounded border bg-white px-1.5 text-[11px] text-slate-700 hover:bg-slate-100" title="連動：${field === 'start' ? '前面整串跟著動' : field === 'end' ? '後面整串跟著動' : '依方向，該側整串跟著動'}（Enter 也是連動）">連動</button><button type="button" data-act="pendstretch" data-field="${field}" class="shrink-0 rounded border bg-white px-1.5 text-[11px] text-slate-700 hover:bg-slate-100" title="伸縮（單次）：只動緊鄰的移動與景點，更遠的不動">伸縮</button><button type="button" data-act="pendcancel" data-field="${field}" class="shrink-0 rounded border bg-white px-1.5 text-[11px] text-slate-500 hover:bg-slate-100" title="取消：欄位還原成目前資料">取消</button></div>`;
+        // 待套用列：欄位值與資料不同時才顯示（syncPending）。連動／伸縮；buffer 另有向前／向後選擇（在 pendBar 外，常駐）
+        const pendBar = field => `<div data-pendbar="${field}" style="display:none" class="mt-1"><div class="text-[11px] text-amber-700">待套用：連動／伸縮</div><div class="flex items-center gap-1"><button type="button" data-act="pendlink" data-field="${field}" class="shrink-0 rounded border bg-white px-1.5 text-[11px] text-slate-700 hover:bg-slate-100" title="連動：${field === 'start' ? '前面整串跟著動' : field === 'end' ? '後面整串跟著動' : '依方向，該側整串跟著動'}（Enter 也是連動）">連動</button><button type="button" data-act="pendstretch" data-field="${field}" class="shrink-0 rounded border bg-white px-1.5 text-[11px] text-slate-700 hover:bg-slate-100" title="伸縮（單次）：只動緊鄰的移動與景點，更遠的不動">伸縮</button></div></div>`;
 
         // 暫時套用列：按「連動」「伸縮」之後，結果先暫時留在清單與預覽上；「確認」才算數，「還原」回到操作前（資料與欄位完全復原）
         const isTrial = (item, field) => !!ui.trial && ui.trial.item === item && ui.trial.field === field;
@@ -205,11 +205,10 @@
             });
         }
 
-        // 待套用欄位：mode 'link'｜'stretch'｜'cancel'。連動／伸縮 = 暫時套用（進入試算，結果先留在清單與預覽，等「確認」或「還原」）
+        // 待套用欄位：mode 'link'｜'stretch'。連動／伸縮 = 暫時套用（進入試算，結果先留在清單與預覽，等「確認」或「還原」）
         function applyPending(di, ii, field, mode) {
             const form = pane.querySelector(`[data-item][data-di="${di}"][data-ii="${ii}"] [data-form]`);
             if (!form) return;
-            if (mode === 'cancel') return refreshTimes(di, true);
             if (blockedByTrial()) return;
             const value = form.querySelector(`input[data-f="${field}"]`).value;
             const direction = field === 'buffer' ? form.querySelector('[data-f="bufdir"]').value : undefined;
@@ -277,7 +276,7 @@
             if (itemEl) {
                 const di = +itemEl.dataset.di, ii = +itemEl.dataset.ii, it = days[di].items[ii];
                 if (act === 'toggle') { ui.openItem = ui.openItem === it ? null : it; return render(); }
-                if (act === 'pendlink' || act === 'pendstretch' || act === 'pendcancel') return applyPending(di, ii, el.dataset.field, act === 'pendlink' ? 'link' : act === 'pendstretch' ? 'stretch' : 'cancel');
+                if (act === 'pendlink' || act === 'pendstretch') return applyPending(di, ii, el.dataset.field, act === 'pendlink' ? 'link' : 'stretch');
                 if (act === 'del') { const b = snap([di]); days[di].items.splice(ii, 1); if (ui.openItem === it) ui.openItem = null; syncDays(b); return rerender(); }
                 if (act === 'joinalt') { const b = snap([di]); L.joinAlt(days[di], ii); syncDays(b); return rerender(); }
                 if (act === 'leavealt') { const b = snap([di]); L.leaveAlt(days[di], ii); syncDays(b); return rerender(); }

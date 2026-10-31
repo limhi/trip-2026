@@ -224,13 +224,14 @@
         return Math.round(duration / 60 * factor);
     }
 
-    // 所有時間長度的唯一格式（公開頁面與編輯器共用）：一律「X小時YY分」，小時為 0 也寫；65 → 「1小時05分」、30 → 「0小時30分」。
+    // 所有時間長度的唯一格式（公開頁面與編輯器共用）：「X小時YY分」，小時為 0 時省略小時；65 → 「1小時05分」、30 → 「30分」。
     // 負數帶「−」；signed 為 true 時正數帶「+」（緩衝用）；不是有限數字回傳「—」
     function formatHM(minutes, signed) {
         if (typeof minutes !== 'number' || !Number.isFinite(minutes)) return '—';
         const abs = Math.abs(Math.round(minutes));
         const sign = minutes < 0 ? '−' : signed && minutes > 0 ? '+' : '';
-        return `${sign}${Math.floor(abs / 60)}小時${String(abs % 60).padStart(2, '0')}分`;
+        const h = Math.floor(abs / 60);
+        return h ? `${sign}${h}小時${String(abs % 60).padStart(2, '0')}分` : `${sign}${abs}分`;
     }
 
     function formatDistance(meters) {

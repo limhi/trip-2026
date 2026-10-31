@@ -67,7 +67,7 @@ test('legLengths：查詢（不含係數）、預估（含係數）、排定三�
     assert.deepEqual(lens(mk('08:00 - 09:30')), { query: '1小時12分', estimate: '1小時30分', scheduled: '1小時30分', buffer: '', problem: '' });
     assert.equal(lens(mk('08:00 - 09:00')).problem, 'short');                         // 排定 60 < 預估 90
     assert.equal(lens(mk('08:00 - 11:00')).problem, 'mismatch');                      // 排定 180 ≠ 預估 90
-    assert.deepEqual([lens(mk('08:00 - 09:45', 15)).problem, lens(mk('08:00 - 09:45', 15)).buffer], ['', '+0小時15分']);   // 90 + 15 = 105 吻合
+    assert.deepEqual([lens(mk('08:00 - 09:45', 15)).problem, lens(mk('08:00 - 09:45', 15)).buffer], ['', '+15分']);   // 90 + 15 = 105 吻合
 });
 
 test('legLengths：沒有查詢結果或排定時間時顯示「—」，不標問題', () => {

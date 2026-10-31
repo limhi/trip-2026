@@ -119,21 +119,21 @@ test('getTrafficFactor：day 覆寫 > site.routing > 預設 1.25', () => {
     assert.equal(model.getTrafficFactor({}, undefined), 1.25);
 });
 
-test('formatHM：一律「X小時YY分」，小時為 0 也寫，分鐘補到兩位', () => {
-    assert.equal(model.formatHM(45), '0小時45分');
-    assert.equal(model.formatHM(30), '0小時30分');
+test('formatHM：「X小時YY分」，小時為 0 省略小時，有小時時分鐘補到兩位', () => {
+    assert.equal(model.formatHM(45), '45分');
+    assert.equal(model.formatHM(30), '30分');
     assert.equal(model.formatHM(60), '1小時00分');
     assert.equal(model.formatHM(65), '1小時05分');
     assert.equal(model.formatHM(120), '2小時00分');
-    assert.equal(model.formatHM(0), '0小時00分');
+    assert.equal(model.formatHM(0), '0分');
     assert.equal(model.formatHM(605), '10小時05分');
 });
 
 test('formatHM：負數帶負號；signed 時正數帶 +、0 不帶；不是有限數字回傳「—」', () => {
-    assert.equal(model.formatHM(-10), '−0小時10分');
-    assert.equal(model.formatHM(10, true), '+0小時10分');
+    assert.equal(model.formatHM(-10), '−10分');
+    assert.equal(model.formatHM(10, true), '+10分');
     assert.equal(model.formatHM(-75, true), '−1小時15分');
-    assert.equal(model.formatHM(0, true), '0小時00分');
+    assert.equal(model.formatHM(0, true), '0分');
     assert.equal(model.formatHM(null), '—');
     assert.equal(model.formatHM(NaN), '—');
     assert.equal(model.formatHM(undefined), '—');
@@ -159,7 +159,7 @@ test('formatDistance：公里取一位小數', () => {
 
 test('formatLeg：「1小時05分・75.3 km」（預估時間），係數覆寫會反映在時間上', () => {
     assert.equal(model.formatLeg({ distance: 75323, duration: 3120 }, 1.25), '1小時05分・75.3 km');
-    assert.equal(model.formatLeg({ distance: 75323, duration: 3120 }, 1), '0小時52分・75.3 km');
+    assert.equal(model.formatLeg({ distance: 75323, duration: 3120 }, 1), '52分・75.3 km');
 });
 
 test('formatFactorNote：標示實際係數', () => {
@@ -181,8 +181,8 @@ test('getTimeWarnings：交通列的時間區間比顯示時間短 → 警告，
     const w = warn(day);
     assert.equal(w.length, 1);
     assert.match(w[0].message, /DAY 3/);
-    assert.match(w[0].message, /排定 0小時30分/);
-    assert.match(w[0].message, /預估 0小時50分/);
+    assert.match(w[0].message, /排定 30分/);
+    assert.match(w[0].message, /預估 50分/);
     assert.equal(w[0].legKey, model.getLegs(day, P)[0].key);
     assert.equal(w[0].scheduled, 30);
     assert.equal(w[0].needed, 50);
@@ -203,8 +203,8 @@ test('getTimeWarnings：沒有交通列時用前一項結束時間與後一項�
     const tight = dayOf([{ ...place('a'), time: '09:00 - 10:00' }, { ...place('b'), time: '10:30 - 11:00' }]);
     const w = warn(tight);
     assert.equal(w.length, 1);
-    assert.match(w[0].message, /排定 0小時30分/);
-    assert.match(w[0].message, /預估 0小時50分/);
+    assert.match(w[0].message, /排定 30分/);
+    assert.match(w[0].message, /預估 50分/);
     const loose = dayOf([{ ...place('a'), time: '09:00 - 10:00' }, { ...place('b'), time: '10:50 - 11:00' }]);
     assert.deepEqual(warn(loose), []);
 });
@@ -438,7 +438,7 @@ test('getStayMinutes：完整區間且結束晚於開始才有值；不完整、
 
 test('getStayLabel：只有 spot／meal 且完整區間才有「停留 …」，其他類型與不完整都是空字串', () => {
     assert.equal(model.getStayLabel({ type: 'spot', time: '12:20 - 14:00' }), '停留 1小時40分');
-    assert.equal(model.getStayLabel({ type: 'meal', time: '11:15 - 12:00' }), '停留 0小時45分');
+    assert.equal(model.getStayLabel({ type: 'meal', time: '11:15 - 12:00' }), '停留 45分');
     for (const type of ['move', 'stay', 'end', 'notice']) assert.equal(model.getStayLabel({ type, time: '09:00 - 10:00' }), '', type);
     assert.equal(model.getStayLabel({ type: 'spot', time: '15:30 後' }), '');
     assert.equal(model.getStayLabel(undefined), '');

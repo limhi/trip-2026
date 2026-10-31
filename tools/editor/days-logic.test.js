@@ -302,7 +302,7 @@ test('altPosition：回傳項目在擇一組裡是首／中／尾，不在組內
 test('stayHint：spot／meal 有完整區間時回傳停留時間，隨時間改動變化', () => {
     const day = { day: 1, items: [{ type: 'spot', place: 'x', time: '09:00 - 10:40' }, { type: 'meal', title: 'm', time: '12:00 - 12:45' }] };
     assert.equal(L.stayHint(day, 0), '停留 1小時40分');
-    assert.equal(L.stayHint(day, 1), '停留 0小時45分');
+    assert.equal(L.stayHint(day, 1), '停留 45分');
     day.items[0].time = '09:00 - 11:00';
     assert.equal(L.stayHint(day, 0), '停留 2小時00分');
 });

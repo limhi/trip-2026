@@ -62,7 +62,7 @@ test('dayRoutes：autoByRow（綁定的交通列）與 autoAfter（沒有交通�
     const note = '預估・含路況係數 ×1.25';
     // 查詢 65（原始）、預估 81、排定 60；排定 ≠ 預估 + 緩衝（0）所以 mismatch，且不足
     assert.deepEqual(info.autoByRow, { 1: { text: '1小時21分・75.3 km', distance: '75.3 km', note, query: 65, scheduled: 60, needed: 81, short: true, mismatch: true } });
-    assert.deepEqual(info.autoAfter, { 2: { text: '0小時25分・20.0 km', distance: '20.0 km', note, query: 20, scheduled: null, needed: 25, short: false, mismatch: false } });
+    assert.deepEqual(info.autoAfter, { 2: { text: '25分・20.0 km', distance: '20.0 km', note, query: 20, scheduled: null, needed: 25, short: false, mismatch: false } });
     const none = routeView.dayRoutes(day, P, routes({}), SITE);
     assert.deepEqual([none.autoByRow, none.autoAfter], [{}, {}]);
 });
@@ -152,7 +152,7 @@ test('dayRoutes：擇一組前綁定的交通列只有一個 autoByRow，並列�
     const auto = info.autoByRow[1];
     assert.deepEqual([auto.scheduled, auto.needed, auto.short], [40, 50, true]);
     assert.deepEqual(auto.paths.map(p => [p.label, p.needed, p.short]), [['→ B', 50, true], ['→ C', 25, false]]);
-    assert.equal(auto.paths[0].text, '0小時50分・40.0 km');
+    assert.equal(auto.paths[0].text, '50分・40.0 km');
 });
 
 test('dayRoutes：兩條路徑都足夠時沒有任何不足；缺快取的路徑不判斷、不出現', () => {
