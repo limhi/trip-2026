@@ -35,21 +35,14 @@
                 const ok = !item.place || draft().places[item.place];
                 return `<label class="col-span-2 block"><span class="text-xs text-slate-500">${label}（輸入名稱或 id 搜尋）</span><input list="placelist" data-f="place" value="${esc(item.place)}" class="mt-0.5 w-full rounded border p-1.5 ${ok ? '' : 'border-rose-500 bg-rose-50'}"><span class="hint text-xs ${ok ? 'text-slate-500' : 'text-rose-600'}">${item.place ? (ok ? esc(placeName(item.place)) : '找不到這個地點 id') : ''}</span></label>`;
             }
-            if (name === 'time' && item.type === 'move' && L.isFirstTimed(day, ii)) {   // 整天第一個有時間的項目是移動列（出發時間）：開始可改，結束由查詢長度決定
-                const parts = L.timeParts(item.time);
-                return `<div class="col-span-2 grid grid-cols-2 gap-2">
-                    <label class="block"><span class="text-xs text-slate-500">開始（整天起點，改它整天跟著平移）</span><input data-f="start" value="${esc(parts.start)}" class="mt-0.5 w-full rounded border p-1.5"></label>
-                    <label class="block"><span class="text-xs text-slate-500">結束（唯讀：開始 + 路線查詢長度）</span><input data-f="end" readonly value="${esc(parts.end)}" class="mt-0.5 w-full rounded border bg-slate-100 p-1.5 text-slate-500"></label>
-                </div>`;
-            }
-            if (name === 'time' && item.type === 'move') return `<label class="block"><span class="text-xs text-slate-500">${label}（自動：前一站結束 + 路線查詢長度，改「緩衝」可微調）</span><input data-f="time" readonly value="${esc(item.time)}" class="mt-0.5 w-full rounded border bg-slate-100 p-1.5 text-slate-500"></label>`;
+            if (name === 'time' && item.type === 'move') return `<label class="block"><span class="text-xs text-slate-500">${label}（自動：由前後項目與路線查詢長度決定，改「緩衝」可微調）</span><input data-f="time" readonly value="${esc(item.time)}" class="mt-0.5 w-full rounded border bg-slate-100 p-1.5 text-slate-500"></label>`;
             const parts = name === 'time' ? L.timeParts(item.time) : null;
-            if (parts) {   // 完整區間：開始（只有整天第一項可改）、結束（改它＝改停留，後面整天順延）、說明文字
-                const first = L.isFirstTimed(day, ii);
-                const ro = 'readonly class="mt-0.5 w-full rounded border bg-slate-100 p-1.5 text-slate-500"', rw = 'class="mt-0.5 w-full rounded border p-1.5"';
+            if (parts) {   // 完整區間：開始、結束都可改（離開欄位後連動：改結束平移後面、改開始平移前面），各有一次性「伸縮」、說明文字
+                const rw = 'class="mt-0.5 w-full rounded border p-1.5"';
+                const edge = (side, label, v) => `<div class="block"><span class="text-xs text-slate-500">${label}</span><div class="mt-0.5 flex gap-1"><input data-f="${side}" value="${esc(v)}" class="min-w-0 flex-1 rounded border p-1.5"><button type="button" data-act="stretch" data-side="${side}" class="shrink-0 rounded border bg-white px-1.5 text-[11px] text-slate-600 hover:bg-slate-100" title="伸縮（單次）：只動緊鄰的移動與景點，更遠的不動；用目前欄位的值">伸縮</button></div></div>`;
                 return `<div class="col-span-2 grid grid-cols-3 gap-2">
-                    <label class="block"><span class="text-xs text-slate-500">開始${first ? '（整天起點，改它整天跟著平移）' : '（唯讀：前一項結束 + 移動）'}</span><input data-f="start" value="${esc(parts.start)}" ${first ? rw : ro}></label>
-                    <label class="block"><span class="text-xs text-slate-500">結束（改它＝改停留，後面順延）</span><input data-f="end" value="${esc(parts.end)}" ${rw}></label>
+                    ${edge('start', '開始（改它＝前面整串跟著動）', parts.start)}
+                    ${edge('end', '結束（改它＝後面整串跟著動）', parts.end)}
                     <label class="block"><span class="text-xs text-slate-500">時間說明</span><input data-f="tail" value="${esc(parts.tail)}" ${rw}></label>
                 </div>`;
             }
@@ -83,6 +76,7 @@
                     const errs = L.itemErrors(errors, day.day, ii);
                     const bad = errs.length > 0;
                     const isOpen = ui.openItem === it;
+                    const isMove = it.type === 'move';
                     const num = point ? (point.number != null
                         ? `<span title="地圖編號" class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">${point.label}</span>`
                         : '<span title="在地圖上但不編號" class="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">◦</span>')
@@ -95,9 +89,9 @@
                         : it.alt ? '<button data-act="leavealt" class="rounded px-1.5 text-[11px] text-violet-700 hover:bg-violet-100" title="移出擇一組">移出擇一</button>'
                         : L.canJoinAlt(day, ii) ? '<button data-act="joinalt" class="rounded px-1.5 text-[11px] text-violet-700 hover:bg-violet-100" title="與相鄰的景點併成擇一組（只去其中一個）">併成擇一</button>' : '';
                     return `<div data-item data-di="${di}" data-ii="${ii}" class="${frame}">${altTag}
-                        <div data-row draggable="true" data-act="toggle" class="flex cursor-pointer items-center gap-2 border-b px-2 py-1.5 hover:bg-slate-50 ${bad ? 'bg-rose-50' : ''} ${isOpen ? 'bg-blue-50' : ''}">
+                        <div data-row draggable="true" data-act="toggle" class="flex cursor-pointer items-center gap-2 border-b px-2 py-1.5 ${bad ? 'bg-rose-50' : isMove ? 'bg-sky-50 hover:bg-sky-100' : isOpen ? 'bg-blue-50' : 'hover:bg-slate-50'}">
                             <span class="cursor-grab select-none text-slate-400">⋮⋮</span>${num}
-                            <span class="shrink-0 rounded px-1.5 py-0.5 text-[11px] font-bold ${meta.chip}">${meta.label}</span>
+                            ${isMove ? '<span title="移動" class="shrink-0 text-sky-600">🚗</span>' : ''}<span class="shrink-0 rounded px-1.5 py-0.5 text-[11px] font-bold ${meta.chip}">${meta.label}</span>
                             <span data-time class="w-24 shrink-0 truncate text-xs text-slate-500">${esc(it.time || '')}</span>
                             <span data-stay class="shrink-0 text-[11px] text-emerald-700">${esc(L.stayHint(day, ii))}</span>
                             <span data-sum class="min-w-0 flex-1 truncate ${bad ? 'text-rose-700' : ''}">${bad ? '⚠ ' : ''}${esc(itemLabel(it))}</span>
@@ -106,7 +100,7 @@
                             <button data-act="down" class="rounded px-1.5 text-slate-500 hover:bg-slate-200" title="下移（到底會跨到後一天）">↓</button>
                             <button data-act="del" class="rounded px-1.5 text-rose-500 hover:bg-rose-100" title="刪除">✕</button>
                         </div>
-                        ${isOpen ? `<div class="grid grid-cols-2 gap-2 border-b bg-blue-50/50 p-3" data-form data-di="${di}" data-ii="${ii}">
+                        ${isOpen ? `<div class="my-2 ml-6 mr-2 grid grid-cols-2 gap-2 rounded-lg border border-l-4 border-slate-300 ${meta.bar || 'border-l-slate-400'} bg-white p-3 shadow-sm" data-form data-di="${di}" data-ii="${ii}">
                             <label class="col-span-2 block"><span class="text-xs text-slate-500">類型</span><select data-f="type" class="mt-0.5 w-full rounded border p-1.5">${Object.keys(TYPES).map(t => `<option value="${t}" ${t === it.type ? 'selected' : ''}>${TYPES[t].label}（${t}）</option>`).join('')}</select></label>
                             ${meta.fields.map(f => fieldHtml(f, it, day, ii)).join('')}
                             ${bad ? `<ul class="col-span-2 list-disc pl-5 text-xs text-rose-600">${errs.map(e => `<li>${esc(e)}</li>`).join('')}</ul>` : ''}
@@ -157,8 +151,8 @@
             return grew;
         }
 
-        // 輸入中不重畫：只把該天各列的時間、停留提示與展開表單的時間欄（正在輸入的欄位除外）改成最新值
-        function refreshTimes(di) {
+        // 輸入中不重畫：只把該天各列的時間、停留提示與展開表單的時間欄（正在輸入的欄位除外；force＝連正在輸入的也改，用於套用或還原）改成最新值
+        function refreshTimes(di, force = false) {
             const day = draft().trip.days[di];
             pane.querySelectorAll(`[data-item][data-di="${di}"]`).forEach(el => {
                 const ii = +el.dataset.ii, t = day.items[ii].time || '';
@@ -167,7 +161,7 @@
                 const form = el.querySelector('[data-form]');
                 if (!form) return;
                 const parts = L.timeParts(t) || {};
-                const set = (f, v) => { const input = form.querySelector(`input[data-f="${f}"]`); if (input && input !== document.activeElement && v != null) input.value = v; };
+                const set = (f, v) => { const input = form.querySelector(`input[data-f="${f}"]`); if (input && (force || input !== document.activeElement) && v != null) input.value = v; };
                 set('time', t); set('start', parts.start); set('end', parts.end); set('tail', parts.tail);
             });
         }
@@ -181,6 +175,15 @@
                 if (M.fitMoves(day, places, routesOf(), trip.site, (_item, key) => want.has(key)).changed.length) { any = true; refreshTimes(di); }
             });
             if (any) ctx.changed();
+        }
+
+        // 景點開始／結束邊界調整（連動或伸縮）：不補列、不重畫，焦點不丟；拒絕時 toast 並把欄位還原成資料裡的值
+        function applyEdge(di, ii, side, value, mode) {
+            const day = draft().trip.days[di];
+            const r = L.setItemTime(day, ii, side, value, mode);
+            if (!r.ok) ctx.toast(r.message);
+            refreshTimes(di, true);
+            if (r.ok) ctx.changed();
         }
 
         function afterMove(pos, fromDi, before) {
@@ -205,6 +208,10 @@
             if (itemEl) {
                 const di = +itemEl.dataset.di, ii = +itemEl.dataset.ii, it = days[di].items[ii];
                 if (act === 'toggle') { ui.openItem = ui.openItem === it ? null : it; return render(); }
+                if (act === 'stretch') {
+                    const input = itemEl.querySelector(`[data-form] input[data-f="${el.dataset.side}"]`);
+                    return applyEdge(di, ii, el.dataset.side, input.value, 'stretch');
+                }
                 if (act === 'del') { const b = snap([di]); days[di].items.splice(ii, 1); if (ui.openItem === it) ui.openItem = null; syncDays(b); return rerender(); }
                 if (act === 'joinalt') { const b = snap([di]); L.joinAlt(days[di], ii); syncDays(b); return rerender(); }
                 if (act === 'leavealt') { const b = snap([di]); L.leaveAlt(days[di], ii); syncDays(b); return rerender(); }
@@ -236,6 +243,8 @@
             }
         });
 
+        pane.addEventListener('mousedown', e => { if (e.target.closest('[data-act="stretch"]')) e.preventDefault(); });   // 不讓按鈕搶走焦點，否則欄位會先以連動套用一次
+
         // 編輯：文字欄位邊打邊改草稿但不重畫（避免失去焦點）；選單、勾選、地點欄位確定後才重畫
         pane.addEventListener('input', e => handleEdit(e, false));
         pane.addEventListener('change', e => handleEdit(e, true));
@@ -255,15 +264,14 @@
                     syncDays(before);
                     return rerender();
                 }
-                if (f === 'start' || f === 'end' || f === 'tail' || (f === 'time' && it.type !== 'move')) {
-                    // 時間：邊輸入邊連動（只改時間、不補列、不重畫）；離開欄位後才補列並重畫
+                if (f === 'start' || f === 'end') {   // 開始／結束：輸入中不動資料；離開欄位後連動，拒絕就提示並還原
+                    if (committed) applyEdge(di, +form.dataset.ii, f, el.value, 'link');
+                    return;
+                }
+                if (f === 'tail' || (f === 'time' && it.type !== 'move')) {
+                    // 說明文字與整串時間：邊輸入邊改（不補列、不重畫）；離開欄位後才補列並重畫
                     const ii = +form.dataset.ii;
-                    const r = L.setItemTime(days[di], ii, f, el.value);
-                    if (!r.ok) {
-                        if (!committed) return;
-                        ctx.toast('時間沒有套用（結束早於開始、格式不對，或平移後超出當天）');
-                        return rerender();
-                    }
+                    L.setItemTime(days[di], ii, f, el.value);
                     refreshTimes(di);
                     form.previousElementSibling.querySelector('[data-sum]').textContent = itemLabel(it);
                     if (committed) { syncDays(before); return rerender(); }

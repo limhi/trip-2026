@@ -9,14 +9,14 @@
 
     // 每種項目類型可填的欄位（與 docs/DESIGN.md 4.2 一致）；label／chip 給畫面用
     const TYPES = {
-        move:     { label: '移動',   chip: 'bg-slate-200 text-slate-800',     fields: ['time', 'text', 'note', 'buffer'] },
-        spot:     { label: '景點',   chip: 'bg-blue-100 text-blue-800',       fields: CARD },
-        meal:     { label: '用餐',   chip: 'bg-amber-100 text-amber-800',     fields: CARD },
-        stay:     { label: '住宿',   chip: 'bg-purple-100 text-purple-800',   fields: CARD },
-        end:      { label: '結束',   chip: 'bg-emerald-100 text-emerald-800', fields: CARD },
-        notice:   { label: '提醒',   chip: 'bg-orange-100 text-orange-800',   fields: CARD },
-        brief:    { label: '資訊框', chip: 'bg-yellow-100 text-yellow-800',   fields: ['time', 'title', 'place', 'icon', 'desc', ...COMMON] },
-        waypoint: { label: '起訖/休息點', chip: 'bg-sky-100 text-sky-800',    fields: ['place', 'text', 'mapName', 'backup', 'numbered'] }
+        move:     { label: '移動',   chip: 'bg-slate-200 text-slate-800', bar: 'border-l-sky-500',     fields: ['time', 'text', 'note', 'buffer'] },
+        spot:     { label: '景點',   chip: 'bg-blue-100 text-blue-800', bar: 'border-l-blue-500',       fields: CARD },
+        meal:     { label: '用餐',   chip: 'bg-amber-100 text-amber-800', bar: 'border-l-amber-500',     fields: CARD },
+        stay:     { label: '住宿',   chip: 'bg-purple-100 text-purple-800', bar: 'border-l-purple-500',   fields: CARD },
+        end:      { label: '結束',   chip: 'bg-emerald-100 text-emerald-800', bar: 'border-l-emerald-500', fields: CARD },
+        notice:   { label: '提醒',   chip: 'bg-orange-100 text-orange-800', bar: 'border-l-orange-500',   fields: CARD },
+        brief:    { label: '資訊框', chip: 'bg-yellow-100 text-yellow-800', bar: 'border-l-yellow-500',   fields: ['time', 'title', 'place', 'icon', 'desc', ...COMMON] },
+        waypoint: { label: '起訖/休息點', chip: 'bg-sky-100 text-sky-800', bar: 'border-l-sky-500',    fields: ['place', 'text', 'mapName', 'backup', 'numbered'] }
     };
 
     // 把項目從 (fromDi, fromIi) 搬到 (toDi, toIi)；toIi 是以「搬動前」的陣列計算的插入位置。回傳新位置。
@@ -126,10 +126,8 @@
         return M.getStayLabel(it);
     }
 
-    // ---- 時間連動（ADR 0007）：長度與平移規則全在 model（cascadeDay、fitMoves），這裡只決定「哪個欄位怎麼改」 ----
+    // ---- 邊界連動與伸縮（ADR 0007）：長度與平移規則全在 model（adjustSpotEdge、fitMoves），這裡只決定「哪個欄位怎麼改」 ----
 
-    const CLOCK = /^(\d{1,2}):(\d{2})$/;
-    const toMinutes = v => { const m = CLOCK.exec(String(v).trim()); return m && +m[1] < 24 && +m[2] < 60 ? +m[1] * 60 + +m[2] : null; };
     const TIME_HEAD = /^\s*(\d{1,2}):(\d{2})\s*[-–—~]\s*(\d{1,2}):(\d{2})(?!\d)/;
 
     // 完整區間 time 拆成 { start, end, tail }（'HH:MM'、'HH:MM'、區間後的說明文字）；不是完整區間回傳 null。編輯器的開始／結束／後註欄用
@@ -140,54 +138,23 @@
         return { start: clock(r.start), end: clock(r.end), tail: time.slice(TIME_HEAD.exec(time)[0].length).trim() };
     }
 
-    // 整天第一個有完整時間的項目（它的開始時間可以改，是整天的起點）；其他項目的開始時間唯讀
-    function isFirstTimed(day, ii) {
-        if (!M.parseTimeRange(day.items[ii].time)) return false;
-        return !day.items.slice(0, ii).some(x => M.parseTimeRange(x.time));
-    }
-
     // 改項目的時間，part：
-    //   'end'   結束（H:MM）：停留跟著變，後面整天平移結束的變化量
-    //   'start' 開始（H:MM）：只有整天第一個完整時間項目可改；該項整項平移，後面整天跟著平移同樣分鐘
+    //   'start'／'end' 開始／結束（H:MM）：交給 model.adjustSpotEdge；mode 'link'（預設，連動：改結束平移後面、改開始平移前面）｜'stretch'（伸縮，單次，只動緊鄰）
     //   'tail'  區間後的說明文字：只改文字
     //   'time'  整串時間文字（沒有完整區間的項目，例如「15:30 後」）：直接寫入，空字串刪除欄位
-    // 輸入到一半（不是 H:MM）、結束早於開始、中間項目改開始、平移後超出當天都回傳 { ok: false } 且不改任何資料。
-    // 回傳 { ok, changed, warnings }（changed／warnings 來自 model.cascadeDay）
-    function setItemTime(day, ii, part, value) {
-        const it = day.items[ii], none = { ok: false, changed: [], warnings: [] };
-        const done = (cascade = { changed: [], warnings: [] }) => ({ ok: true, ...cascade });
+    // 被拒絕（格式不對、停留 ≤ 0、超出當天等）回傳 { ok: false, reason, message } 且不改任何資料。
+    // 回傳 { ok, reason, message, changed }
+    function setItemTime(day, ii, part, value, mode = 'link') {
+        const it = day.items[ii];
+        const done = () => ({ ok: true, reason: null, message: '', changed: [] });
         if (part === 'time') { if (value === '' || value == null) delete it.time; else it.time = value; return done(); }
-        const range = M.parseTimeRange(it.time);
-        if (!range) return none;
-        if (part === 'tail') {
+        if (part === 'start' || part === 'end') return M.adjustSpotEdge(day, ii, part, value, mode);
+        if (part === 'tail' && M.parseTimeRange(it.time)) {
             const head = TIME_HEAD.exec(it.time)[0];
             it.time = head + (String(value).trim() ? ' ' + String(value).trim() : '');
             return done();
         }
-        const minutes = toMinutes(value);
-        if (minutes == null) return none;
-        if (part === 'end') {
-            if (minutes < range.start) return none;
-            const delta = minutes - range.end;
-            if (!delta) return done();
-            const probe = JSON.parse(JSON.stringify(day));   // 先在副本上試，超出當天就整個不套用
-            probe.items[ii].time = M.setTimeRange(it.time, range.start, minutes);
-            if (M.cascadeDay(probe, ii, delta).warnings.length) return none;
-            it.time = probe.items[ii].time;
-            return done(M.cascadeDay(day, ii, delta));
-        }
-        if (part === 'start') {
-            if (!isFirstTimed(day, ii)) return none;
-            const delta = minutes - range.start;
-            if (!delta) return done();
-            if (range.end + delta > 24 * 60 - 1) return none;
-            const probe = JSON.parse(JSON.stringify(day));
-            probe.items[ii].time = M.setTimeRange(it.time, minutes, range.end + delta);
-            if (M.cascadeDay(probe, ii, delta).warnings.length) return none;
-            it.time = probe.items[ii].time;
-            return done(M.cascadeDay(day, ii, delta));
-        }
-        return none;
+        return { ok: false, reason: 'invalid', message: '這個欄位不能修改', changed: [] };
     }
 
     // 移動列（物件）→ 綁定路段的 key；改動前後各取一次，路段變了的列才需要重算長度
@@ -257,7 +224,7 @@
     const itemErrors = (errors, dayNo, ii) => errors.filter(e => e.startsWith(`DAY ${dayNo} 第 ${ii + 1} 項：`));
     const dayErrors = (errors, dayNo) => errors.filter(e => e.startsWith(`DAY ${dayNo} `));
 
-    const api = { TYPES, moveItem, stepItem, changeType, newItem, altPosition, canJoinAlt, joinAlt, leaveAlt, stayHint, timeParts, isFirstTimed, setItemTime, moveKeys, syncMoves, rescheduleDay, moveWarnings, getPath, setPath, itemErrors, dayErrors };
+    const api = { TYPES, moveItem, stepItem, changeType, newItem, altPosition, canJoinAlt, joinAlt, leaveAlt, stayHint, timeParts, setItemTime, moveKeys, syncMoves, rescheduleDay, moveWarnings, getPath, setPath, itemErrors, dayErrors };
     root.DaysLogic = api;
     if (typeof module !== 'undefined') module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
