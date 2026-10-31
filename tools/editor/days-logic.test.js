@@ -331,7 +331,7 @@ test('stayHint：擇一組只在持有共用時間的第一成員顯示一次，
     assert.equal(L.stayHint(day, 1), '');
 });
 
-// ---- 時間連動（ADR 0007）：改結束／整天第一項的開始 → 後面整天平移；移動列時間唯讀、由查詢長度決定 ----
+// ---- 時間連動（ADR 0007）：改結束邊 → 後面平移、改開始邊 → 前面平移（伸縮只動緊鄰）；移動列時間唯讀、由查詢長度決定 ----
 const SP = {
     a: { name: 'A館', lat: 24.1, lng: 121.1 },
     b: { name: 'B館', lat: 24.2, lng: 121.2 },
@@ -352,11 +352,6 @@ test('timeParts：完整區間拆成 開始／結束／後註；其他回傳 nul
     assert.equal(L.timeParts(undefined), null);
 });
 
-test('isFirstTimed：整天第一個有完整時間的項目才是；前面不完整時間的不算', () => {
-    const day = dayOf([{ type: 'notice', tag: 't', title: 't' }, sp('a', '15:30 後'), sp('b', '09:00 - 10:00'), mv('10:00 - 10:30'), sp('c', '10:30 - 11:00')]);
-    assert.deepEqual([0, 1, 2, 3, 4].map(i => L.isFirstTimed(day, i)), [false, false, true, false, false]);
-});
-
 test('改中間景點的結束 +15：後面整天（移動列與景點）平移 15，各長度不變，前面不動', () => {
     const day = threeDay();
     const r = L.setItemTime(day, 2, 'end', '11:45');
@@ -370,25 +365,52 @@ test('改結束 −30（縮短停留）：後面往前平移', () => {
     assert.deepEqual(timesOf(day), ['09:00 - 09:30', '09:30 - 10:00', '10:00 - 11:00 午餐', '11:00 - 11:30', '11:30 - 12:30']);
 });
 
-test('改中間項目的開始：不接受（開始 = 前一個結束 + 移動長度，由系統算）', () => {
+test('改中間景點的開始 −10（連動）：前面整串（景點與移動）往前平移，該景點結束與後面不動', () => {
+    const day = threeDay();
+    const r = L.setItemTime(day, 2, 'start', '10:20');
+    assert.equal(r.ok, true);
+    assert.deepEqual(timesOf(day), ['08:50 - 09:50', '09:50 - 10:20', '10:20 - 11:30 午餐', '11:30 - 12:00', '12:00 - 13:00']);
+});
+
+test('改整天第一項的開始：只有它的開始變（停留變長），沒有固定起點、後面不動', () => {
+    const day = threeDay();
+    assert.equal(L.setItemTime(day, 0, 'start', '08:30').ok, true);
+    assert.deepEqual(timesOf(day), ['08:30 - 10:00', '10:00 - 10:30', '10:30 - 11:30 午餐', '11:30 - 12:00', '12:00 - 13:00']);
+});
+
+test('伸縮（stretch）改結束邊：只動緊鄰的移動與再外一個景點，更遠的不動', () => {
+    const day = threeDay();
+    const r = L.setItemTime(day, 0, 'end', '10:10', 'stretch');
+    assert.equal(r.ok, true);
+    assert.deepEqual(timesOf(day), ['09:00 - 10:10', '10:10 - 10:40', '10:40 - 11:30 午餐', '11:30 - 12:00', '12:00 - 13:00']);
+});
+
+test('伸縮改開始邊：緊鄰的前一個移動平移，更前面的景點只動靠近的結束邊', () => {
+    const day = threeDay();
+    const r = L.setItemTime(day, 2, 'start', '10:40', 'stretch');
+    assert.equal(r.ok, true);
+    assert.deepEqual(timesOf(day), ['09:00 - 10:10', '10:10 - 10:40', '10:40 - 11:30 午餐', '11:30 - 12:00', '12:00 - 13:00']);
+});
+
+test('伸縮與連動結果不同（反向：預設 mode 是連動，後面會被平移）', () => {
+    const a = threeDay(), b = threeDay();
+    L.setItemTime(a, 0, 'end', '10:10');
+    L.setItemTime(b, 0, 'end', '10:10', 'stretch');
+    assert.notDeepEqual(timesOf(a), timesOf(b));
+    assert.equal(a.items[4].time, '12:10 - 13:10');
+});
+
+test('被拒絕（停留 ≤ 0）：回傳 message 與 reason，資料一個字都不變', () => {
     const day = threeDay();
     const before = JSON.stringify(day);
-    assert.equal(L.setItemTime(day, 2, 'start', '10:45').ok, false);
+    const r = L.setItemTime(day, 0, 'end', '09:00');
+    assert.equal(r.ok, false);
+    assert.equal(r.reason, 'stay');
+    assert.ok(r.message);
     assert.equal(JSON.stringify(day), before);
-});
-
-test('整天第一個完整時間項目的開始可改：它整項平移，後面整天跟著平移', () => {
-    const day = threeDay();
-    const r = L.setItemTime(day, 0, 'start', '08:30');
-    assert.equal(r.ok, true);
-    assert.deepEqual(timesOf(day), ['08:30 - 09:30', '09:30 - 10:00', '10:00 - 11:00 午餐', '11:00 - 11:30', '11:30 - 12:30']);
-});
-
-test('整天第一個完整時間項目是移動列（出發時間）：開始也能改，整天平移', () => {
-    const day = dayOf([{ type: 'waypoint', place: 'a' }, mv('07:30 - 09:20'), sp('b', '10:00 - 12:10')]);
-    assert.equal(L.isFirstTimed(day, 1), true);
-    L.setItemTime(day, 1, 'start', '08:00');
-    assert.deepEqual(timesOf(day).slice(1), ['08:00 - 09:50', '10:30 - 12:40']);
+    const r2 = L.setItemTime(day, 2, 'end', '10:30', 'stretch');
+    assert.equal(r2.ok, false);
+    assert.equal(JSON.stringify(day), before);
 });
 
 test('不完整時間（15:30 後）不被平移；其後的完整時間照常平移', () => {
@@ -434,6 +456,12 @@ test('擇一組：改組共用時間的結束，組後面平移一次；成員�
     const day = dayOf([sp('a', '09:00 - 10:00'), mv('10:00 - 10:20'), sp('b', '10:20 - 11:20', { alt: 'x' }), sp('c', undefined, { alt: 'x' }), mv('11:20 - 11:40'), sp('d', '11:40 - 12:30')]);
     L.setItemTime(day, 2, 'end', '11:30');
     assert.deepEqual(timesOf(day), ['09:00 - 10:00', '10:00 - 10:20', '10:20 - 11:30', undefined, '11:30 - 11:50', '11:50 - 12:40']);
+});
+
+test('擇一組：改組任一員的開始＝改共用時間的開始，前面整串平移', () => {
+    const day = dayOf([sp('a', '09:00 - 10:00'), mv('10:00 - 10:20'), sp('b', '10:20 - 11:20', { alt: 'x' }), sp('c', undefined, { alt: 'x' })]);
+    assert.equal(L.setItemTime(day, 2, 'start', '10:30').ok, true);
+    assert.deepEqual(timesOf(day), ['09:10 - 10:10', '10:10 - 10:30', '10:30 - 11:20', undefined]);
 });
 
 // ---- syncMoves：結構改動後補移動列、更新受影響移動列的長度（只動「路段變了」的列） ----
