@@ -243,7 +243,7 @@ async function guard(label, fn) {
     const GEO_JS = 'window.TRIP_ROUTES_GEO = ' + JSON.stringify(fakeGeo) + ';';
     // 獨立算法（不用 model 的格式函式）
     const mins = (d, leg) => Math.round(fakeLegs[leg.key].duration / 60 * FACTOR(d));
-    const hm = m => Math.floor(m / 60) + '小時' + String(m % 60).padStart(2, '0') + '分';   // 獨立寫法：X小時YY分
+    const hm = m => m < 60 ? m + '分' : Math.floor(m / 60) + '小時' + String(m % 60).padStart(2, '0') + '分';   // 獨立寫法：小時為 0 時省略小時
     async function routesPage(opts = {}) {
         const p = await newPage(opts);
         p.geoRequests = [];

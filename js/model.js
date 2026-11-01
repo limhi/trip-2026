@@ -458,36 +458,37 @@
         const plan = new Map();   // 單位索引 → 新區間
         plan.set(unitIndex, side === 'end' ? { start: u.range.start, end: value } : { start: value, end: u.range.end });
         const shift = (k, d) => { if (units[k] && units[k].range) plan.set(k, { start: units[k].range.start + d, end: units[k].range.end + d }); };
+        const dir = side === 'end' ? 1 : -1;
+        const nextComplete = from => {
+            let k = from + dir;
+            while (units[k] && !units[k].range) k += dir;
+            return k;
+        };
+        const alignedAt = k => {
+            const { range, carrier, isMove } = units[k];
+            const minutes = isMove ? getMoveMinutesAt(day, carrier, places, routes, site) : null;
+            const length = minutes == null ? range.end - range.start : minutes;
+            return side === 'end' ? { start: value, end: value + length } : { start: value - length, end: value };
+        };
         if (mode === 'link') {
-            const dir = side === 'end' ? 1 : -1;
-            let near = unitIndex + dir;
-            while (units[near] && !units[near].range) near += dir;
+            const near = nextComplete(unitIndex);
             if (units[near]) {
-                const nearSide = side === 'end' ? 'start' : 'end';
                 const nearRange = units[near].range;
-                const minutes = units[near].isMove ? getMoveMinutesAt(day, units[near].carrier, places, routes, site) : null;
-                const length = minutes == null ? nearRange.end - nearRange.start : minutes;
-                const aligned = side === 'end' ? { start: value, end: value + length } : { start: value - length, end: value };
+                const aligned = alignedAt(near);
                 const farSide = side === 'end' ? 'end' : 'start';
                 const displacement = aligned[farSide] - nearRange[farSide];
                 plan.set(near, aligned);
                 for (let k = near + dir; k >= 0 && k < units.length; k += dir) shift(k, displacement);
             }
         } else {
-            const dir = side === 'end' ? 1 : -1;
-            let near = unitIndex + dir;
-            while (units[near] && !units[near].range) near += dir;
+            let near = nextComplete(unitIndex);
             if (units[near]) {
                 let boundary = value;
                 if (units[near].isMove) {
-                    const range = units[near].range;
-                    const minutes = getMoveMinutesAt(day, units[near].carrier, places, routes, site);
-                    const length = minutes == null ? range.end - range.start : minutes;
-                    const aligned = side === 'end' ? { start: value, end: value + length } : { start: value - length, end: value };
+                    const aligned = alignedAt(near);
                     plan.set(near, aligned);
                     boundary = aligned[side];
-                    near += dir;
-                    while (units[near] && !units[near].range) near += dir;
+                    near = nextComplete(near);
                 }
                 if (units[near]) plan.set(near, { ...units[near].range, [side === 'end' ? 'start' : 'end']: boundary });
             }

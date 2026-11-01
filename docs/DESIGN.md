@@ -149,8 +149,8 @@
 
 編輯器（`days-logic.js`、`days.js`）：
 - 景點所有開始與結束欄位都可改（沒有第一項例外、沒有唯讀）。**待套用**：欄位值與資料不同（`days-logic.isPendingEdit`）就進入待套用，欄位變黃底；「連動」「伸縮」兩鈕常駐，即使值未改也可明確修正原有斷點；離開焦點不套用也不還原，待套用期間資料與預覽都不動。兩鈕 mousedown 不搶焦點。
-- **暫時套用（確認／還原）**：按「連動」（或欄位按 Enter）／「伸縮」不是直接生效，而是 `days-logic.startTrial`：先 `snapshotDay`（項目物件參照＋欄位內容快照），再呼叫 `setItemTime` → `model.adjustSpotEdge`（或緩衝：`setMoveBuffer` → `model.adjustMoveBuffer`；mode `link`／`stretch`，伸縮只動緊鄰，不存模式），結果暫時留在草稿上，清單、路線列、預覽立即呈現整天變化。此時待套用的三鈕換成「確認」「還原」（`data-trialbar`）：「確認」＝什麼資料都不再改，只解除暫時狀態並 `changed()`（這時才算有未存檔修改）；「還原」＝`restoreDay` 就地還原（項目物件仍是同一個、欄位完全回到操作前，連剛加上的 `buffer` 欄位也會消失）。被拒絕（停留 ≤ 0、超出當天、格式不對、緩衝不是整數）時 toast 提示並把欄位還原，不進入暫時套用，資料不變。
-- **暫時套用期間的擋法（最小可行）**：`ui.trial` 有值時，`days.js` 擋下所有其他操作並 toast「請先確認或還原」——點列／收合展開、新增刪除搬移、併成擇一、整天重排、日設定、拖拉、任何欄位輸入（欄位會被重畫成資料的值）；`app.js` 的 `state.trial`（由 `ctx.setTrial` 設定）讓存檔鈕停用、`save()` 與「發布…」直接拒絕，狀態列顯示「暫時套用中（請先確認或還原，才能存檔與發布）」。這樣半成品不會被存檔或發布帶出去；「放棄未存檔的修改」（`reset()`）會一併清掉暫時套用。已知限制：暫時套用期間若剛好有路線算完（`applyComputed`），快取可更新但不改動試算時間；結束試算後如有需要可明確重排。
+- **暫時套用（確認／還原）**：按「連動」（或欄位按 Enter）／「伸縮」不是直接生效，而是 `days-logic.startTrial`：先 `snapshotDay`（項目物件參照＋欄位內容快照），再呼叫 `setItemTime` → `model.adjustSpotEdge`（或緩衝：`setMoveBuffer` → `model.adjustMoveBuffer`；mode `link`／`stretch`，伸縮只動緊鄰，不存模式），結果暫時留在草稿上，清單、路線列、預覽立即呈現整天變化。此時待套用的三鈕換成「確認」「還原」（`data-trialbar`）：「確認」＝接受試算結果，解除暫時狀態並 `changed()`（這時才算有未存檔修改）；「還原」＝`restoreDay` 就地還原（項目物件仍是同一個、欄位完全回到操作前，連剛加上的 `buffer` 欄位也會消失）。被拒絕（停留 ≤ 0、超出當天、格式不對、緩衝不是整數）時 toast 提示並把欄位還原，不進入暫時套用，資料不變。
+- **暫時套用期間的擋法（最小可行）**：`ui.trial` 有值時，`days.js` 擋下所有其他操作並 toast「請先確認或還原」——點列／收合展開、新增刪除搬移、併成擇一、整天重排、日設定、拖拉、任何欄位輸入（欄位會被重畫成資料的值）；`app.js` 的 `state.trial`（由 `ctx.setTrial` 設定）讓存檔鈕停用、`save()` 與「發布…」直接拒絕，狀態列顯示「暫時套用中（請先確認或還原，才能存檔與發布）」。這樣半成品不會被存檔或發布帶出去；「放棄未存檔的修改」（`reset()`）會一併清掉暫時套用。暫時套用期間若有路線算完（`applyComputed`），快取更新並保留待同步的路段，不改動試算時間。確認時先接受試算、還原時先完整回復操作前狀態，再補套獨立完成的路線結果（包括同一天），依新長度向後同步；放棄草稿時清除待同步路段。
 - 待套用狀態（按下連動／伸縮之前）只存在 DOM（`input.dataset.pend`），不進資料；結構改動（rerender、展開／收合重畫表單）整個重畫，等於捨棄待套用；`refreshTimes` 非強制更新時不覆蓋待套用欄位。
 - 單次邊界操作暫時套用時不補列、不重畫、焦點不丟。整天重排由 `startRescheduleTrial` 先保存快照，可能補列並重畫；確認接受，還原會把新增列、順序與原有欄位一起復原。
 - `app.js` 在暫時套用期間也擋下分頁、路線設定／重算及還原選單的編輯入口，避免別的介面改動試算。
@@ -265,7 +265,7 @@ node --test
 
 ### 10.1.2 編輯器瀏覽器驗收
 
-時間銜接入口：`node tools/editor/continuity.e2e.js`、`node tools/editor/link.e2e.js`、`node tools/editor/stretch.e2e.js`、`node tools/editor/reschedule.e2e.js`。使用真正編輯器與預覽 iframe，分別驗證警告與發布、原值連動、原值伸縮／拒絕、整天重排確認／還原。
+時間銜接入口：`node tools/editor/continuity.e2e.js`、`node tools/editor/link.e2e.js`、`node tools/editor/stretch.e2e.js`、`node tools/editor/reschedule.e2e.js`、`node tools/editor/trial-regressions.e2e.js`（另以 `--incomplete` 驗證不完整時間）。使用真正編輯器與預覽 iframe，分別驗證警告與發布、原值連動、原值伸縮／拒絕、整天重排確認／還原、試算期間完成的路線延後同步與不完整時間保留。
 
 沿用 `PLAYWRIGHT_MODULE`、`CHROME_PATH` 與 `TAILWIND_CSS`（下節），瀏覽器在自訂目錄時可設定 `PLAYWRIGHT_BROWSERS_PATH`；有額外動態函式庫時設定 `LD_LIBRARY_PATH`。測試只用暫存專案、受控路線與本機 bare remote，不更動真實行程、不呼叫外部路線 API，也不發布到 GitHub。沙箱限制執行時，使用者已授權以沙箱外流程執行。
 

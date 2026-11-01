@@ -22,4 +22,47 @@ function makeRepoCopy() {
 
 const cleanup = dir => fs.rmSync(dir, { recursive: true, force: true });
 
-module.exports = { makeRepoCopy, cleanup, repoRoot };
+// 連動／伸縮畫面共用的 Day 1 已知路線長度；呼叫者仍各自斷言操作結果。
+function prepareEdgeFixture(root, firstTime) {
+    const M = require('../../js/model');
+    const trip = JSON.parse(fs.readFileSync(path.join(root, 'data/trip.json'), 'utf8'));
+    const places = JSON.parse(fs.readFileSync(path.join(root, 'data/places.json'), 'utf8'));
+    const firstMove = trip.days[0].items.findIndex(it => it.type === 'move');
+    const target = trip.days[0].items.findIndex(it => it.time === '09:40 - 11:20');
+    if (firstTime) {
+        trip.days[0].items[0].time = firstTime;
+        fs.writeFileSync(path.join(root, 'data/trip.json'), JSON.stringify(trip, null, 2) + '\n', 'utf8');
+    }
+    const route = M.getLegs(trip.days[0], places).find(leg => leg.rowIndex === firstMove);
+    const legs = {};
+    for (const day of trip.days) for (const leg of M.getLegs(day, places)) legs[leg.key] = {
+        distance: 1000, duration: 1800, geometry: '', provider: 'test', computedAt: '2026-11-01'
+    };
+    legs[route.key].duration = 95 * 60 / M.getTrafficFactor(trip.days[0], trip.site);
+    cache.write(root, { profile: 'driving', legs });
+    let routeCalls = 0;
+    const server = require('./server').createServer({ root, provider: { route: async () => { routeCalls++; throw Error('禁止真實路線'); } } });
+    return { trip, firstMove, target, server, routeCalls: () => routeCalls };
+}
+
+// Playwright 延遲載入，Node 測試不需要瀏覽器套件。
+async function openEditorBrowser(server) {
+    const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_PATH, args: ['--no-sandbox'] });
+    try {
+        const page = await browser.newPage();
+        const errors = [];
+        page.on('pageerror', e => errors.push(e.message));
+        await page.route('**/*', route => route.request().url().startsWith(origin) ? route.continue() : route.abort());
+        await page.goto(origin);
+        if (process.env.TAILWIND_CSS) await page.addStyleTag({ content: fs.readFileSync(process.env.TAILWIND_CSS, 'utf8') });
+        return { browser, page, errors };
+    } catch (error) {
+        await browser.close();
+        throw error;
+    }
+}
+
+module.exports = { makeRepoCopy, cleanup, repoRoot, prepareEdgeFixture, openEditorBrowser };

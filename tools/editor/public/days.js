@@ -17,6 +17,7 @@
         const scroller = pane.parentElement;
         const ui = { openDays: new Set([1]), dayCfg: new Set(), openItem: null, drag: null, trial: null };   // trial：暫時套用中的 { di, item, field, snap }，null＝沒有
         const draft = () => ctx.data();
+        const deferredComputed = new Set();
 
         const placeName = id => (draft().places[id] && draft().places[id].name) || '';
         const itemLabel = it => {
@@ -222,7 +223,7 @@
             const day = trip.days[di];
             const r = L.startTrial(day, ii, field, value, { ...opts, places, routes: routesOf(), site: trip.site });
             if (!r.ok) { ctx.toast(r.message); return refreshTimes(di, true); }
-            if (field === 'buffer' && !M.parseTimeRange(day.items[ii].time)) M.fitMoves(day, places, routesOf(), trip.site, item => item === day.items[ii]);   // 還沒有時間的列：依預估長度補上
+            if (field === 'buffer' && !day.items[ii].time) M.fitMoves(day, places, routesOf(), trip.site, item => item === day.items[ii]);   // 還沒有時間的列：依預估長度補上
             ui.trial = { di, item: day.items[ii], field, snap: r.snap };
             ctx.setTrial(true);
             refreshTimes(di, true);
@@ -239,11 +240,19 @@
             ctx.setTrial(false);
             if (t.field === 'reschedule') render(); else refreshTimes(t.di, true);
             ctx.changed();
+            if (deferredComputed.size) {
+                const keys = [...deferredComputed];
+                deferredComputed.clear();
+                applyComputed(keys);
+            }
         }
 
         // 路線算完（keys = 新算出的路段）：綁定這些路段的移動列依新長度調整，後面平移；不重畫，只更新時間
         function applyComputed(keys) {
-            if (ui.trial) return;   // 路線結果可更新快取，但不能改動尚待確認的時間試算
+            if (ui.trial) {
+                for (const key of keys || []) deferredComputed.add(key);
+                return;   // 保留結果，等確認／還原後才同步時間
+            }
             const { trip, places } = draft();
             const want = new Set(keys || []);
             let any = false;
@@ -430,7 +439,7 @@
         pane.addEventListener('dragend', () => { ui.drag = null; clearMarks(); pane.querySelectorAll('.opacity-40').forEach(n => n.classList.remove('opacity-40')); });
 
         // 重新載入資料時呼叫：丟掉指向舊項目的展開狀態
-        function reset() { ui.openItem = null; ui.trial = null; ctx.setTrial(false); }
+        function reset() { deferredComputed.clear(); ui.openItem = null; ui.trial = null; ctx.setTrial(false); }
 
         return { render, reset, applyComputed };
     }
