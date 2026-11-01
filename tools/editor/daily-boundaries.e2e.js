@@ -22,6 +22,9 @@ const cache = require('../routing/cache');
             { type: 'spot', place: ids[2], alt: 'a' },
             { type: 'stay', place: ids[3], time: '17:00' },
             { type: 'notice', title: '晚間提醒' }
+        ] }, { day: 2, date: '11/16', title: '完整區間邊界', items: [
+            { type: 'spot', title: '起點區間', time: '08:00 - 09:00' },
+            { type: 'spot', title: '終點區間', time: '10:00 - 11:00' }
         ] }];
         fs.writeFileSync(file, JSON.stringify(trip, null, 2) + '\n');
         const routes = cache.empty();
@@ -32,7 +35,7 @@ const cache = require('../routing/cache');
         browser = opened.browser;
         const { page, errors } = opened;
         page.setDefaultTimeout(10000);
-        await page.locator('[data-act="daycfg"]').click();
+        await page.locator('[data-day="0"] [data-act="daycfg"]').click();
         const field = name => page.locator(`[data-boundary="${name}"]`);
         const link = name => page.locator(`[data-act="boundarylink"][data-field="${name}"]`);
         const rows = () => page.locator('[data-item][data-di="0"] [data-time]').allTextContents();
@@ -65,6 +68,20 @@ const cache = require('../routing/cache');
         await page.locator('#toast').filter({ hasText: '超出當天' }).waitFor();
         assert.equal(await field('departure').inputValue(), '07:40');
         assert.deepEqual(JSON.parse(fs.readFileSync(file, 'utf8')), trip);
+        const secondDay = page.locator('[data-day="1"]');
+        await secondDay.locator('[data-act="daytoggle"]').click();
+        const first = secondDay.locator('[data-item]').nth(0);
+        await first.locator('[data-row]').click();
+        assert.equal(await first.locator('[data-f="start"]').getAttribute('readonly'), '');
+        assert.equal(await first.locator('[data-f="end"]').getAttribute('readonly'), null);
+        assert.equal(await first.locator('[data-act="pendstretch"][data-field="start"]').count(), 0);
+        assert.equal(await first.locator('[data-act="pendstretch"][data-field="end"]').count(), 1);
+        const last = secondDay.locator('[data-item]').nth(1);
+        await last.locator('[data-row]').click();
+        assert.equal(await last.locator('[data-f="start"]').getAttribute('readonly'), null);
+        assert.equal(await last.locator('[data-f="end"]').getAttribute('readonly'), '');
+        assert.equal(await last.locator('[data-act="pendstretch"][data-field="start"]').count(), 1);
+        assert.equal(await last.locator('[data-act="pendstretch"][data-field="end"]').count(), 0);
         assert.deepEqual(errors, []);
         console.log('✓ 每日邊界：出發連動、真正預覽、另一端同步、存檔保護與完整還原');
     } finally {

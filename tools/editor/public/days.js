@@ -51,9 +51,15 @@
             const boundaries = M.getDayBoundaries(day);
             if (name === 'time' && (ii === boundaries.departureIndex || ii === boundaries.endIndex) && !L.timeParts(item.time)) return `<div class="text-xs text-slate-500">時間 ${esc(item.time || '未設定')}（請在日設定調整每日出發／結束時間）</div>`;
             const parts = name === 'time' ? L.timeParts(item.time) : null;
-            if (parts) {   // 完整區間：開始、結束都可改（離開欄位後連動：改結束平移後面、改開始平移前面），各有一次性「伸縮」、說明文字
+            if (parts) {   // 每日邊界只能在日設定連動；區間內側仍可使用一般調整。
                 const rw = 'class="mt-0.5 w-full rounded border p-1.5"';
-                const edge = (side, label, v) => `<div class="block"><span class="text-xs text-slate-500">${label}</span><input data-f="${side}" value="${esc(v)}" class="mt-0.5 w-full rounded border p-1.5">${pendBar(side)}${trialBar(side, isTrial(item, side))}</div>`;
+                const group = M.getAltGroupAt(day, ii);
+                const carrier = group ? group.start : ii;
+                const edge = (side, label, v) => {
+                    const daily = side === 'start' ? carrier === boundaries.departureIndex : carrier === boundaries.endIndex;
+                    if (daily) return `<div class="block"><span class="text-xs text-slate-500">${side === 'start' ? '每日出發時間' : '每日結束時間'}（請在日設定調整）</span><input data-f="${side}" readonly value="${esc(v)}" class="mt-0.5 w-full rounded border bg-slate-100 p-1.5 text-slate-500"></div>`;
+                    return `<div class="block"><span class="text-xs text-slate-500">${label}</span><input data-f="${side}" value="${esc(v)}" class="mt-0.5 w-full rounded border p-1.5">${pendBar(side)}${trialBar(side, isTrial(item, side))}</div>`;
+                };
                 return `<div class="col-span-2 grid grid-cols-3 gap-2">
                     ${edge('start', '開始（改它＝前面整串跟著動）', parts.start)}
                     ${edge('end', '結束（改它＝後面整串跟著動）', parts.end)}

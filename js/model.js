@@ -263,7 +263,7 @@
     // 「HH:MM - HH:MM」（後面可接說明文字）→ 分鐘區間；「17:10 後」「12:15」等不完整時間回傳 null
     function parseTimeRange(time) {
         const m = typeof time === 'string' && /^\s*(\d{1,2}):(\d{2})\s*[-–—~]\s*(\d{1,2}):(\d{2})(?!\d)/.exec(time);
-        if (!m) return null;
+        if (!m || +m[1] >= 24 || +m[2] >= 60 || +m[3] >= 24 || +m[4] >= 60) return null;
         const start = +m[1] * 60 + +m[2], end = +m[3] * 60 + +m[4];
         return end >= start ? { start, end } : null;
     }

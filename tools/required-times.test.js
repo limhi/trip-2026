@@ -20,3 +20,11 @@ test('必要時間：邊界、共用區間、零長度移動與提醒', () => {
         assert.match(errors(d).join('\n'), /DAY 1 第 3 項.*時間/);
     }
 });
+
+test('時間區間拒絕超過時鐘範圍的數值，保留既有說明與單位數小時', () => {
+    for (const time of ['09:99 - 11:00', '09:00 - 11:99', '25:00 - 26:00', '09:00 - 25:00']) {
+        assert.equal(model.parseTimeRange(time), null, time);
+    }
+    assert.deepEqual(model.parseTimeRange('9:00 - 10:30 說明'), { start: 540, end: 630 });
+    assert.deepEqual(model.parseTimeRange('23:59 - 23:59'), { start: 1439, end: 1439 });
+});
