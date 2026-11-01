@@ -110,6 +110,7 @@ function plan(root, { now = () => new Date() } = {}) {
         hasChanges: !!(changes.days.length || changes.places.length || changes.hotels || changes.other || routesChanged(changes.routes)),
         message: defaultMessage(next, changes),
         missingRoutes,
+        continuityWarnings: disk.trip.days.flatMap(day => model.getContinuityWarnings(day, disk.places)),
         files: ADD_FILES.filter(f => fs.existsSync(path.join(root, f)))
     };
 }

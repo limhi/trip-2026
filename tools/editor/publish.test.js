@@ -279,3 +279,27 @@ test('HTTP：GET /api/publish/plan 與 POST /api/publish', async t => {
     assert.ok(ok.body.steps.length >= 5);
     assert.equal(git(remote, 'log', '-1', '--format=%s', 'main'), 'HTTP 發布');
 });
+
+test('時間斷點：載入、存檔與發布保留原時間，plan 與成功檢查均提示警告', t => {
+    const { root, remote } = makePublishRepo(t);
+    const loaded = store.load(root);
+    const original = structuredClone(loaded.trip.days[0].items);
+    assert.ok(original.some(i => i.time === '07:10 - 09:00'));
+    const body = saveEdit(root, d => {
+        d.trip.site.documentTitle = '保留時間斷點';
+        d.trip.days[1].items = [
+            { type: 'notice', title: '重疊前站', time: '08:00 - 09:00' },
+            { type: 'brief', text: '重疊後站', time: '08:50 - 10:00' }
+        ];
+    });
+    const plan = publisher.plan(root, { now: NOW });
+    assert.ok(plan.continuityWarnings.some(w => /DAY 1.*09:00.*09:40：空檔 40分/.test(w.message)));
+    assert.ok(plan.continuityWarnings.some(w => /DAY 2.*09:00.*08:50：重疊 10分/.test(w.message)));
+    assert.deepEqual(store.load(root).trip.days[0].items, original);
+    const result = publisher.publish(root, { ...body, message: '保留時間斷點' }, { now: NOW });
+    assert.ok(result.steps.some(s => /DAY 1.*09:00.*09:40：空檔 40分/.test(s.output)));
+    assert.ok(result.steps.some(s => /DAY 2.*09:00.*08:50：重疊 10分/.test(s.output)));
+    assert.equal(store.load(root).trip.days[1].items[1].time, '08:50 - 10:00');
+    assert.deepEqual(store.load(root).trip.days[0].items, original);
+    assert.equal(git(remote, 'rev-parse', 'main'), git(root, 'rev-parse', 'HEAD'));
+});
