@@ -212,11 +212,20 @@ test('getTimeWarnings：沒有交通列時用前一項結束時間與後一項�
 test('getTimeWarnings：沒有交通列且任一端時間無法解析就不比對', () => {
     const cases = [
         [{ ...place('a'), time: '17:10 後' }, { ...place('b'), time: '17:20 - 18:00' }],
-        [{ ...place('a'), time: '09:00 - 10:00' }, { ...place('b'), time: '10:05' }],
+        [{ ...place('a'), time: '09:00 - 10:00' }, { ...place('b'), time: '10:05 後' }],
         [{ ...place('a'), time: '09:00 - 10:00' }, place('b')],
         [place('a'), { ...place('b'), time: '10:00 - 11:00' }]
     ];
     for (const items of cases) assert.deepEqual(warn(dayOf(items)), []);
+});
+
+test('getTimeWarnings：每日終點明確時間點可比對，起點到景點也使用單一時間點', () => {
+    const end = warn(dayOf([{ ...place('a'), time: '09:00 - 10:00' }, { ...place('b'), time: '10:05' }]));
+    assert.equal(end.length, 1);
+    assert.equal(end[0].scheduled, 5);
+    const start = warn(dayOf([{ ...place('a'), time: '09:30' }, { ...place('b'), time: '10:00 - 11:00' }]));
+    assert.equal(start.length, 1);
+    assert.equal(start[0].scheduled, 30);
 });
 
 test('getTimeWarnings：沒有快取的路段、有多個交通列（未綁定）、closeLoop 回程都不比對', () => {
