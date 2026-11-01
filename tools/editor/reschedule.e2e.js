@@ -50,6 +50,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
         assert.equal(await page.locator('#save').isDisabled(), true);
         await page.locator('#publish').click();
         assert.equal(await page.locator('#modal').isVisible(), false);
+        await page.locator('#restoreMenu summary').click();
+        assert.equal(await page.locator('#restoreMenu').getAttribute('open'), null);
         await page.locator('[data-tab="places"]').click();
         assert.equal(await page.locator('#pane-days').isVisible(), true);
         await page.locator('[data-act="del"]').first().click();
