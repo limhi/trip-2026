@@ -31,14 +31,14 @@ test('CLI：擇一組只比較一次，不跨天或解析文案時間', t => {
     const root = makeRepoCopy();
     t.after(() => cleanup(root));
     const data = store.load(root);
-    data.trip.days.forEach(day => { day.items = []; });
+    data.trip.days.forEach(day => { day.items = [{ type: 'brief', time: '12:00 - 13:00', title: '其他日' }]; });
     data.trip.days[0].items = [
         { type: 'brief', time: '08:00 - 09:00', title: '前站' },
         { type: 'spot', alt: 'choice', time: '09:10 - 10:00', title: '擇一甲' },
         { type: 'spot', alt: 'choice', title: '擇一乙' },
         { type: 'brief', time: '10:00 - 11:00', text: '相接資訊' }
     ];
-    data.trip.days[1].items = [{ type: 'notice', time: '15:00 - 16:00', title: '隔日' }];
+    data.trip.days[1].items.push({ type: 'notice', time: '15:00 - 16:00', title: '隔日' });
     store.save(root, data);
     const run = () => spawnSync(process.execPath, ['tools/check.js'], { cwd: root, encoding: 'utf8' });
     const first = run();

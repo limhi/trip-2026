@@ -1,6 +1,6 @@
 # 調整行程內容指南（給 AI）
 
-只講「怎麼改行程內容」。欄位名稱以這份為準（v2.6）；設計原因看 `DESIGN.md`，發布規則看 `AGENTS.md`。
+只講「怎麼改行程內容」。欄位名稱以這份為準（v2.8）；設計原因看 `DESIGN.md`，發布規則看 `AGENTS.md`。
 
 ## 1. 只改這些檔案
 
@@ -20,11 +20,12 @@
 |---|---|---|---|
 | `move` | 移動列 | `text` | `time`（**系統算，不手寫**）, `buffer`（整數分鐘，可為負，預設 0）, `note`（備註文字，不參與計算） |
 | `spot` / `meal` | 卡片 | `place` 或 `title` | `tag`, `time`, `desc`, `alt`（只限 `spot`）, `map:false` |
-| `stay` / `end` / `notice` | 卡片 | `place` 或 `title` | `tag`, `time`, `desc` |
+| `stay` / `end` | 卡片 | `place` 或 `title` | `tag`, `time`, `desc` |
+| `notice` | 提醒卡片 | `place` 或 `title` | `tag`, `desc`（不填時間） |
 | `brief` | 小框 | `time`, `title` | `place`, `icon`, `desc` |
 | `waypoint` | 起訖點列 | `place` | `text`, `backup`, `mapName`, `numbered:false` |
 
-- `time`：完整區間寫 `"12:20 - 14:00"`（半形空格、連字號）；`"15:30 後"` 這類不完整的也可以，但不會有排定時間與停留時間（顯示「—」）。
+- `time`：完整區間寫 `"12:20 - 14:00"`（半形空格、連字號）；每日起點與最後非提醒項目可填單一時間點（如 `"18:30"`）。其他非提醒項目必須有完整區間，擇一組共用時間；缺明確時間可存草稿但不可發布。提醒不填時間。
 - `move` 的長度（排定時間）= 預估時間（查詢時間 × 路況係數）+ `buffer`；`time` 由系統依前一站結束算出，**不要手改**，`text`、`note`、`buffer` 可自由寫。兩標記之間沒有 `move` 時，`sync-moves.js` 與編輯器會補一個（`text` 預設「前一站 ➔ 下一站」），**只補不刪**。
 - 停留時間由 `spot`／`meal` 的完整區間自動算出並顯示，**不要寫進資料**。
 - `place` 是 `places.json` 的 id；有座標的項目依順序自動成為地圖標記與編號，**不用維護地圖資料**。

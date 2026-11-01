@@ -129,7 +129,8 @@ const Model = require('../../js/model');
 const altPlaces = { x: { name: 'X', lat: 1, lng: 1 }, y: { name: 'Y', lat: 2, lng: 2 }, z: { name: 'Z', lat: 3, lng: 3 } };
 const dayOf = items => ({ day: 1, items });
 const spot = (place, extra) => Object.assign({ type: 'spot', place }, extra);
-const errorsOf = day => Model.validate({ days: [day] }, altPlaces);
+// 這組測試只檢查擇一組結構；離組後缺時間由發布驗證另行測試。
+const errorsOf = day => Model.validate({ days: [day] }, altPlaces).filter(e => !e.includes("請填寫明確"));
 const alts = day => day.items.map(i => i.alt || '-');
 
 test('canJoinAlt：只有 spot 且相鄰有 spot 才能併；已在組內不能再併', () => {
@@ -566,9 +567,9 @@ test('changeType：move 保留 buffer，轉 spot 則丟掉', () => {
 
 test('validate：buffer 只能在 move 且必須是整數', () => {
     const errs = items => Model.validate({ days: [dayOf(items)] }, altPlaces);
-    const mv = buffer => ({ type: 'move', text: 'm', buffer });
-    assert.deepEqual(errs([spot('x'), mv(-15), spot('y')]), []);
-    assert.deepEqual(errs([spot('x'), mv(20), spot('y')]), []);
+    const mv = buffer => ({ type: 'move', text: 'm', time: '10:00 - 10:30', buffer });
+    assert.deepEqual(errs([spot('x', { time: '09:00 - 10:00' }), mv(-15), spot('y', { time: '10:30 - 11:00' })]), []);
+    assert.deepEqual(errs([spot('x', { time: '09:00 - 10:00' }), mv(20), spot('y', { time: '10:30 - 11:00' })]), []);
     assert.ok(errs([spot('x'), mv(1.5), spot('y')]).some(e => e.startsWith('DAY 1 第 2 項：') && e.includes('buffer')));
     assert.ok(errs([spot('x'), mv('10'), spot('y')]).some(e => e.includes('buffer')));
     assert.ok(errs([spot('x', { buffer: 10 })]).some(e => e.startsWith('DAY 1 第 1 項：') && e.includes('buffer')));

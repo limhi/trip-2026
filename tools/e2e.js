@@ -281,7 +281,7 @@ async function guard(label, fn) {
             const wantAuto = cached.filter(l => l.needsRow).length;
             const wantDur = cached.length ? legs.filter(l => l.rowIndex != null).length : 0;   // 有快取的天，每個綁定的移動列都有一組長度標籤（沒有查詢結果的顯示「—」）
             if (dom.autoRows !== wantAuto) bad.push(`DAY ${day.day}：自動連接列 ${dom.autoRows}，應為 ${wantAuto}`);
-            if (dom.autoDur !== wantDur) bad.push(`DAY ${day.day}：算出的交通列時間 ${dom.autoDur}，應為 ${wantDur}`);
+            if (dom.autoDur !== wantDur + wantAuto) bad.push(`DAY ${day.day}：算出的交通列時間 ${dom.autoDur}，應為 ${wantDur + wantAuto}`);
             if (dom.lengths.some(t => !(t.includes('查詢') && t.includes('預估') && t.includes('排定')))) bad.push(`DAY ${day.day}：有長度列缺少 查詢／預估／排定 其中之一`);
             if (cached.length && dom.lengths.length !== wantDur + wantAuto) bad.push(`DAY ${day.day}：三種長度列 ${dom.lengths.length}，應為 ${wantDur + wantAuto}`);
             if (cached.length === 0) { if (dom.summary !== null) bad.push(`DAY ${day.day}：沒有快取卻有總車程`); continue; }

@@ -3,8 +3,8 @@
     "documentTitle": "2026 親子順時針環島之旅 (6天5夜)",
     "brand": "環島之旅 2026",
     "version": {
-      "number": "v2.7",
-      "date": "2026/11/01"
+      "number": "v2.8",
+      "date": "2026/11/02"
     },
     "navLinks": [
       {
@@ -82,7 +82,8 @@
       "items": [
         {
           "type": "waypoint",
-          "place": "tucheng-start"
+          "place": "tucheng-start",
+          "time": "07:10"
         },
         {
           "type": "move",
@@ -143,7 +144,7 @@
         {
           "type": "stay",
           "tag": "入住民宿",
-          "time": "17:10 後",
+          "time": "17:15",
           "place": "tianxin-bnb",
           "desc": "入住田心民宿，晚餐可安排冬山或羅東。明天 08:30 退房，行李全部帶上車（11/16 改住花蓮）。"
         }
@@ -160,7 +161,8 @@
       "items": [
         {
           "type": "waypoint",
-          "place": "tianxin-bnb"
+          "place": "tianxin-bnb",
+          "time": "08:30"
         },
         {
           "type": "move",
@@ -195,9 +197,9 @@
           "note": "車程約 1hr 10min（推估）"
         },
         {
-          "type": "waypoint",
+          "type": "notice",
           "place": "nanao-rest",
-          "text": "休息點（約 20 分鐘）"
+          "title": "休息點（約 20 分鐘）"
         },
         {
           "type": "move",
@@ -221,7 +223,7 @@
         {
           "type": "stay",
           "tag": "入住民宿",
-          "time": "17:35 後",
+          "time": "18:30",
           "place": "tongle-bnb",
           "desc": "入住後使用遊戲室及房內溜滑梯；18:00後於志學商圈簡單用餐，可選伊均蘭州拉麵、義起呷義式料理或丸山和食，營業時間以現場為準。"
         }
@@ -239,7 +241,8 @@
       "items": [
         {
           "type": "waypoint",
-          "place": "tongle-bnb"
+          "place": "tongle-bnb",
+          "time": "07:30"
         },
         {
           "type": "move",
@@ -255,14 +258,13 @@
         },
         {
           "type": "notice",
-          "time": "15:23 - 15:43",
           "title": "伴手禮、集合、準備離園",
           "desc": "一般營業時間為09:30 - 17:00，仍依官方當日公告為準。"
         },
         {
           "type": "stay",
           "tag": "離園返程",
-          "time": "17:00 後",
+          "time": "17:00",
           "place": "tongle-bnb",
           "map": false,
           "title": "返回童樂會親子民宿",
@@ -281,7 +283,8 @@
       "items": [
         {
           "type": "waypoint",
-          "place": "tongle-bnb"
+          "place": "tongle-bnb",
+          "time": "08:30"
         },
         {
           "type": "move",
@@ -323,9 +326,8 @@
           "note": "車程約 1hr 30min（推估）"
         },
         {
-          "type": "stay",
+          "type": "notice",
           "tag": "入住民宿",
-          "time": "15:30 後",
           "place": "greener-bnb",
           "desc": "入住時間 15:00 後、退房 11:00 前。環境友善民宿，有免費自助洗衣、共用廚房與自行車租借；不提供拋棄式備品，牙刷、牙膏等請自備。停車資訊各來源不一致，請先向民宿確認（見住宿資訊）。"
         },
@@ -334,6 +336,11 @@
           "tag": "待決定",
           "title": "傍晚與晚餐還沒排",
           "desc": "15:30 入住後到晚餐前有空檔，台東市區的晚餐與散步地點還在挑選，尚未排進行程。"
+        },
+        {
+          "type": "end",
+          "time": "18:30",
+          "title": "暫定終點"
         }
       ]
     },
@@ -347,7 +354,8 @@
       "items": [
         {
           "type": "waypoint",
-          "place": "greener-bnb"
+          "place": "greener-bnb",
+          "time": "09:30"
         },
         {
           "type": "move",
@@ -375,20 +383,19 @@
           "note": "車程約 3hr（推估，不含午餐）"
         },
         {
-          "type": "stay",
+          "type": "notice",
           "tag": "入住民宿",
-          "time": "15:05 後",
           "place": "pingtung-farmhouse",
           "desc": "約 15:05 抵達，入住時間請向民宿確認。民宿位於巷弄內，先卸行李、確認車位，再前往夜市；車位與房門口間需步行一小段。"
         },
         {
-          "type": "move",
-          "text": "屏東市鄉下人家生活體驗 ➔ 屏東觀光夜市"
+          "type": "notice",
+          "title": "屏東市鄉下人家生活體驗 ➔ 屏東觀光夜市"
         },
         {
           "type": "meal",
           "tag": "晚間備選",
-          "time": "18:30 後",
+          "time": "18:30",
           "place": "pingtung-night-market",
           "desc": "18:30 後短程開車前往夜市。"
         }
@@ -407,11 +414,12 @@
         {
           "type": "waypoint",
           "place": "pingtung-farmhouse",
-          "numbered": false
+          "numbered": false,
+          "time": "08:16"
         },
         {
-          "type": "move",
-          "text": "屏東市鄉下人家生活體驗 ➔ 里港鄉第二公墓"
+          "type": "notice",
+          "title": "屏東市鄉下人家生活體驗 ➔ 里港鄉第二公墓"
         },
         {
           "type": "spot",

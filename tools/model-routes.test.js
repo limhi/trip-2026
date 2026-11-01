@@ -372,7 +372,7 @@ test('validate：擇一組合法時沒有問題；成員不是 spot、不相鄰�
     const trip = items => ({ days: [{ day: 1, items }], hotels: [] });
     const errs = items => model.validate(trip(items), P).join('\n');
     const m = (id, extra) => ({ type: 'spot', place: id, ...extra });
-    assert.equal(errs([m('a'), m('b', { alt: 'x', time: '12:00 - 13:00' }), m('c', { alt: 'x' })]), '');
+    assert.equal(errs([m('a', { time: '11:00 - 12:00' }), m('b', { alt: 'x', time: '12:00 - 13:00' }), m('c', { alt: 'x' })]), '');
     assert.match(errs([m('a', { alt: 'x' }), { type: 'meal', title: '午餐', alt: 'x' }]), /第 2 項.*alt.*spot/);
     assert.match(errs([m('a', { alt: 'x' }), m('b'), m('c', { alt: 'x' })]), /alt「x」.*相鄰/);
     assert.match(errs([m('a'), m('b', { alt: 'x' })]), /alt「x」.*至少 2 項/);

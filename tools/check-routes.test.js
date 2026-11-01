@@ -115,6 +115,7 @@ const rewrite = (root, fn) => {
 test('check：缺列只警告、結束碼 0，補列後沒有警告；移動列時間與前後不一致不警告', withRepo(root => {
     rewrite(root, (trip, places) => {
         syncTrip(trip, places);
+        for (const day of trip.days) for (const item of day.items) if (item.type === 'move' && !item.time) item.time = '12:00 - 12:01';
         const range = x => x && /^\d\d:\d\d - \d\d:\d\d$/.test(x.time || '');
         const found = [];
         trip.days.forEach(d => d.items.forEach((x, k) => { if (x.type === 'move' && range(d.items[k - 1]) && range(d.items[k + 1])) found.push([d, k]); }));
@@ -126,7 +127,7 @@ test('check：缺列只警告、結束碼 0，補列後沒有警告；移動列�
     assert.equal(r.code, 0, r.out);
     assert.match(r.out, /警告：.*缺少移動列/);
     assert.doesNotMatch(r.out, /推導值不同/);
-    rewrite(root, (trip, places) => syncTrip(trip, places));
+    rewrite(root, (trip, places) => { syncTrip(trip, places); for (const day of trip.days) for (const item of day.items) if (item.type === 'move' && !item.time) item.time = '12:00 - 12:01'; });
     const r2 = run(root);
     assert.equal(r2.code, 0, r2.out);
     assert.doesNotMatch(r2.out, /缺少移動列/);
