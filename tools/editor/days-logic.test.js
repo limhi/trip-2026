@@ -988,3 +988,56 @@ test('伸縮原值修正無法吸收、跨日及負移動長度時整次拒絕�
         assert.deepEqual(day, before);
     }
 });
+
+const boundaryDay = () => ({ day: 1, items: [
+    { type: 'waypoint', time: '08:00' },
+    { type: 'move', time: '08:00 - 08:30', buffer: 5 },
+    { type: 'spot', alt: 'a', time: '09:00 - 10:00', desc: '文案 00:01' },
+    { type: 'spot', alt: 'a' },
+    { type: 'stay', time: '17:00' },
+    { type: 'notice', time: '22:00 - 23:00' }
+] });
+test('每日出發連動保留空檔、緩衝與擇一共用時間，提醒不動；還原回復完整資料', () => {
+    const day = boundaryDay(), original = structuredClone(day);
+    const r = L.startBoundaryTrial(day, 'departure', '08:20');
+    assert.equal(r.ok, true);
+    assert.deepEqual(day.items.map(i => i.time), ['08:20', '08:20 - 08:50', '09:20 - 10:20', undefined, '17:20', '22:00 - 23:00']);
+    assert.deepEqual(M.getDayBoundaries(day), { departure: '08:20', end: '17:20', departureIndex: 0, endIndex: 4 });
+    assert.equal(day.items[1].buffer, 5);
+    L.restoreDay(day, r.snap);
+    assert.deepEqual(day, original);
+});
+
+test('每日結束反向連動保留完整終點區間；跨日拒絕與初始化不改其他欄位', () => {
+    const day = boundaryDay();
+    day.items[4].time = '16:00 - 17:00';
+    assert.equal(L.startBoundaryTrial(day, 'end', '16:40').ok, true);
+    assert.equal(day.items[0].time, '07:40');
+    assert.equal(day.items[4].time, '15:40 - 16:40');
+    const before = structuredClone(day);
+    assert.equal(L.startBoundaryTrial(day, 'departure', '00:00').ok, true);
+    assert.equal(day.items[0].time, '00:00');
+    const midnight = structuredClone(day);
+    assert.equal(L.startBoundaryTrial(day, 'departure', '23:59').ok, false);
+    assert.deepEqual(day, midnight);
+    delete before.items[0].time;
+    before.items[2].time = '9:00–10:00 後註';
+    const other = structuredClone(before.items.slice(1));
+    assert.equal(L.startBoundaryTrial(before, 'departure', '08:00').ok, true);
+    assert.deepEqual(before.items.slice(1), other);
+});
+
+test('每日最後擇一組以共用時間作結束；一般連動同步終點時間點並提示空檔', () => {
+    const day = boundaryDay();
+    day.items.splice(4);
+    assert.equal(M.getDayBoundaries(day).end, '10:00');
+    assert.equal(M.getDayBoundaries(day).endIndex, 2);
+    const pointDay = { day: 1, items: [{ type: 'waypoint', time: '08:00' }, { type: 'spot', time: '08:30 - 09:00' }, { type: 'end', time: '10:00' }] };
+    assert.deepEqual(M.getContinuityWarnings(pointDay).map(w => w.minutes), [30, 60]);
+    const r = L.startTrial(pointDay, 1, 'end', '09:10');
+    assert.equal(r.ok, true);
+    assert.equal(pointDay.items[2].time, '09:10');
+    L.restoreDay(pointDay, r.snap);
+    M.cascadeDay(pointDay, 1, 20);
+    assert.equal(pointDay.items[2].time, '10:20');
+});

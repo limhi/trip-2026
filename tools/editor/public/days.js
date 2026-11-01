@@ -48,6 +48,8 @@
                 return `<label class="col-span-2 block"><span class="text-xs text-slate-500">${label}（輸入名稱或 id 搜尋）</span><input list="placelist" data-f="place" value="${esc(item.place)}" class="mt-0.5 w-full rounded border p-1.5 ${ok ? '' : 'border-rose-500 bg-rose-50'}"><span class="hint text-xs ${ok ? 'text-slate-500' : 'text-rose-600'}">${item.place ? (ok ? esc(placeName(item.place)) : '找不到這個地點 id') : ''}</span></label>`;
             }
             if (name === 'time' && item.type === 'move') return `<label class="block"><span class="text-xs text-slate-500">${label}（自動：由前後項目與預估時間決定，改「緩衝」可微調）</span><input data-f="time" readonly value="${esc(item.time)}" class="mt-0.5 w-full rounded border bg-slate-100 p-1.5 text-slate-500"></label>`;
+            const boundaries = M.getDayBoundaries(day);
+            if (name === 'time' && (ii === boundaries.departureIndex || ii === boundaries.endIndex) && !L.timeParts(item.time)) return `<div class="text-xs text-slate-500">時間 ${esc(item.time || '未設定')}（請在日設定調整每日出發／結束時間）</div>`;
             const parts = name === 'time' ? L.timeParts(item.time) : null;
             if (parts) {   // 完整區間：開始、結束都可改（離開欄位後連動：改結束平移後面、改開始平移前面），各有一次性「伸縮」、說明文字
                 const rw = 'class="mt-0.5 w-full rounded border p-1.5"';
@@ -65,8 +67,11 @@
         }
 
         function dayCfgHtml(day, di) {
+            const boundaries = M.getDayBoundaries(day);
+            const boundary = (field, label) => `<div><span class="text-xs text-slate-500">${label}</span><input data-boundary="${field}" value="${esc(boundaries[field])}" class="mt-0.5 w-full rounded border p-1.5"><button type="button" data-act="boundarylink" data-field="${field}" class="rounded border px-2 text-xs">連動</button>${trialBar(field, !!ui.trial && ui.trial.di === di && ui.trial.field === field)}</div>`;
             const f = (label, path) => `<label class="block"><span class="text-xs text-slate-500">${label}</span><input data-df="${path}" value="${esc(L.getPath(day, path))}" class="mt-0.5 w-full rounded border p-1.5"></label>`;
             return `<div class="grid grid-cols-2 gap-2 border-b bg-slate-50 p-3" data-di="${di}">
+                ${boundary('departure', '每日出發時間')}${boundary('end', '每日結束時間')}
                 ${f('日期', 'date')}${f('標題', 'title')}
                 <label class="block"><span class="text-xs text-slate-500">住宿地點</span><input list="placelist" data-df="stay.place" value="${esc(L.getPath(day, 'stay.place'))}" class="mt-0.5 w-full rounded border p-1.5"></label>
                 ${f('住宿備註', 'stay.note')}${f('沒有住宿時：圖示', 'badge.icon')}${f('沒有住宿時：文字', 'badge.text')}
@@ -169,6 +174,8 @@
         // 輸入中不重畫：只把該天各列的時間、停留提示與展開表單的時間欄（正在輸入的欄位除外；force＝連正在輸入的也改，用於套用或還原）改成最新值
         function refreshTimes(di, force = false) {
             const day = draft().trip.days[di];
+            const boundaries = M.getDayBoundaries(day);
+            pane.querySelectorAll(`[data-day="${di}"] [data-boundary]`).forEach(input => { if (force || input !== document.activeElement) input.value = boundaries[input.dataset.boundary] || ''; });
             pane.querySelectorAll(`[data-item][data-di="${di}"]`).forEach(el => {
                 const ii = +el.dataset.ii, t = day.items[ii].time || '';
                 el.querySelector('[data-time]').textContent = t;
@@ -238,7 +245,7 @@
             if (!confirm) L.restoreDay(day, t.snap);
             ui.trial = null;
             ctx.setTrial(false);
-            if (t.field === 'reschedule') render(); else refreshTimes(t.di, true);
+            if (t.field === 'reschedule' || !t.item) render(); else refreshTimes(t.di, true);
             ctx.changed();
             if (deferredComputed.size) {
                 const keys = [...deferredComputed];
@@ -283,6 +290,16 @@
             if (blockedByTrial()) return;
             const itemEl = el.closest('[data-item]');
             const { trip } = draft();
+            if (act === 'boundarylink') {
+                const di = +el.closest('[data-di]').dataset.di, field = el.dataset.field;
+                const input = el.parentElement.querySelector('[data-boundary]');
+                const r = L.startBoundaryTrial(trip.days[di], field, input.value);
+                if (!r.ok) { ctx.toast(r.message); return refreshTimes(di, true); }
+                ui.trial = { di, field, snap: r.snap };
+                ctx.setTrial(true);
+                ctx.changed();
+                return render();
+            }
             const days = trip.days;
             if (itemEl) {
                 const di = +itemEl.dataset.di, ii = +itemEl.dataset.ii, it = days[di].items[ii];
@@ -328,6 +345,7 @@
         pane.addEventListener('keydown', e => {
             if (e.key !== 'Enter' || e.isComposing) return;
             const el = e.target, form = el.closest && el.closest('[data-form]');
+            if (el.dataset.boundary) { e.preventDefault(); return el.parentElement.querySelector('[data-act="boundarylink"]').click(); }
             if (!form || !['start', 'end', 'buffer'].includes(el.dataset.f)) return;
             e.preventDefault();
             applyPending(+form.closest('[data-item]').dataset.di, +form.dataset.ii, el.dataset.f, 'link');
@@ -339,7 +357,7 @@
 
         function handleEdit(e, committed) {
             const el = e.target;
-            if (ui.trial && el.closest('[data-form],[data-df]')) { blockedByTrial(); return render(); }   // 暫時套用中：欄位退回資料裡的值
+            if (ui.trial && el.closest('[data-form],[data-df],[data-boundary]')) { blockedByTrial(); return render(); }   // 暫時套用中：欄位退回資料裡的值
             const { trip, places } = draft();
             const days = trip.days;
             const form = el.closest('[data-form]');

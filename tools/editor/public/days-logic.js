@@ -16,7 +16,7 @@
         end:      { label: '結束',        chip: 'bg-emerald-100 text-emerald-800', bar: 'border-l-emerald-500', fields: CARD },
         notice:   { label: '提醒',        chip: 'bg-orange-100 text-orange-800',   bar: 'border-l-orange-500',  fields: CARD },
         brief:    { label: '資訊框',      chip: 'bg-yellow-100 text-yellow-800',   bar: 'border-l-yellow-500',  fields: ['time', 'title', 'place', 'icon', 'desc', ...COMMON] },
-        waypoint: { label: '起訖/休息點', chip: 'bg-sky-100 text-sky-800',         bar: 'border-l-sky-500',     fields: ['place', 'text', 'mapName', 'backup', 'numbered'] }
+        waypoint: { label: '起訖/休息點', chip: 'bg-sky-100 text-sky-800',         bar: 'border-l-sky-500',     fields: ['time', 'place', 'text', 'mapName', 'backup', 'numbered'] }
     };
 
     // 把項目從 (fromDi, fromIi) 搬到 (toDi, toIi)；toIi 是以「搬動前」的陣列計算的插入位置。回傳新位置。
@@ -203,6 +203,38 @@
         return { ok: true, snap, changed: r.changed };
     }
 
+    // 每日邊界只提供等量平移，不接齊空檔，也不重算移動長度。
+    function startBoundaryTrial(day, field, value) {
+        const boundaries = M.getDayBoundaries(day), minute = M.parseTimePoint(value);
+        const index = field === 'departure' ? boundaries.departureIndex : boundaries.endIndex;
+        if (minute == null || index == null) return { ok: false, message: '請輸入當天 00:00–23:59 的 HH:MM 時間' };
+        const old = boundaries[field], delta = old == null ? 0 : minute - M.parseTimePoint(old);
+        if (old == null || delta === 0) {
+            const snap = snapshotDay(day);
+            if (old == null) day.items[index].time = value;
+            return { ok: true, snap, changed: old == null ? [index] : [] };
+        }
+        const clock = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+        const changes = [];
+        for (const [i, item] of day.items.entries()) {
+            if (item.type === 'notice') continue;
+            const point = M.parseTimePoint(item.time), range = M.parseTimeRange(item.time);
+            if (point != null) {
+                const next = point + delta;
+                if (next < 0 || next > 1439) return { ok: false, message: '連動超出當天 00:00–23:59，未套用任何調整' };
+                changes.push([i, clock(next)]);
+            } else if (range) {
+                if (range.start + delta < 0 || range.end + delta > 1439) return { ok: false, message: '連動超出當天 00:00–23:59，未套用任何調整' };
+                const parts = timeParts(item.time);
+                changes.push([i, `${clock(range.start + delta)} - ${clock(range.end + delta)}${parts.tail ? ' ' + parts.tail : ''}`]);
+            }
+        }
+        const snap = snapshotDay(day);
+        changes.forEach(([i, time]) => { day.items[i].time = time; });
+        if (old == null) day.items[index].time = value;
+        return { ok: true, snap, changed: changes.map(([i]) => i) };
+    }
+
     // 移動列（物件）→ 綁定路段的 key；改動前後各取一次，路段變了的列才需要重算長度
     // 欄位值（輸入框文字）與資料不同＝待套用：開始／結束（只看有完整區間的項目）、移動列緩衝（空白＝0；不是整數也算，套用時才被拒絕）。其他欄位沒有待套用
     function isPendingEdit(item, field, value) {
@@ -290,7 +322,7 @@
     const itemErrors = (errors, dayNo, ii) => errors.filter(e => e.startsWith(`DAY ${dayNo} 第 ${ii + 1} 項：`));
     const dayErrors = (errors, dayNo) => errors.filter(e => e.startsWith(`DAY ${dayNo} `));
 
-    const api = { TYPES, moveItem, stepItem, changeType, newItem, altPosition, canJoinAlt, joinAlt, leaveAlt, stayHint, rowLength, timeParts, setItemTime, setMoveBuffer, isPendingEdit, snapshotDay, restoreDay, startTrial, moveKeys, syncMoves, rescheduleDay, startRescheduleTrial, moveWarnings, getPath, setPath, itemErrors, dayErrors };
+    const api = { TYPES, moveItem, stepItem, changeType, newItem, altPosition, canJoinAlt, joinAlt, leaveAlt, stayHint, rowLength, timeParts, setItemTime, setMoveBuffer, isPendingEdit, snapshotDay, restoreDay, startTrial, startBoundaryTrial, moveKeys, syncMoves, rescheduleDay, startRescheduleTrial, moveWarnings, getPath, setPath, itemErrors, dayErrors };
     root.DaysLogic = api;
     if (typeof module !== 'undefined') module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

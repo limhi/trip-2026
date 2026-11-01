@@ -255,6 +255,35 @@
         return end >= start ? { start, end } : null;
     }
 
+    // 每日邊界只讀項目時間：起點與終點不另外存重複的每日欄位。
+    function parseTimePoint(time) {
+        const m = typeof time === 'string' && /^(\d{2}):(\d{2})$/.exec(time);
+        return m && +m[1] < 24 && +m[2] < 60 ? +m[1] * 60 + +m[2] : null;
+    }
+
+    function getDayBoundaries(day) {
+        const indices = day.items.map((item, i) => item.type !== 'notice' ? i : null).filter(i => i != null);
+        const first = indices[0], last = indices.at(-1);
+        const departureIndex = first == null ? null : (getAltGroupAt(day, first)?.start ?? first);
+        const endIndex = last == null ? null : (getAltGroupAt(day, last)?.start ?? last);
+        const edge = (index, side) => {
+            if (index == null) return null;
+            const time = day.items[index].time, point = parseTimePoint(time), range = parseTimeRange(time);
+            const minutes = point ?? (range ? range[side] : null);
+            return minutes == null ? null : formatClock(minutes);
+        };
+        return { departure: edge(departureIndex, 'start'), end: edge(endIndex, 'end'), departureIndex, endIndex };
+    }
+
+    function itemTimeRange(day, index) {
+        const item = day.items[index];
+        if (!item) return null;
+        const range = parseTimeRange(item.time);
+        if (range) return range;
+        const bounds = getDayBoundaries(day), point = parseTimePoint(item.time);
+        return point != null && (index === bounds.departureIndex || index === bounds.endIndex) ? { start: point, end: point } : null;
+    }
+
     // 停留時間（分）：time 是完整區間且結束晚於開始才有值，否則 null（不完整、相等、跨午夜）。公開頁面與編輯器共用
     function getStayMinutes(time) {
         const range = parseTimeRange(time);
@@ -300,8 +329,8 @@
                     const range = parseTimeRange(day.items[leg.rowIndex].time);
                     if (range) scheduled = range.end - range.start;
                 } else if (leg.needsRow) {
-                    const prev = parseTimeRange(timeOf(leg.fromItemIndex));
-                    const next = parseTimeRange(timeOf(leg.toItemIndex));
+                    const prev = itemTimeRange(day, getAltGroupAt(day, leg.fromItemIndex)?.start ?? leg.fromItemIndex);
+                    const next = itemTimeRange(day, getAltGroupAt(day, leg.toItemIndex)?.start ?? leg.toItemIndex);
                     if (prev && next) scheduled = next.start - prev.end;
                 }
             }
@@ -408,14 +437,14 @@
         if (!delta) return out;
         const group = getAltGroupAt(day, index);
         for (let i = (group ? group.end : index) + 1; i < day.items.length; i++) {
-            const item = day.items[i], range = parseTimeRange(item.time);
+            const item = day.items[i], range = itemTimeRange(day, i);
             if (!range) continue;
             const start = range.start + delta, end = range.end + delta;
             if (start < 0 || end > DAY_END) {
                 out.warnings.push({ type: 'overflow', index: i, message: `DAY ${day.day} 第 ${i + 1} 項：平移 ${formatHM(delta)} 後超出當天，時間未更動` });
                 continue;
             }
-            const to = setTimeRange(item.time, start, end);
+            const to = parseTimePoint(item.time) != null ? formatClock(start) : setTimeRange(item.time, start, end);
             out.changed.push({ index: i, from: item.time, to });
             item.time = to;
         }
@@ -430,7 +459,7 @@
         for (let i = 0; i < day.items.length; i++) {
             const group = getAltGroupAt(day, i);
             const carrier = group ? group.start : i;
-            units.push({ carrier, range: parseTimeRange(day.items[carrier].time), isMove: ROW_TYPES.includes(day.items[carrier].type) });
+            units.push({ carrier, range: itemTimeRange(day, carrier), isPoint: parseTimePoint(day.items[carrier].time) != null, isMove: ROW_TYPES.includes(day.items[carrier].type) });
             if (group) i = group.end;
         }
         return units;
@@ -497,14 +526,14 @@
             const index = units[k].carrier;
             const len = r.end - r.start;
             if (r.start < 0 || r.end > DAY_END) return fail('overflow', `第 ${index + 1} 項平移後超出當天（00:00–23:59），操作未套用`);
-            if (units[k].isMove ? len < 0 : len <= 0) {
+            if (units[k].isPoint ? len !== 0 : units[k].isMove ? len < 0 : len <= 0) {
                 return units[k].isMove ? fail('length', `第 ${index + 1} 項移動長度會小於 0，操作未套用`) : fail('stay', `第 ${index + 1} 項停留會小於或等於 0，操作未套用`);
             }
         }
         const changed = [];
         for (const [k, r] of plan) {
             const item = day.items[units[k].carrier];
-            const to = setTimeRange(item.time, r.start, r.end);
+            const to = units[k].isPoint ? formatClock(r.start) : setTimeRange(item.time, r.start, r.end);
             if (to !== item.time) { changed.push({ index: units[k].carrier, from: item.time, to }); item.time = to; }
         }
         changed.sort((a, b) => a.index - b.index);
@@ -576,10 +605,10 @@
             } else {
                 if (item.time) return;   // 明確填入的不完整時間不是新補的空白列
                 const group = getAltGroupAt(day, leg.fromItemIndex);
-                const prev = parseTimeRange(day.items[group ? group.start : leg.fromItemIndex].time);
+                const prev = itemTimeRange(day, group ? group.start : leg.fromItemIndex);
                 if (!prev) return;
                 start = prev.end;
-                const next = day.items.slice(i + 1).map(x => parseTimeRange(x.time)).find(Boolean);
+                const next = day.items.map((x, n) => n > i ? itemTimeRange(day, n) : null).find(Boolean);
                 delta = next ? start + length - next.start : 0;
             }
             if (start + length > DAY_END) {
@@ -604,7 +633,7 @@
         const out = { changed: [], warnings: [] };
         let cursor = null;
         day.items.forEach((item, i) => {
-            const range = parseTimeRange(item.time);
+            const range = itemTimeRange(day, i);
             if (!range) return;
             if (cursor == null) cursor = range.start;
             let length = range.end - range.start;
@@ -618,7 +647,7 @@
                 out.warnings.push({ type: 'overflow', index: i, message: `DAY ${day.day} 第 ${i + 1} 項：重排後超出當天，時間未更動` });
                 return;
             }
-            const to = setTimeRange(item.time, start, end);
+            const to = parseTimePoint(item.time) != null ? formatClock(start) : setTimeRange(item.time, start, end);
             if (to !== item.time) { out.changed.push({ index: i, from: item.time, to }); item.time = to; }
             cursor = end;
         });
@@ -659,7 +688,7 @@
     Trip.model = {
         getContact, getMapPoints, getAltGroups, getAltGroupAt, validate, forEachPlaceRef, lacksCoords, CARD_TYPES, ROW_TYPES,
         DEFAULT_ROUTING, formatCoord, legKey, getLegs, getTrafficFactor, displayMinutes, queryMinutes,
-        formatHM, formatDistance, formatLeg, formatFactorNote, parseTimeRange, getStayMinutes, getStayLabel, isUsableLeg, getLegSchedule, getTimeWarnings, getContinuityWarnings, deriveMoves, applyMoves,
+        formatHM, formatDistance, formatLeg, formatFactorNote, parseTimeRange, parseTimePoint, getDayBoundaries, getStayMinutes, getStayLabel, isUsableLeg, getLegSchedule, getTimeWarnings, getContinuityWarnings, deriveMoves, applyMoves,
         getMoveMinutes, getMoveMinutesAt, cascadeDay, fitMoves, setTimeRange, rescheduleDay,
         adjustSpotEdge, adjustMoveBuffer, moveEdge
     };

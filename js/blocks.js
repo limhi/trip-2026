@@ -145,7 +145,7 @@
 
     // 起訖點／休息點等只有座標的項目：一列簡短文字，讓地圖上的每個編號在左邊都找得到對應
     function waypointRow(item, ctx, point) {
-        if (!point || point.number == null) return '';    // 不編號的起點只出現在地圖
+        if (!point || (point.number == null && !item.time)) return '';    // 不編號的起點只出現在地圖
         const place = ctx.places[item.place];
         const click = interactive(place, item.place);
         const types = Trip.MAP_TYPES || {};
@@ -153,6 +153,7 @@
         const chevron = click.cls ? '<i class="fa-solid fa-chevron-right ml-auto text-sky-700"></i>' : '';
         return `<div class="flex items-center gap-3 p-2.5 rounded-xl bg-white border border-dashed border-slate-300 text-xs md:text-sm${click.cls}"${click.attrs}>
     ${numberBadge(point)}
+    ${item.time ? `<span class="font-black tabular-nums">${esc(item.time)}</span>` : ''}
     <span class="font-bold text-slate-800">${esc(point.name)}</span>
     <span class="font-bold text-slate-500">${esc(label)}</span>
     ${chevron}
@@ -211,7 +212,9 @@ ${members.filter(Boolean).join('\n')}
             for (let i = index; i <= last; i++) if (autoAfter[i]) blocks.push(autoLegRow(autoAfter[i]));
             index = last;
         }
-        const titleHtml = `<h3 class="font-extrabold text-base md:text-xl">${esc(day.date)}${esc(day.title)}</h3>`;
+        const boundaries = Trip.model.getDayBoundaries(day);
+        const boundaryHtml = `<p class="text-xs font-bold">${boundaries.departure ? `每日出發 ${esc(boundaries.departure)}` : ''}${boundaries.departure && boundaries.end ? '・' : ''}${boundaries.end ? `每日結束 ${esc(boundaries.end)}` : ''}</p>`;
+        const titleHtml = `<h3 class="font-extrabold text-base md:text-xl">${esc(day.date)}${esc(day.title)}</h3>${boundaryHtml}`;
         const stayPlace = day.stay && ctx.places[day.stay.place];
         let badge;
         if (day.stay) {

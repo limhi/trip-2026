@@ -287,3 +287,12 @@ test('緩衝非 0：移動列加標籤「緩衝 +15分」「緩衝 −10分」�
     assert.equal(count(neg, /leg-short/g), 1);   // 排定不足紅字照舊
     assert.equal(count(render(day([card('a'), moveRow({ buffer: 0 }), card('b')]), CACHE), /leg-buffer/g), 0);
 });
+
+test('公開行程顯示每日出發與結束時間及起點時間點，即使起點不編號', () => {
+    const d = day([{ type: 'waypoint', place: 'a', numbered: false, time: '08:16' }, { type: 'spot', place: 'b', time: '08:40 - 09:00' }, { type: 'end', time: '15:03 - 15:33', title: '回家' }, { type: 'notice', title: '提醒' }]);
+    const html = render(d, CACHE);
+    assert.match(html, /每日出發 08:16/);
+    assert.match(html, /每日結束 15:33/);
+    assert.match(html, /08:16<\/span>/);
+    assert.equal(Trip.model.getLegSchedule(d, P, CACHE, SITE)[0].scheduled, 24);
+});
