@@ -24,8 +24,8 @@
             return it.title || placeName(it.place) || it.text || '(空白)';
         };
 
-        // 待套用列：欄位值與資料不同時才顯示（syncPending）。連動／伸縮；buffer 另有向前／向後選擇（在 pendBar 外，常駐）
-        const pendBar = field => `<div data-pendbar="${field}" style="display:none" class="mt-1"><div class="text-[11px] text-amber-700">待套用：連動／伸縮</div><div class="flex items-center gap-1"><button type="button" data-act="pendlink" data-field="${field}" class="shrink-0 rounded border bg-white px-1.5 text-[11px] text-slate-700 hover:bg-slate-100" title="連動：${field === 'start' ? '前面整串跟著動' : field === 'end' ? '後面整串跟著動' : '依方向，該側整串跟著動'}（Enter 也是連動）">連動</button><button type="button" data-act="pendstretch" data-field="${field}" class="shrink-0 rounded border bg-white px-1.5 text-[11px] text-slate-700 hover:bg-slate-100" title="伸縮（單次）：只動緊鄰的移動與景點，更遠的不動">伸縮</button></div></div>`;
+        // 操作列常駐：原值也能明確修正操作側斷點；待套用底色仍只標示輸入差異。
+        const pendBar = field => `<div data-pendbar="${field}" class="mt-1"><div class="text-[11px] text-amber-700">套用：連動／伸縮（原值也可接齊）</div><div class="flex items-center gap-1"><button type="button" data-act="pendlink" data-field="${field}" class="shrink-0 rounded border bg-white px-1.5 text-[11px] text-slate-700 hover:bg-slate-100" title="連動：${field === 'start' ? '前面整串跟著動' : field === 'end' ? '後面整串跟著動' : '依方向，該側整串跟著動'}（Enter 也是連動）">連動</button><button type="button" data-act="pendstretch" data-field="${field}" class="shrink-0 rounded border bg-white px-1.5 text-[11px] text-slate-700 hover:bg-slate-100" title="伸縮（單次）：只動緊鄰的移動與景點，更遠的不動">伸縮</button></div></div>`;
 
         // 暫時套用列：按「連動」「伸縮」之後，結果先暫時留在清單與預覽上；「確認」才算數，「還原」回到操作前（資料與欄位完全復原）
         const isTrial = (item, field) => !!ui.trial && ui.trial.item === item && ui.trial.field === field;
@@ -199,7 +199,7 @@
                 input.dataset.pend = pend ? '1' : '';
                 input.style.background = pend ? '#fef3c7' : '';
                 const bar = form.querySelector(`[data-pendbar="${f}"]`);
-                if (bar) bar.style.display = pend ? '' : 'none';
+                if (bar) bar.style.display = ui.trial ? 'none' : '';
                 const trialEl = form.querySelector(`[data-trialbar="${f}"]`);
                 if (trialEl) trialEl.style.display = isTrial(item, f) ? '' : 'none';
             });
@@ -219,7 +219,7 @@
         function startTrial(di, ii, field, value, opts) {
             const { trip, places } = draft();
             const day = trip.days[di];
-            const r = L.startTrial(day, ii, field, value, opts);
+            const r = L.startTrial(day, ii, field, value, { ...opts, places, routes: routesOf(), site: trip.site });
             if (!r.ok) { ctx.toast(r.message); return refreshTimes(di, true); }
             if (field === 'buffer' && !M.parseTimeRange(day.items[ii].time)) M.fitMoves(day, places, routesOf(), trip.site, item => item === day.items[ii]);   // 還沒有時間的列：依預估長度補上
             ui.trial = { di, item: day.items[ii], field, snap: r.snap };
@@ -313,7 +313,7 @@
         pane.addEventListener('keydown', e => {
             if (e.key !== 'Enter' || e.isComposing) return;
             const el = e.target, form = el.closest && el.closest('[data-form]');
-            if (!form || !['start', 'end', 'buffer'].includes(el.dataset.f) || !el.dataset.pend) return;
+            if (!form || !['start', 'end', 'buffer'].includes(el.dataset.f)) return;
             e.preventDefault();
             applyPending(+form.closest('[data-item]').dataset.di, +form.dataset.ii, el.dataset.f, 'link');
         });

@@ -811,3 +811,74 @@ test('restoreDay 就地還原：項目物件仍是同一個（編輯器的展開
     L.restoreDay(day, snap);
     assert.deepEqual(day, threeDay());
 });
+
+test('原值開始連動：修正空檔，保留其他斷點與文案，還原完全相同', () => {
+    const day = dayOf([
+        { type: 'notice', title: '提醒 06:00', time: '06:00 - 06:30', desc: '必須 12:00 到' },
+        mv('07:10 - 09:00'), sp('b', '09:40 - 11:20'),
+        { type: 'brief', title: '資訊', time: '11:40 - 12:00' }
+    ]);
+    const before = clone(day);
+    const r = L.startTrial(day, 2, 'start', '09:40', { mode: 'link' });
+    assert.equal(r.ok, true);
+    assert.deepEqual(timesOf(day), ['06:40 - 07:10', '07:50 - 09:40', '09:40 - 11:20', '11:40 - 12:00']);
+    assert.equal(day.items[0].desc, '必須 12:00 到');
+    L.restoreDay(day, r.snap);
+    assert.deepEqual(day, before);
+});
+
+test('開始連動依預估加緩衝回推鄰近移動，不保留舊排定長度', () => {
+    const day = dayOf([sp('a', '07:00 - 08:00'), mv('08:00 - 09:00'), sp('b', '09:40 - 11:20')]);
+    day.items[1].buffer = 5;
+    const before = clone(day);
+    const r = L.startTrial(day, 2, 'start', '09:40', { mode: 'link', places: SP, routes: routesOf([['a', 'b', 1800]]), site: SITE });
+    assert.equal(r.ok, true);
+    assert.deepEqual(timesOf(day), ['08:05 - 09:05', '09:05 - 09:40', '09:40 - 11:20']);
+    L.restoreDay(day, r.snap);
+    assert.deepEqual(day, before);
+});
+
+test('原值移動緩衝：兩方向接齊空檔或重疊，長度依快取且還原完整', () => {
+    for (const direction of ['forward', 'back']) {
+        const day = dayOf([sp('a', '07:00 - 08:10'), mv('08:00 - 09:00'), sp('b', '09:40 - 11:20')]);
+        const before = clone(day);
+        const r = L.startTrial(day, 1, 'buffer', '0', { mode: 'link', direction, places: SP, routes: routesOf([['a', 'b', 1800]]), site: SITE });
+        assert.equal(r.ok, true);
+        assert.deepEqual(timesOf(day), direction === 'back'
+            ? ['07:00 - 08:10', '08:00 - 08:30', '08:30 - 10:10']
+            : ['07:20 - 08:30', '08:30 - 09:00', '09:40 - 11:20']);
+        L.restoreDay(day, r.snap);
+        assert.deepEqual(day, before);
+    }
+});
+
+test('結束連動：重疊接齊並順推移動，跳過不完整時間、擇一組只平移一次', () => {
+    const day = dayOf([
+        { type: 'stay', time: '09:00 - 10:00', title: '住宿' },
+        { type: 'notice', time: '17:10 後', title: '保留' },
+        mv('09:50 - 10:20'),
+        sp('b', '10:40 - 11:40', { alt: 'x' }), sp('c', undefined, { alt: 'x' }),
+        { type: 'brief', time: '12:00 - 12:30', title: '資訊' }
+    ]);
+    const before = clone(day);
+    const r = L.startTrial(day, 0, 'end', '10:10', { mode: 'link' });
+    assert.equal(r.ok, true);
+    assert.deepEqual(timesOf(day), ['09:00 - 10:10', '17:10 後', '10:10 - 10:40', '11:00 - 12:00', undefined, '12:20 - 12:50']);
+    L.restoreDay(day, r.snap);
+    assert.deepEqual(day, before);
+});
+
+test('原值連動也須整次拒絕超出當天與負移動長度，原資料完全不變', () => {
+    const cases = [
+        [dayOf([{ type: 'notice', title: '早起', time: '00:05 - 00:20' }, mv('01:00 - 02:00'), sp('b', '00:30 - 03:00')]), 2, 'start', '00:30', {}],
+        [dayOf([sp('a', '08:00 - 09:00'), { ...mv('09:00 - 09:30'), buffer: -40 }, sp('b', '10:00 - 11:00')]), 2, 'start', '10:00', { places: SP, routes: routesOf([['a', 'b', 1800]]), site: SITE }]
+    ];
+    for (const [day, ii, field, value, context] of cases) {
+        const before = clone(day);
+        const r = L.startTrial(day, ii, field, value, { mode: 'link', ...context });
+        assert.equal(r.ok, false);
+        assert.ok(r.message);
+        assert.equal(r.snap, undefined);
+        assert.deepEqual(day, before);
+    }
+});
