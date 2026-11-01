@@ -16,7 +16,7 @@
     // onStatus()：路線狀態變了（含「有未存檔的路線」），外框要重畫
     function create({ pane, bar, data, changed, onComputed, onStatus = () => {} }) {
         const ctl = window.RoutesController.create({ data, onUpdate: () => { refresh(); onStatus(); }, onComputed });
-        let warnOpen = false;
+        let warnOpen = true;
 
         const site = () => data().trip.site || {};
         const maxMinutes = () => (site().routing && site().routing.maxLegMinutes) || M.DEFAULT_ROUTING.maxLegMinutes;
@@ -75,6 +75,7 @@
             const { trip, places } = data();
             const out = [];
             for (const day of trip.days) {
+                M.getContinuityWarnings(day, places).forEach(w => out.push(w.message));
                 M.deriveMoves(day, places).warnings.forEach(w => out.push(w.message));   // 移動列：多個、多餘
                 const noRoute = new Set();
                 M.getLegs(day, places).forEach(leg => {   // 移動列沒有查詢結果：時間沿用現有值，不會連動
@@ -106,7 +107,7 @@
             const w = warnings();
             const el = bar.querySelector('[data-rb-warn]');
             if (!w.length) { el.innerHTML = ''; return; }
-            el.innerHTML = `<div class="border-t bg-amber-50 px-3 py-1 text-xs text-amber-800"><button data-rb="warntoggle" class="font-bold">⚠ ${w.length} 個路線提醒（不擋存檔、不擋發布）${warnOpen ? '▲' : '▼'}</button>${warnOpen ? '<ul class="mt-1 list-disc pl-5">' + w.map(m => `<li>${esc(m)}</li>`).join('') + '</ul>' : ''}</div>`;
+            el.innerHTML = `<div class="border-t bg-amber-50 px-3 py-1 text-xs text-amber-800"><button data-rb="warntoggle" class="font-bold">⚠ ${w.length} 個行程與路線提醒（不擋存檔、不擋發布）${warnOpen ? '▲' : '▼'}</button>${warnOpen ? '<ul class="mt-1 list-disc pl-5">' + w.map(m => `<li>${esc(m)}</li>`).join('') + '</ul>' : ''}</div>`;
         }
 
         // 就地更新：換掉路線區塊內容，不動分頁其他部分

@@ -600,6 +600,27 @@
         return out;
     }
 
+    // 完整時間依項目順序比較；擇一組只比較共用時間，不讀取文案中的時間。
+    function getContinuityWarnings(day, places = {}) {
+        const units = getEdgeUnits(day).filter(u => u.range);
+        const label = u => {
+            const item = day.items[u.carrier];
+            return item.title || (places[item.place] && places[item.place].name) || item.text || item.type;
+        };
+        const warnings = [];
+        for (let i = 1; i < units.length; i++) {
+            const before = units[i - 1], after = units[i];
+            const difference = after.range.start - before.range.end;
+            if (!difference) continue;
+            warnings.push({
+                type: difference > 0 ? 'gap' : 'overlap',
+                beforeIndex: before.carrier, afterIndex: after.carrier, minutes: Math.abs(difference),
+                message: `DAY ${day.day} 第 ${before.carrier + 1} 項（${label(before)}）${formatClock(before.range.end)} → 第 ${after.carrier + 1} 項（${label(after)}）${formatClock(after.range.start)}：${difference > 0 ? '空檔' : '重疊'} ${formatHM(Math.abs(difference))}`
+            });
+        }
+        return warnings;
+    }
+
     // 「排太緊」警告列表（編輯器顯示，不擋發布），由 getLegSchedule 判斷
     function getTimeWarnings(day, places, routes, site) {
         const factor = getTrafficFactor(day, site);
@@ -613,7 +634,7 @@
     Trip.model = {
         getContact, getMapPoints, getAltGroups, getAltGroupAt, validate, forEachPlaceRef, lacksCoords, CARD_TYPES, ROW_TYPES,
         DEFAULT_ROUTING, formatCoord, legKey, getLegs, getTrafficFactor, displayMinutes, queryMinutes,
-        formatHM, formatDistance, formatLeg, formatFactorNote, parseTimeRange, getStayMinutes, getStayLabel, isUsableLeg, getLegSchedule, getTimeWarnings, deriveMoves, applyMoves,
+        formatHM, formatDistance, formatLeg, formatFactorNote, parseTimeRange, getStayMinutes, getStayLabel, isUsableLeg, getLegSchedule, getTimeWarnings, getContinuityWarnings, deriveMoves, applyMoves,
         getMoveMinutes, getMoveMinutesAt, cascadeDay, fitMoves, setTimeRange, rescheduleDay,
         adjustSpotEdge, adjustMoveBuffer, moveEdge
     };

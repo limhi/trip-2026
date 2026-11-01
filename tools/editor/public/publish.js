@@ -49,7 +49,7 @@
             const dirty = ctx.dirty();
             const block = blockers(plan, { dirty, errors });
             const lines = changeLines(plan.changes);
-            const warns = [];
+            const warns = (plan.continuityWarnings || []).map(w => w.message);
             if (!plan.hasChanges) warns.push('與目前的 HEAD 相同，沒有可發布的異動（仍會更新版本號）');
             if (plan.missingRoutes.length) warns.push(`有 ${plan.missingRoutes.length} 段路線沒有計算快取，公開頁面會用直線代替（不擋發布）`);
             ctx.body.innerHTML = `<h2 class="mb-3 text-lg font-black">發布到 main</h2>

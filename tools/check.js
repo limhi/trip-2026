@@ -72,6 +72,7 @@ if (TRIP && PLACES && model) {
 
     // 移動列：缺移動列、重複、多餘只警告（node tools/sync-moves.js 可補缺的列；不檢查時間）
     for (const day of TRIP.days) {
+        model.getContinuityWarnings(day, PLACES).forEach(w => warnings.push(w.message));
         const r = model.deriveMoves(day, PLACES);
         r.missing.forEach(m => warnings.push(`DAY ${day.day}：${m.text} 之間缺少移動列；請執行 node tools/sync-moves.js`));
         r.warnings.forEach(w => warnings.push(w.message));
