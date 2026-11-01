@@ -140,18 +140,20 @@
 純函式在 `js/model.js`：
 - `getMoveMinutes`／`getMoveMinutesAt`：移動列長度。
 - `moveEdge`：邊界連動與伸縮的共同核心（以「單位」為單位，擇一組整組算一個）。整個操作先算好再一次套用，任何一步不合就整個不套用；reason 有 `stay`、`length`、`overflow`、`incomplete`（單位沒有完整時間）、`invalid-time`、`not-move`、`invalid`（單位索引超出範圍等）。
-- `adjustSpotEdge(day, index, side, newTime, mode)`：改景點的開始或結束。連動（`link`）：改結束平移後面全部、改開始平移前面全部；伸縮（`stretch`）：鄰近的移動整個平移、再外一個單位吸收，更遠的不動。不完整時間的項目不平移、不吸收。
-- `adjustMoveBuffer(day, index, buffer, direction, mode)`：改移動列緩衝。向後（`back`）＝結束邊動、後面跟著動；向前（`forward`）＝開始邊動、前面跟著動；伸縮由該方向鄰近景點吸收。移動沒有完整時間時只存 `buffer`（0 刪除欄位）。被拒絕時 `buffer` 與時間都不變。
+- `adjustSpotEdge(day, index, side, newTime, mode, context)`：改完整時間項目的開始或結束。`context` 可傳 `{ places, routes, site }`，編輯器傳入當前草稿與路線；連動接齊操作側第一個完整項目，鄰近移動依預估＋緩衝重建長度，更遠項目依外側邊差平移、保留未涉及的斷點。伸縮同樣接齊，但只讓鄰近移動與景點吸收；不完整時間跳過、不改動。
+- `adjustMoveBuffer(day, index, buffer, direction, mode, context)`：改移動列緩衝。向後（`back`）＝結束邊動、後面跟著動；向前（`forward`）＝開始邊動、前面跟著動；伸縮由該方向鄰近景點吸收。移動沒有完整時間時只存 `buffer`（0 刪除欄位）。被拒絕時 `buffer` 與時間都不變。
 - `fitMoves`：依路線查詢長度調整指定移動列並平移後面（用 `cascadeDay(day, index, delta)`：後面完整區間的項目整段平移、不完整時間不動、超出當天不動並警告）。
 - `rescheduleDay`：整天重排。以第一個完整時間項目的開始為起點，停留與移動長度不變；沒有路線查詢結果的移動列沿用現有長度並警告；可重複執行。
 - `deriveMoves`／`applyMoves`：找出缺的移動列並補列，另有多個、多餘的警告；只補不刪。
+- `getContinuityWarnings(day, places)`：比較相鄰完整時間項目，擇一組算一站、不完整時間跳過。回報空檔／重疊的項目、時間與分鐘差；編輯器、發布計畫與 CLI 共用，只警告、不改資料。
 
 編輯器（`days-logic.js`、`days.js`）：
-- 景點所有開始與結束欄位都可改（沒有第一項例外、沒有唯讀）。**待套用**：欄位值與資料不同（`days-logic.isPendingEdit`）就進入待套用，欄位變黃底、旁邊出現「待套用：連動／伸縮」與「連動」「伸縮」兩鈕（同一排）；離開焦點不套用也不還原，待套用期間資料與預覽都不動。兩鈕 mousedown 不搶焦點。
+- 景點所有開始與結束欄位都可改（沒有第一項例外、沒有唯讀）。**待套用**：欄位值與資料不同（`days-logic.isPendingEdit`）就進入待套用，欄位變黃底；「連動」「伸縮」兩鈕常駐，即使值未改也可明確修正原有斷點；離開焦點不套用也不還原，待套用期間資料與預覽都不動。兩鈕 mousedown 不搶焦點。
 - **暫時套用（確認／還原）**：按「連動」（或欄位按 Enter）／「伸縮」不是直接生效，而是 `days-logic.startTrial`：先 `snapshotDay`（項目物件參照＋欄位內容快照），再呼叫 `setItemTime` → `model.adjustSpotEdge`（或緩衝：`setMoveBuffer` → `model.adjustMoveBuffer`；mode `link`／`stretch`，伸縮只動緊鄰，不存模式），結果暫時留在草稿上，清單、路線列、預覽立即呈現整天變化。此時待套用的三鈕換成「確認」「還原」（`data-trialbar`）：「確認」＝什麼資料都不再改，只解除暫時狀態並 `changed()`（這時才算有未存檔修改）；「還原」＝`restoreDay` 就地還原（項目物件仍是同一個、欄位完全回到操作前，連剛加上的 `buffer` 欄位也會消失）。被拒絕（停留 ≤ 0、超出當天、格式不對、緩衝不是整數）時 toast 提示並把欄位還原，不進入暫時套用，資料不變。
-- **暫時套用期間的擋法（最小可行）**：`ui.trial` 有值時，`days.js` 擋下所有其他操作並 toast「請先確認或還原」——點列／收合展開、新增刪除搬移、併成擇一、整天重排、日設定、拖拉、任何欄位輸入（欄位會被重畫成資料的值）；`app.js` 的 `state.trial`（由 `ctx.setTrial` 設定）讓存檔鈕停用、`save()` 與「發布…」直接拒絕，狀態列顯示「暫時套用中（請先確認或還原，才能存檔與發布）」。這樣半成品不會被存檔或發布帶出去；「放棄未存檔的修改」（`reset()`）會一併清掉暫時套用。已知限制：暫時套用期間若剛好有路線算完（`applyComputed`），那次調整也會隨「還原」一起退回。
+- **暫時套用期間的擋法（最小可行）**：`ui.trial` 有值時，`days.js` 擋下所有其他操作並 toast「請先確認或還原」——點列／收合展開、新增刪除搬移、併成擇一、整天重排、日設定、拖拉、任何欄位輸入（欄位會被重畫成資料的值）；`app.js` 的 `state.trial`（由 `ctx.setTrial` 設定）讓存檔鈕停用、`save()` 與「發布…」直接拒絕，狀態列顯示「暫時套用中（請先確認或還原，才能存檔與發布）」。這樣半成品不會被存檔或發布帶出去；「放棄未存檔的修改」（`reset()`）會一併清掉暫時套用。已知限制：暫時套用期間若剛好有路線算完（`applyComputed`），快取可更新但不改動試算時間；結束試算後如有需要可明確重排。
 - 待套用狀態（按下連動／伸縮之前）只存在 DOM（`input.dataset.pend`），不進資料；結構改動（rerender、展開／收合重畫表單）整個重畫，等於捨棄待套用；`refreshTimes` 非強制更新時不覆蓋待套用欄位。
-- 暫時套用時不補列、不重畫、焦點不丟。
+- 單次邊界操作暫時套用時不補列、不重畫、焦點不丟。整天重排由 `startRescheduleTrial` 先保存快照，可能補列並重畫；確認接受，還原會把新增列、順序與原有欄位一起復原。
+- `app.js` 在暫時套用期間也擋下分頁、路線設定／重算及還原選單的編輯入口，避免別的介面改動試算。
 - 移動列的 `time` 唯讀。「緩衝」欄位旁有「向前／向後」選擇（預設向後，不存）；緩衝值改了同樣進入待套用，按「連動」（Enter）或「伸縮」時依當下方向暫時套用，之後同樣「確認」或「還原」。資料只存 `buffer` 總值。
 - 路線重算完成（`applyComputed`→`fitMoves`）後，長度變的移動列預設向後傳。
 - 時間顯示（使用者驗收後）：清單列的起迄時間是深色粗體較大字（`text-sm font-black`），停留（綠）與移動的「排定」（藍）是彩色標籤；每段路線列（`routes.js` 的 `legHtml`）並列「查詢」（灰）「預估」（黃）「排定」（藍；不足或不一致時紅底加 ⚠，文字說明）三個標籤與緩衝標籤，純邏輯在 `routes-logic.legLengths`。沒有查詢結果顯示「—」。公開頁面風格一致（第 15.6 節）。
@@ -260,6 +262,12 @@ node tools/check.js
 node --test
 ```
 只需要 Node（自動找所有 `*.test.js`，目前 451 項）。涵蓋：`build-data`、邊界連動與伸縮（`edges.test.js`）、路線快取與 provider（假伺服器：User-Agent、間隔、逾時、不重試）、`getLegs`／顯示時間／警告、公開頁面的 `blocks`／`map`／`route-view`（假 DOM、假 Leaflet）、編輯器的 `store`、`preview`、`publish`（在**暫存 git repo** 內做，含 bare remote，不碰真的 `main`）、`routes-service`、各 `*-logic.js`（含 `setItemTime`、`setMoveBuffer`）與 `routes-controller.js`。**編輯器前端畫面本身（拖拉、表單、預覽 iframe）沒有自動化測試**，要靠使用者在瀏覽器驗收。
+
+### 10.1.2 編輯器瀏覽器驗收
+
+時間銜接入口：`node tools/editor/continuity.e2e.js`、`node tools/editor/link.e2e.js`、`node tools/editor/stretch.e2e.js`、`node tools/editor/reschedule.e2e.js`。使用真正編輯器與預覽 iframe，分別驗證警告與發布、原值連動、原值伸縮／拒絕、整天重排確認／還原。
+
+沿用 `PLAYWRIGHT_MODULE`、`CHROME_PATH` 與 `TAILWIND_CSS`（下節），瀏覽器在自訂目錄時可設定 `PLAYWRIGHT_BROWSERS_PATH`；有額外動態函式庫時設定 `LD_LIBRARY_PATH`。測試只用暫存專案、受控路線與本機 bare remote，不更動真實行程、不呼叫外部路線 API，也不發布到 GitHub。沙箱限制執行時，使用者已授權以沙箱外流程執行。
 
 ### 10.2 瀏覽器端到端測試（`tools/e2e.js`）
 改到功能（`js/`、`index.html`、`verify.html`、`css/`）就要跑；只改資料文字可以只跑 `check.js`。
@@ -398,9 +406,9 @@ node tools/e2e.js
 - **驗證**：每次草稿變動即時跑 `Trip.model.validate`，有錯可存檔，發布被擋。
 - **存檔**：明確存檔（沒有自動存檔）；預覽反映未存檔草稿；沒有逐步 undo，已存檔但沒發布的修改用「還原到上次發布」整批退回（第 14.9 節）；有未存檔修改時離開頁面會提示。路線算出新結果（草稿與磁碟不同）也算未存檔：存檔鈕會亮、狀態列顯示「路線計算結果未存檔」，重新整理頁面後由 `GET /api/routes` 的 `unsaved` 還原。
 
-### 14.6.1 時間銜接修正（2026-11-01 已確認、待實作）
+### 14.6.1 時間銜接修正（2026-11-01）
 
-本節是下一次實作的規格，**不是現有功能已完成的描述**。完整決策與取捨見 [ADR 0007](adr/0007-move-rows-derived-from-neighbors.md)，驗收清單見 [TODO](TODO.md#時間銜接修正已確認待實作2026-11-01)。
+本節功能已實作，最終整合驗收狀態見 TODO。完整決策與取捨見 [ADR 0007](adr/0007-move-rows-derived-from-neighbors.md)，驗收清單見 [TODO](TODO.md#時間銜接修正2026-11-01)。
 
 - 計算只讀 `time`、路線快取、路況係數、`buffer`；文案（`desc`、`text`、`note`）不參與時間解析或排程。文案內容最後另行人工核對。
 - 同一天所有完整時間區間的項目依序參與銜接，包含提醒、資訊框與住宿；擇一組視為一站。不完整時間項目跳過、不改動。
@@ -414,7 +422,7 @@ node tools/e2e.js
 攻略（`reference/guides.js`）、`verify.md`、`hero` 文案、新增或刪除天數、編輯器內逐步 undo／redo（整批退回 `HEAD` 見第 14.9 節）、多人編輯、只還原某幾個檔案或某一天（資料檔是成套的，單檔還原會讓 `check.js` 回報不同步）。
 
 ### 14.8 已知限制
-- 編輯器前端沒有在真實瀏覽器驗收過（自動測試只覆蓋純邏輯與伺服器 API）。
+- 編輯器的時間銜接、警告與試算流程已有真實 Chromium 的 Playwright 自動驗收；其他表單與拖拉未必有瀏覽器自動覆蓋，不能以這次測試代表整個編輯器。
 - 路線快取草稿與預覽草稿都在伺服器記憶體：重啟伺服器就回到磁碟版；「放棄未存檔的修改」會一併清掉路線草稿。
 - **只有 `/api/discard` 與 `/api/routes/reset` 要求自訂標頭**（其他網頁的表單或 no-cors 請求送不出）。`PUT /api/data`、`POST /api/publish` 目前沒有這層保護：理論上，編輯器開著時，使用者造訪的惡意網頁可以對 `127.0.0.1:8780` 送出簡單請求（發布端點要求 body 與磁碟內容一致，所以最多是把已存檔的內容發布出去）。**使用者已決定不補（2026-10-30）**，不要再主動提議；真的要補時，把 `requireEditorHeader` 套到所有會寫入的端點，前端的 `fetch` 一併加標頭。
 - 發布時若路線草稿與磁碟不同回 409，所以重算路線後必須先存檔才能發布。
