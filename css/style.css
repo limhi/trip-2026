@@ -44,6 +44,11 @@ body {
     text-decoration: none;
 }
 body.modal-open { overflow: hidden; }
+.move-row .leg-lengths,
+.move-row .leg-path,
+.move-row .auto-leg-duration {
+    justify-content: flex-end;
+}
 .day-body-grid {
     display: block;
 }

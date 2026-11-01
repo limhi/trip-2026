@@ -86,8 +86,8 @@
     function moveRow(item, auto) {
         const note = item.note ? ` <span class="text-amber-700">(${esc(item.note)})</span>` : '';
         const lengths = auto ? lengthsHtml(auto, item) + autoNote(auto) : bufferText(item);
-        return `<div class="p-3 rounded-xl bg-slate-50 text-xs md:text-sm border border-slate-200">
-    <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        return `<div class="move-row p-3 rounded-xl bg-slate-50 text-xs md:text-sm text-right border border-slate-200">
+    <div class="flex flex-wrap items-baseline justify-end gap-x-3 gap-y-1">
         <span class="${TIME_CLS}"><i class="fa-solid fa-route mr-1 text-slate-500"></i>${esc(item.time)}</span>
         <span class="font-bold text-slate-800">${esc(item.text)}${note}</span>
     </div>
