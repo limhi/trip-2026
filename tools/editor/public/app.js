@@ -48,6 +48,15 @@ function changed() {
     document.dispatchEvent(new CustomEvent('draftchange', { detail: { trip: state.data.trip, places: state.data.places } }));
 }
 
+// 試算期間，其他分頁、路線設定及還原選單也不能改動草稿。
+// capture 先擋下事件，避免各模組已掛上的處理器先寫入資料。
+['click', 'input', 'change', 'beforeinput'].forEach(type => document.addEventListener(type, e => {
+    if (!state.trial || !e.target.closest('#tabs, #restoreMenu, #routebar, [data-leg-act]')) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    toast('請先確認或還原暫時套用的調整');
+}, true));
+
 const preview = EditorPreview.create({ frame: $('preview'), onStatus: text => { $('previewStatus').textContent = text; } });
 document.addEventListener('draftchange', e => preview.sendDraft(e.detail));
 document.querySelectorAll('[data-width]').forEach(b => {

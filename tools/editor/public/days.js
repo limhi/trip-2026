@@ -134,6 +134,7 @@
                         <button data-act="dayresched" class="rounded border bg-white px-2 py-0.5 text-xs" title="以第一個有完整時間的項目的開始為起點，依停留與移動長度（預估 + 緩衝）重排整天；按了才執行">整天重排</button>
                         <button data-act="daycfg" class="rounded border bg-white px-2 py-0.5 text-xs">日設定</button>
                     </div>
+                    ${trialBar('reschedule', !!ui.trial && ui.trial.di === di && ui.trial.field === 'reschedule')}
                     ${ui.dayCfg.has(day.day) ? dayCfgHtml(day, di) : ''}
                     ${rows}
                     ${open ? `<div data-dropend data-di="${di}" class="flex items-center gap-2 px-3 py-2">
@@ -236,12 +237,13 @@
             if (!confirm) L.restoreDay(day, t.snap);
             ui.trial = null;
             ctx.setTrial(false);
-            refreshTimes(t.di, true);
+            if (t.field === 'reschedule') render(); else refreshTimes(t.di, true);
             ctx.changed();
         }
 
         // 路線算完（keys = 新算出的路段）：綁定這些路段的移動列依新長度調整，後面平移；不重畫，只更新時間
         function applyComputed(keys) {
+            if (ui.trial) return;   // 路線結果可更新快取，但不能改動尚待確認的時間試算
             const { trip, places } = draft();
             const want = new Set(keys || []);
             let any = false;
@@ -288,10 +290,14 @@
                 const day = days[+headEl.dataset.di];
                 if (act === 'daytoggle') { if (ui.openDays.has(day.day)) ui.openDays.delete(day.day); else { ui.openDays.add(day.day); if (ctx.onDayOpen) ctx.onDayOpen(day.day); } return render(); }
                 if (act === 'dayresched') {
-                    const r = L.rescheduleDay(day, draft().places, { routes: routesOf(), site: draft().trip.site });
-                    if (r.added || r.changed) rerender();
+                    const r = L.startRescheduleTrial(day, draft().places, { routes: routesOf(), site: draft().trip.site });
+                    const di = +headEl.dataset.di;
+                    ui.trial = { di, field: 'reschedule', snap: r.snap };
+                    ui.openDays.add(day.day);
+                    ctx.setTrial(true);
+                    rerender();
                     const nr = r.warnings.filter(w => w.type === 'no-route').length, other = r.warnings.length - nr;
-                    ctx.toast(`已重排 DAY ${day.day}：${r.changed} 項時間更新${r.added ? `（補上 ${r.added} 個移動列）` : ''}${nr ? `；${nr} 個移動列沒有路線查詢結果` : ''}${other ? `；${other} 則其他警告：${r.warnings.find(w => w.type !== 'no-route').message}` : ''}`);
+                    ctx.toast(`已暫時重排 DAY ${day.day}：${r.changed} 項時間更新${r.added ? `（補上 ${r.added} 個移動列）` : ''}${nr ? `；${nr} 個移動列沒有路線查詢結果` : ''}${other ? `；${other} 則其他警告：${r.warnings.find(w => w.type !== 'no-route').message}` : ''}`);
                     return;
                 }
                 if (act === 'daycfg') { if (ui.dayCfg.has(day.day)) ui.dayCfg.delete(day.day); else { ui.dayCfg.add(day.day); ui.openDays.add(day.day); } return render(); }
