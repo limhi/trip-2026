@@ -916,3 +916,75 @@ test('整天重排試算：完整提醒、資訊框、住宿與擇一組接續�
     L.restoreDay(day, r.snap);
     assert.deepEqual(day, before);
 });
+
+test('原值開始伸縮接齊兩側斷點：鄰近移動依快取加緩衝，外側景點吸收且更遠不動', () => {
+    const day = dayOf([
+        { type: 'notice', time: '06:00 - 06:20', text: '08:00 僅備註' },
+        sp('a', '07:00 - 08:00'), { ...mv('08:10 - 09:00'), buffer: 5 },
+        sp('b', '09:40 - 11:20'), { type: 'stay', time: '12:00 - 13:00' }
+    ]);
+    const before = clone(day);
+    const r = L.startTrial(day, 3, 'start', '09:40', { mode: 'stretch', places: SP, routes: routesOf([['a', 'b', 1800]]), site: SITE });
+    assert.equal(r.ok, true);
+    assert.deepEqual(timesOf(day), ['06:00 - 06:20', '07:00 - 09:05', '09:05 - 09:40', '09:40 - 11:20', '12:00 - 13:00']);
+    L.restoreDay(day, r.snap);
+    assert.deepEqual(day, before);
+});
+
+test('結束伸縮原值／新值接齊空檔與重疊，跳過不完整時間，擇一組只吸收共用邊', () => {
+    for (const end of ['10:00', '10:10']) for (const moveStart of ['09:50', '10:20']) {
+        const day = dayOf([
+            { type: 'stay', time: '09:00 - 10:00', title: '住宿' },
+            { type: 'notice', time: '17:10 後', text: '12:00 不參與' },
+            mv(`${moveStart} - 10:50`),
+            { type: 'brief', text: '未定' },
+            sp('b', '11:20 - 12:00', { alt: 'x' }), sp('c', undefined, { alt: 'x' }),
+            { type: 'brief', time: '12:40 - 13:00', title: '更遠' }
+        ]);
+        const before = clone(day);
+        const r = L.startTrial(day, 0, 'end', end, { mode: 'stretch' });
+        assert.equal(r.ok, true);
+        const alignedEnd = moveStart === '09:50' ? (end === '10:00' ? '11:00' : '11:10') : (end === '10:00' ? '10:30' : '10:40');
+        assert.deepEqual(timesOf(day), [`09:00 - ${end}`, '17:10 後', `${end} - ${alignedEnd}`, undefined, `${alignedEnd} - 12:00`, undefined, '12:40 - 13:00']);
+        L.restoreDay(day, r.snap);
+        assert.deepEqual(day, before);
+    }
+});
+
+test('開始伸縮新值修正重疊，沒有移動時完整提醒直接吸收，另一邊與更遠項目不動', () => {
+    const day = dayOf([{ type: 'stay', time: '07:00 - 07:20' }, { type: 'notice', time: '08:00 - 09:50', text: '提醒' }, sp('b', '09:40 - 11:20')]);
+    assert.equal(L.startTrial(day, 2, 'start', '09:30', { mode: 'stretch' }).ok, true);
+    assert.deepEqual(timesOf(day), ['07:00 - 07:20', '08:00 - 09:30', '09:30 - 11:20']);
+});
+
+test('伸縮緩衝兩方向原值／新值：只讓鄰近景點吸收到實際移動邊，更遠與另一側不變', () => {
+    for (const direction of ['forward', 'back']) for (const buffer of ['0', '10']) {
+        const day = dayOf([{ type: 'notice', time: '06:00 - 06:20' }, sp('a', '07:00 - 08:10'), mv('08:00 - 09:00'), sp('b', '09:40 - 11:20'), { type: 'stay', time: '12:00 - 13:00' }]);
+        const before = clone(day);
+        const r = L.startTrial(day, 2, 'buffer', buffer, { mode: 'stretch', direction, places: SP, routes: routesOf([['a', 'b', 1800]]), site: SITE });
+        assert.equal(r.ok, true);
+        assert.deepEqual(timesOf(day), direction === 'back'
+            ? ['06:00 - 06:20', '07:00 - 08:10', buffer === '0' ? '08:00 - 08:30' : '08:00 - 08:40', buffer === '0' ? '08:30 - 11:20' : '08:40 - 11:20', '12:00 - 13:00']
+            : ['06:00 - 06:20', buffer === '0' ? '07:00 - 08:30' : '07:00 - 08:20', buffer === '0' ? '08:30 - 09:00' : '08:20 - 09:00', '09:40 - 11:20', '12:00 - 13:00']);
+        L.restoreDay(day, r.snap);
+        assert.deepEqual(day, before);
+    }
+});
+
+test('伸縮原值修正無法吸收、跨日及負移動長度時整次拒絕，所有欄位完全不變', () => {
+    const cases = [
+        [dayOf([sp('a', '08:00 - 09:00'), mv('09:00 - 10:00'), sp('b', '09:20 - 10:00')]), 0, 'end', '09:00', {}],
+        [dayOf([sp('a', '02:00 - 03:00'), mv('03:00 - 04:00'), sp('b', '00:30 - 05:00')]), 2, 'start', '00:30', {}],
+        [dayOf([sp('a', '08:00 - 09:00'), { ...mv('09:00 - 09:30'), buffer: -40 }, sp('b', '10:00 - 11:00')]), 2, 'start', '10:00', { places: SP, routes: routesOf([['a', 'b', 1800]]), site: SITE }],
+        [dayOf([sp('a', '08:00 - 09:00'), mv('09:00 - 09:30'), sp('b', '10:00 - 11:00')]), 1, 'buffer', '120', { direction: 'back' }]
+    ];
+    for (const [day, ii, field, value, opts] of cases) {
+        day.items[0].desc = '完整保留 12:00';
+        const before = clone(day);
+        const r = L.startTrial(day, ii, field, value, { mode: 'stretch', ...opts });
+        assert.equal(r.ok, false);
+        assert.ok(r.message);
+        assert.equal(r.snap, undefined);
+        assert.deepEqual(day, before);
+    }
+});
