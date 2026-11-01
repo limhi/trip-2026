@@ -811,3 +811,38 @@ test('restoreDay 就地還原：項目物件仍是同一個（編輯器的展開
     L.restoreDay(day, snap);
     assert.deepEqual(day, threeDay());
 });
+
+test('整天重排試算：補列與改時間先留在草稿，還原完整回復欄位與順序，再確認可重複重排', () => {
+    const day = dayOf([sp('a', '09:00 - 10:00', { desc: '12:00 場次僅作備註' }), sp('b', '10:45 - 11:30'), { type: 'move', text: 'x', buffer: 5, time: '11:30 - 12:30' }, sp('c', '12:30 - 13:00')]);
+    const before = clone(day), refs = day.items.slice();
+    const opts = { routes: routesOf([['a', 'b', 1200], ['b', 'c', 1800]]), site: SITE };
+    const r = L.startRescheduleTrial(day, SP, opts);
+    assert.equal(r.added, 1);
+    assert.deepEqual(timesOf(day), ['09:00 - 10:00', '10:00 - 10:20', '10:20 - 11:05', '11:05 - 11:40', '11:40 - 12:10']);
+    L.restoreDay(day, r.snap);
+    assert.deepEqual(day, before);
+    day.items.forEach((it, i) => assert.equal(it, refs[i]));
+    L.startRescheduleTrial(day, SP, opts); // 確認保留草稿結果
+    const confirmed = clone(day);
+    const again = L.startRescheduleTrial(day, SP, opts);
+    assert.equal(again.changed, 0);
+    assert.deepEqual(day, confirmed);
+});
+
+test('整天重排試算：完整提醒、資訊框、住宿與擇一組接續；缺快取沿用移動長度且不完整文字不動', () => {
+    const day = dayOf([
+        { type: 'notice', time: '08:00 - 08:10', text: '提醒' },
+        { type: 'brief', time: '09:00 - 09:15', title: '資訊', text: '18:00 出發不參與計算' },
+        sp('a', '09:30 - 10:00', { alt: 'x' }), sp('b', undefined, { alt: 'x' }),
+        { type: 'move', text: '移動', time: '10:40 - 11:00', buffer: 7 }, sp('c', '11:00 - 11:30'),
+        { type: 'stay', time: '12:00 - 12:20', title: '住宿' },
+        { type: 'notice', time: '17:10 後', text: '彈性' }
+    ]);
+    const before = clone(day);
+    const r = L.startRescheduleTrial(day, SP, { routes: { legs: {} }, site: SITE });
+    assert.deepEqual(timesOf(day), ['08:00 - 08:10', '08:10 - 08:25', '08:25 - 08:55', undefined, '08:55 - 09:15', '09:15 - 09:45', '09:45 - 10:05', '17:10 後']);
+    assert.ok(r.warnings.some(w => w.type === 'no-route'));
+    assert.equal(day.items[4].buffer, 7);
+    L.restoreDay(day, r.snap);
+    assert.deepEqual(day, before);
+});

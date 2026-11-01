@@ -254,6 +254,12 @@
         return { added: filled.length, changed: day.items.filter(i => before.get(i) !== i.time).length, warnings };
     }
 
+    // 整天重排也先保留操作前快照；確認保留結果，還原包含新補的移動列。
+    function startRescheduleTrial(day, places, opts) {
+        const snap = snapshotDay(day);
+        return { ...rescheduleDay(day, places, opts), snap };
+    }
+
     // 移動列警告（多個、多餘）；不擋存檔與發布
     const moveWarnings = (day, places) => M.deriveMoves(day, places).warnings;
 
@@ -284,7 +290,7 @@
     const itemErrors = (errors, dayNo, ii) => errors.filter(e => e.startsWith(`DAY ${dayNo} 第 ${ii + 1} 項：`));
     const dayErrors = (errors, dayNo) => errors.filter(e => e.startsWith(`DAY ${dayNo} `));
 
-    const api = { TYPES, moveItem, stepItem, changeType, newItem, altPosition, canJoinAlt, joinAlt, leaveAlt, stayHint, rowLength, timeParts, setItemTime, setMoveBuffer, isPendingEdit, snapshotDay, restoreDay, startTrial, moveKeys, syncMoves, rescheduleDay, moveWarnings, getPath, setPath, itemErrors, dayErrors };
+    const api = { TYPES, moveItem, stepItem, changeType, newItem, altPosition, canJoinAlt, joinAlt, leaveAlt, stayHint, rowLength, timeParts, setItemTime, setMoveBuffer, isPendingEdit, snapshotDay, restoreDay, startTrial, moveKeys, syncMoves, rescheduleDay, startRescheduleTrial, moveWarnings, getPath, setPath, itemErrors, dayErrors };
     root.DaysLogic = api;
     if (typeof module !== 'undefined') module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
