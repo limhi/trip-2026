@@ -446,7 +446,7 @@
     // moveEdge 是共同核心：改單位 u 的某一邊（side 'start'／'end'）到 value（分鐘），整個操作先算好再一次套用，任何一步不合就整個不套用。
     //   link：操作側第一個完整區間接到 value；鄰近移動長度依 context 的預估＋緩衝（缺快取沿用原長度），更遠項目按外側邊差整段平移，保留其他斷點。
     //   context：可選 { places, routes, site }，編輯器傳入目前草稿的路線與係數。
-    //   stretch：鄰近單位若是移動就整個平移 delta，再外一個（或鄰近本身不是移動時）單位由靠近的那一邊吸收 delta；更遠的不動。
+    //   stretch：鄰近完整移動依預估＋緩衝接到 value，再外一個完整單位靠近的邊接到移動；沒有移動時直接吸收，更遠的不動。
     // 不完整時間的單位不平移、不吸收。回傳 { ok, reason, message, changed: [{ index, from, to }] }；
     // reason：'stay'（停留 ≤ 0）、'length'（移動長度 < 0）、'overflow'（超出 00:00–23:59）、'incomplete'（單位沒有完整時間）、'invalid-time'、'not-move'、'invalid'（單位索引超出範圍等）
     function moveEdge(day, unitIndex, side, value, mode, { places = {}, routes, site } = {}) {
@@ -455,11 +455,9 @@
         const u = units[unitIndex];
         if (!u) return fail('invalid', '沒有這個單位');
         if (!u.range) return fail('incomplete', '這個項目沒有完整的時間區間，不能調整');
-        const delta = value - u.range[side];
         const plan = new Map();   // 單位索引 → 新區間
         plan.set(unitIndex, side === 'end' ? { start: u.range.start, end: value } : { start: value, end: u.range.end });
         const shift = (k, d) => { if (units[k] && units[k].range) plan.set(k, { start: units[k].range.start + d, end: units[k].range.end + d }); };
-        const absorb = (k, nearSide, d) => { if (units[k] && units[k].range) plan.set(k, { ...units[k].range, [nearSide]: units[k].range[nearSide] + d }); };
         if (mode === 'link') {
             const dir = side === 'end' ? 1 : -1;
             let near = unitIndex + dir;
@@ -477,11 +475,21 @@
             }
         } else {
             const dir = side === 'end' ? 1 : -1;
-            const near = unitIndex + dir;
-            if (units[near] && units[near].range) {
-                let absorber = near;
-                if (units[near].isMove) { shift(near, delta); absorber = near + dir; }
-                absorb(absorber, side === 'end' ? 'start' : 'end', delta);
+            let near = unitIndex + dir;
+            while (units[near] && !units[near].range) near += dir;
+            if (units[near]) {
+                let boundary = value;
+                if (units[near].isMove) {
+                    const range = units[near].range;
+                    const minutes = getMoveMinutesAt(day, units[near].carrier, places, routes, site);
+                    const length = minutes == null ? range.end - range.start : minutes;
+                    const aligned = side === 'end' ? { start: value, end: value + length } : { start: value - length, end: value };
+                    plan.set(near, aligned);
+                    boundary = aligned[side];
+                    near += dir;
+                    while (units[near] && !units[near].range) near += dir;
+                }
+                if (units[near]) plan.set(near, { ...units[near].range, [side === 'end' ? 'start' : 'end']: boundary });
             }
         }
         for (const [k, r] of plan) {

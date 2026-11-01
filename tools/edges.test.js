@@ -152,10 +152,10 @@ test('連動：改開始邊時，前面不完整時間的項目不平移', () =>
     assert.deepEqual(times(day), ['15:30 後', '09:50 - 10:20', '10:20 - 11:30']);
 });
 
-test('伸縮：鄰近是不完整時間的移動則不動、也沒有景點吸收', () => {
+test('伸縮：跳過不完整時間的移動，由下一個完整景點吸收', () => {
     const day = { day: 1, items: [spot('a', '09:00 - 10:00'), move(), spot('b', '10:30 - 11:30')] };
     assert.equal(model.adjustSpotEdge(day, 0, 'end', '10:10', 'stretch').ok, true);
-    assert.deepEqual(times(day), ['09:00 - 10:10', undefined, '10:30 - 11:30']);
+    assert.deepEqual(times(day), ['09:00 - 10:10', undefined, '10:10 - 11:30']);
 });
 
 const altDay = () => ({ day: 1, items: [
