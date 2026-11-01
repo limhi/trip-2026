@@ -286,7 +286,8 @@
         // 擇一組的成員沒有自己的 time：整組共用第一項的 time
         const timeOf = index => {
             const group = getAltGroupAt(day, index);
-            return day.items[group ? group.start : index].time;
+            const item = day.items[group ? group.start : index];
+            return item.type === 'notice' ? undefined : item.time;
         };
         return getLegs(day, places).map((leg, legIndex) => {
             const cached = cache[leg.key];
@@ -408,7 +409,7 @@
         if (!delta) return out;
         const group = getAltGroupAt(day, index);
         for (let i = (group ? group.end : index) + 1; i < day.items.length; i++) {
-            const item = day.items[i], range = parseTimeRange(item.time);
+            const item = day.items[i], range = item.type === 'notice' ? null : parseTimeRange(item.time);
             if (!range) continue;
             const start = range.start + delta, end = range.end + delta;
             if (start < 0 || end > DAY_END) {
@@ -430,7 +431,8 @@
         for (let i = 0; i < day.items.length; i++) {
             const group = getAltGroupAt(day, i);
             const carrier = group ? group.start : i;
-            units.push({ carrier, range: parseTimeRange(day.items[carrier].time), isMove: ROW_TYPES.includes(day.items[carrier].type) });
+            const item = day.items[carrier];
+            units.push({ carrier, range: item.type === 'notice' ? null : parseTimeRange(item.time), isMove: ROW_TYPES.includes(item.type) });
             if (group) i = group.end;
         }
         return units;
@@ -576,10 +578,11 @@
             } else {
                 if (item.time) return;   // 明確填入的不完整時間不是新補的空白列
                 const group = getAltGroupAt(day, leg.fromItemIndex);
-                const prev = parseTimeRange(day.items[group ? group.start : leg.fromItemIndex].time);
+                const prevItem = day.items[group ? group.start : leg.fromItemIndex];
+                const prev = prevItem.type === 'notice' ? null : parseTimeRange(prevItem.time);
                 if (!prev) return;
                 start = prev.end;
-                const next = day.items.slice(i + 1).map(x => parseTimeRange(x.time)).find(Boolean);
+                const next = day.items.slice(i + 1).map(x => x.type === 'notice' ? null : parseTimeRange(x.time)).find(Boolean);
                 delta = next ? start + length - next.start : 0;
             }
             if (start + length > DAY_END) {
@@ -604,6 +607,7 @@
         const out = { changed: [], warnings: [] };
         let cursor = null;
         day.items.forEach((item, i) => {
+            if (item.type === 'notice') return;
             const range = parseTimeRange(item.time);
             if (!range) return;
             if (cursor == null) cursor = range.start;

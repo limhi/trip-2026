@@ -30,6 +30,18 @@ const CACHE = { legs: { [KEY_AB]: { distance: 75323, duration: 3900 }, [KEY_BC]:
 const render = (d, routes) => Trip.blocks.dayCard(d, { places: P, routes, site: SITE }, '');
 const count = (html, re) => (html.match(re) || []).length;
 
+test('提醒隱藏舊時間但保留內容、地圖編號、聯絡入口及前後路線', () => {
+    const places = { ...P, b: { ...P.b, infoType: 'spot', phone: '03-1234567', navigationUrl: 'https://example.com/nav' } };
+    const d = day([card('a'), { type: 'notice', place: 'b', time: '19:00 - 20:00', desc: '21:00 再決定' }, card('c')]);
+    const html = Trip.blocks.dayCard(d, { places, routes: CACHE, site: SITE }, '');
+    assert.ok(!html.includes('19:00 - 20:00'));
+    assert.ok(html.includes('21:00 再決定'));
+    assert.ok(html.includes('data-place="b"'));
+    assert.ok(html.includes('地圖標記 2'));
+    assert.equal(count(html, /auto-leg-row/g), 2);
+    assert.deepEqual(Array.from(Trip.model.getLegSchedule(d, places, CACHE, SITE), l => l.scheduled), [null, null]);
+});
+
 test('沒有快取（routes 為 undefined 或空）：沒有自動連接列、沒有總車程，交通列維持手寫', () => {
     const d = day([card('a'), moveRow({ note: '約 1 小時' }), card('b'), card('c')]);
     for (const routes of [undefined, { legs: {} }]) {

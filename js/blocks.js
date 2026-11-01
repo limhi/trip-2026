@@ -110,7 +110,7 @@
     }
 
     // 時間區間 + 停留標籤（卡片與擇一組外框共用）
-    const timeHtml = item => item.time ? `<span class="flex flex-wrap items-center justify-end gap-x-2 gap-y-1"><span class="${TIME_CLS}">${esc(item.time)}</span>${stayText(item)}</span>` : '';
+    const timeHtml = item => item.type !== 'notice' && item.time ? `<span class="flex flex-wrap items-center justify-end gap-x-2 gap-y-1"><span class="${TIME_CLS}">${esc(item.time)}</span>${stayText(item)}</span>` : '';
 
     function card(item, ctx, point) {
         const style = CARD_STYLES[item.type];
