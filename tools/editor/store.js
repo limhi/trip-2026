@@ -13,9 +13,16 @@ const MTIME_FILES = { ...FILES, routes: buildData.ROUTES_JSON };
 const mtimeOf = (root, key) => { try { return fs.statSync(path.join(root, MTIME_FILES[key])).mtimeMs; } catch { return 0; } };
 const currentMtimes = root => Object.fromEntries(Object.keys(MTIME_FILES).map(k => [k, mtimeOf(root, k)]));
 
+// 舊提醒的時間只在編輯草稿中移除；載入不寫回磁碟。
+function clearNoticeTimes(trip) {
+    trip.days.forEach(day => day.items.forEach(item => { if (item.type === 'notice') delete item.time; }));
+    return trip;
+}
+
 function load(root) {
     const data = {};
     for (const key of Object.keys(FILES)) data[key] = JSON.parse(fs.readFileSync(path.join(root, FILES[key]), 'utf8'));
+    clearNoticeTimes(data.trip);
     return { ...data, mtimes: currentMtimes(root) };
 }
 
@@ -30,6 +37,8 @@ function save(root, body, opts = {}) {
     const disk = currentMtimes(root);
     const stale = Object.keys(MTIME_FILES).filter(k => disk[k] > body.mtimes[k]);
     if (stale.length) throw httpError(409, `磁碟上的 ${stale.map(k => MTIME_FILES[k]).join('、')} 比編輯器載入的版本新（可能被其他程式修改），請重新載入`);
+
+    body = { ...body, trip: clearNoticeTimes(structuredClone(body.trip)) };
 
     // 寫入順序：JSON 在前，產生檔在後
     const files = {};

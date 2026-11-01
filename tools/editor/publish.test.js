@@ -21,6 +21,10 @@ function makePublishRepo(t) {
     git(remote, 'init', '-q', '--bare', '-b', 'main');
     git(root, 'config', 'user.name', 'tester');
     git(root, 'config', 'user.email', 'tester@example.com');
+    // 發布案例從已存檔的提醒格式開始，避免綁定真實行程是否仍有舊提醒時間。
+    store.save(root, store.load(root));
+    git(root, 'add', 'data');
+    git(root, 'commit', '-q', '--allow-empty', '-m', 'prepare notice fixture');
     git(root, 'remote', 'add', 'origin', remote);
     git(root, 'push', '-q', '-u', 'origin', 'main');
     t.after(() => { cleanup(root); cleanup(remote); });
@@ -288,7 +292,7 @@ test('時間斷點：載入、存檔與發布保留原時間，plan 與成功檢
     const body = saveEdit(root, d => {
         d.trip.site.documentTitle = '保留時間斷點';
         d.trip.days[1].items = [
-            { type: 'notice', title: '重疊前站', time: '08:00 - 09:00' },
+            { type: 'brief', title: '重疊前站', time: '08:00 - 09:00' },
             { type: 'brief', text: '重疊後站', time: '08:50 - 10:00' }
         ];
     });

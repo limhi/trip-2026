@@ -821,7 +821,7 @@ test('原值開始連動：修正空檔，保留其他斷點與文案，還原�
     const before = clone(day);
     const r = L.startTrial(day, 2, 'start', '09:40', { mode: 'link' });
     assert.equal(r.ok, true);
-    assert.deepEqual(timesOf(day), ['06:40 - 07:10', '07:50 - 09:40', '09:40 - 11:20', '11:40 - 12:00']);
+    assert.deepEqual(timesOf(day), ['06:00 - 06:30', '07:50 - 09:40', '09:40 - 11:20', '11:40 - 12:00']);
     assert.equal(day.items[0].desc, '必須 12:00 到');
     L.restoreDay(day, r.snap);
     assert.deepEqual(day, before);
@@ -899,7 +899,7 @@ test('整天重排試算：補列與改時間先留在草稿，還原完整回�
     assert.deepEqual(day, confirmed);
 });
 
-test('整天重排試算：完整提醒、資訊框、住宿與擇一組接續；缺快取沿用移動長度且不完整文字不動', () => {
+test('整天重排試算：略過提醒，資訊框、住宿與擇一組接續；缺快取沿用移動長度且不完整文字不動', () => {
     const day = dayOf([
         { type: 'notice', time: '08:00 - 08:10', text: '提醒' },
         { type: 'brief', time: '09:00 - 09:15', title: '資訊', text: '18:00 出發不參與計算' },
@@ -910,7 +910,7 @@ test('整天重排試算：完整提醒、資訊框、住宿與擇一組接續�
     ]);
     const before = clone(day);
     const r = L.startRescheduleTrial(day, SP, { routes: { legs: {} }, site: SITE });
-    assert.deepEqual(timesOf(day), ['08:00 - 08:10', '08:10 - 08:25', '08:25 - 08:55', undefined, '08:55 - 09:15', '09:15 - 09:45', '09:45 - 10:05', '17:10 後']);
+    assert.deepEqual(timesOf(day), ['08:00 - 08:10', '09:00 - 09:15', '09:15 - 09:45', undefined, '09:45 - 10:05', '10:05 - 10:35', '10:35 - 10:55', '17:10 後']);
     assert.ok(r.warnings.some(w => w.type === 'no-route'));
     assert.equal(day.items[4].buffer, 7);
     L.restoreDay(day, r.snap);
@@ -951,10 +951,10 @@ test('結束伸縮原值／新值接齊空檔與重疊，跳過不完整時間�
     }
 });
 
-test('開始伸縮新值修正重疊，沒有移動時完整提醒直接吸收，另一邊與更遠項目不動', () => {
+test('開始伸縮新值略過完整提醒，由前一個住宿吸收', () => {
     const day = dayOf([{ type: 'stay', time: '07:00 - 07:20' }, { type: 'notice', time: '08:00 - 09:50', text: '提醒' }, sp('b', '09:40 - 11:20')]);
     assert.equal(L.startTrial(day, 2, 'start', '09:30', { mode: 'stretch' }).ok, true);
-    assert.deepEqual(timesOf(day), ['07:00 - 07:20', '08:00 - 09:30', '09:30 - 11:20']);
+    assert.deepEqual(timesOf(day), ['07:00 - 09:30', '08:00 - 09:50', '09:30 - 11:20']);
 });
 
 test('伸縮緩衝兩方向原值／新值：只讓鄰近景點吸收到實際移動邊，更遠與另一側不變', () => {

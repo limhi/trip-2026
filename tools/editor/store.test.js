@@ -18,6 +18,16 @@ function withRepo(fn) {
     };
 }
 
+test('提醒草稿讀取不帶舊時間，存檔移除時間且不改文案與地點', withRepo(root => {
+    const d = store.load(root);
+    const item = { type: 'notice', title: '休息', place: Object.keys(d.places)[0], time: '09:00 - 10:00', desc: '17:00 再決定' };
+    d.trip.days[0].items.push(item);
+    store.save(root, d);
+    const loaded = store.load(root).trip.days[0].items.at(-1);
+    assert.deepEqual(loaded, { type: 'notice', title: '休息', place: item.place, desc: '17:00 再決定' });
+    assert.equal(JSON.parse(read(root, 'data/trip.json')).days[0].items.at(-1).time, undefined);
+}));
+
 test('load：回傳兩份 JSON 與 mtimes', withRepo(root => {
     const d = store.load(root);
     assert.ok(d.trip.site.version.number);

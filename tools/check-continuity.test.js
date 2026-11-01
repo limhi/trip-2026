@@ -11,11 +11,11 @@ test('CLI：所有完整時間的空檔與重疊只警告，不改原始行程�
     t.after(() => cleanup(root));
     const data = store.load(root);
     data.trip.days[0].items = [
-        { type: 'notice', time: '08:00 - 09:00', title: '提醒' },
+        { type: 'brief', time: '08:00 - 09:00', title: '提醒' },
         { type: 'brief', time: '09:40 - 10:00', text: '資訊' },
         { type: 'notice', time: '17:10 後', title: '彈性' },
         { type: 'stay', time: '09:50 - 11:00', title: '住宿' },
-        { type: 'notice', time: '11:00 - 12:00', title: '相接' }
+        { type: 'brief', time: '11:00 - 12:00', title: '相接' }
     ];
     store.save(root, data);
     const before = fs.readFileSync(path.join(root, 'data/trip.json'), 'utf8');
@@ -33,7 +33,7 @@ test('CLI：擇一組只比較一次，不跨天或解析文案時間', t => {
     const data = store.load(root);
     data.trip.days.forEach(day => { day.items = []; });
     data.trip.days[0].items = [
-        { type: 'notice', time: '08:00 - 09:00', title: '前站' },
+        { type: 'brief', time: '08:00 - 09:00', title: '前站' },
         { type: 'spot', alt: 'choice', time: '09:10 - 10:00', title: '擇一甲' },
         { type: 'spot', alt: 'choice', title: '擇一乙' },
         { type: 'brief', time: '10:00 - 11:00', text: '相接資訊' }

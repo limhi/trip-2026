@@ -277,7 +277,7 @@
 
     function itemTimeRange(day, index) {
         const item = day.items[index];
-        if (!item) return null;
+        if (!item || item.type === 'notice') return null;
         const range = parseTimeRange(item.time);
         if (range) return range;
         const bounds = getDayBoundaries(day), point = parseTimePoint(item.time);
@@ -312,11 +312,6 @@
     function getLegSchedule(day, places, routes, site) {
         const cache = (routes && routes.legs) || {};
         const factor = getTrafficFactor(day, site);
-        // 擇一組的成員沒有自己的 time：整組共用第一項的 time
-        const timeOf = index => {
-            const group = getAltGroupAt(day, index);
-            return day.items[group ? group.start : index].time;
-        };
         return getLegs(day, places).map((leg, legIndex) => {
             const cached = cache[leg.key];
             const usable = isUsableLeg(cached);

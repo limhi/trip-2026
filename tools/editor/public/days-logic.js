@@ -14,7 +14,7 @@
         meal:     { label: '用餐',        chip: 'bg-amber-100 text-amber-800',     bar: 'border-l-amber-500',   fields: CARD },
         stay:     { label: '住宿',        chip: 'bg-purple-100 text-purple-800',   bar: 'border-l-purple-500',  fields: CARD },
         end:      { label: '結束',        chip: 'bg-emerald-100 text-emerald-800', bar: 'border-l-emerald-500', fields: CARD },
-        notice:   { label: '提醒',        chip: 'bg-orange-100 text-orange-800',   bar: 'border-l-orange-500',  fields: CARD },
+        notice:   { label: '提醒',        chip: 'bg-orange-100 text-orange-800',   bar: 'border-l-orange-500',  fields: CARD.filter(f => f !== 'time') },
         brief:    { label: '資訊框',      chip: 'bg-yellow-100 text-yellow-800',   bar: 'border-l-yellow-500',  fields: ['time', 'title', 'place', 'icon', 'desc', ...COMMON] },
         waypoint: { label: '起訖/休息點', chip: 'bg-sky-100 text-sky-800',         bar: 'border-l-sky-500',     fields: ['time', 'place', 'text', 'mapName', 'backup', 'numbered'] }
     };
@@ -43,6 +43,10 @@
 
     // 改類型：清掉不屬於新類型的欄位
     function changeType(item, type) {
+        if (type === 'notice') {
+            if (!item.title && item.text) item.title = item.text;
+            if (!item.desc && item.note) item.desc = item.note;
+        }
         item.type = type;
         const keep = ['type', ...TYPES[type].fields];
         if (type === 'spot') keep.push('alt');   // 擇一組（alt）只有 spot 能用，改成其他類型就會被清掉
@@ -156,6 +160,7 @@
     // 回傳 { ok, reason, message, changed }
     function setItemTime(day, ii, part, value, mode = 'link', context) {
         const it = day.items[ii];
+        if (it.type === 'notice') return { ok: false, reason: 'invalid', message: '提醒不佔行程時間', changed: [] };
         const done = () => ({ ok: true, reason: null, message: '', changed: [] });
         if (part === 'time') { if (value === '' || value == null) delete it.time; else it.time = value; return done(); }
         if (part === 'start' || part === 'end') return M.adjustSpotEdge(day, ii, part, value, mode, context);
