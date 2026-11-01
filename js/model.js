@@ -444,11 +444,12 @@
     }
 
     // moveEdge 是共同核心：改單位 u 的某一邊（side 'start'／'end'）到 value（分鐘），整個操作先算好再一次套用，任何一步不合就整個不套用。
-    //   link：結束邊 → 後面所有完整區間單位平移 delta；開始邊 → 前面所有完整區間單位平移 delta（delta = 新值 − 舊值）。
+    //   link：操作側第一個完整區間接到 value；鄰近移動長度依 context 的預估＋緩衝（缺快取沿用原長度），更遠項目按外側邊差整段平移，保留其他斷點。
+    //   context：可選 { places, routes, site }，編輯器傳入目前草稿的路線與係數。
     //   stretch：鄰近單位若是移動就整個平移 delta，再外一個（或鄰近本身不是移動時）單位由靠近的那一邊吸收 delta；更遠的不動。
     // 不完整時間的單位不平移、不吸收。回傳 { ok, reason, message, changed: [{ index, from, to }] }；
     // reason：'stay'（停留 ≤ 0）、'length'（移動長度 < 0）、'overflow'（超出 00:00–23:59）、'incomplete'（單位沒有完整時間）、'invalid-time'、'not-move'、'invalid'（單位索引超出範圍等）
-    function moveEdge(day, unitIndex, side, value, mode) {
+    function moveEdge(day, unitIndex, side, value, mode, { places = {}, routes, site } = {}) {
         const fail = (reason, message) => ({ ok: false, reason, message: `DAY ${day.day}：${message}`, changed: [] });
         const units = getEdgeUnits(day);
         const u = units[unitIndex];
@@ -456,13 +457,24 @@
         if (!u.range) return fail('incomplete', '這個項目沒有完整的時間區間，不能調整');
         const delta = value - u.range[side];
         const plan = new Map();   // 單位索引 → 新區間
-        const rangeOf = k => (plan.get(k) || units[k].range);
         plan.set(unitIndex, side === 'end' ? { start: u.range.start, end: value } : { start: value, end: u.range.end });
         const shift = (k, d) => { if (units[k] && units[k].range) plan.set(k, { start: units[k].range.start + d, end: units[k].range.end + d }); };
         const absorb = (k, nearSide, d) => { if (units[k] && units[k].range) plan.set(k, { ...units[k].range, [nearSide]: units[k].range[nearSide] + d }); };
         if (mode === 'link') {
-            if (side === 'end') for (let k = unitIndex + 1; k < units.length; k++) shift(k, delta);
-            else for (let k = 0; k < unitIndex; k++) shift(k, delta);
+            const dir = side === 'end' ? 1 : -1;
+            let near = unitIndex + dir;
+            while (units[near] && !units[near].range) near += dir;
+            if (units[near]) {
+                const nearSide = side === 'end' ? 'start' : 'end';
+                const nearRange = units[near].range;
+                const minutes = units[near].isMove ? getMoveMinutesAt(day, units[near].carrier, places, routes, site) : null;
+                const length = minutes == null ? nearRange.end - nearRange.start : minutes;
+                const aligned = side === 'end' ? { start: value, end: value + length } : { start: value - length, end: value };
+                const farSide = side === 'end' ? 'end' : 'start';
+                const displacement = aligned[farSide] - nearRange[farSide];
+                plan.set(near, aligned);
+                for (let k = near + dir; k >= 0 && k < units.length; k += dir) shift(k, displacement);
+            }
         } else {
             const dir = side === 'end' ? 1 : -1;
             const near = unitIndex + dir;
@@ -493,20 +505,20 @@
     const unitIndexOf = (day, index) => getEdgeUnits(day).findIndex(u => u.carrier === index || (getAltGroupAt(day, index) || {}).start === u.carrier);
 
     // 景點邊界調整（就地修改 day）：把第 index 項（擇一組取組內任一員）的 side（'start'｜'end'）改成 newTime（'HH:MM' 或分鐘數），mode 'link'｜'stretch'
-    function adjustSpotEdge(day, index, side, newTime, mode) {
+    function adjustSpotEdge(day, index, side, newTime, mode, context) {
         const bad = message => ({ ok: false, reason: 'invalid', message: `DAY ${day.day}：${message}`, changed: [] });
         if (!day.items[index]) return bad('沒有這個項目');
         if (side !== 'start' && side !== 'end') return bad('side 只能是 start 或 end');
         if (mode !== 'link' && mode !== 'stretch') return bad('mode 只能是 link 或 stretch');
         const value = parseClockValue(newTime);
         if (value == null) return { ok: false, reason: 'invalid-time', message: `DAY ${day.day}：時間格式不正確（HH:MM，00:00–23:59）`, changed: [] };
-        return moveEdge(day, unitIndexOf(day, index), side, value, mode);
+        return moveEdge(day, unitIndexOf(day, index), side, value, mode, context);
     }
 
     // 移動緩衝調整（就地修改 day）：第 index 項（必須是移動列）的總緩衝改成 buffer（整數分，0 不寫入），
     // direction 'forward'（開始邊動，前面跟著動）｜'back'（結束邊動，後面跟著動），mode 'link'｜'stretch'。
     // 移動沒有完整時間時只存緩衝、不動任何時間。被拒絕時 buffer 與時間都不變
-    function adjustMoveBuffer(day, index, buffer, direction, mode) {
+    function adjustMoveBuffer(day, index, buffer, direction, mode, context) {
         const bad = (reason, message) => ({ ok: false, reason, message: `DAY ${day.day}：${message}`, changed: [] });
         const item = day.items[index];
         if (!item || !ROW_TYPES.includes(item.type)) return bad('not-move', '這個項目不是移動列');
@@ -518,7 +530,9 @@
         let result = { ok: true, reason: null, message: '', changed: [] };
         if (range) {
             const side = direction === 'back' ? 'end' : 'start';
-            result = moveEdge(day, unitIndexOf(day, index), side, direction === 'back' ? range.end + diff : range.start - diff, mode);
+            const cached = context ? getMoveMinutesAt(day, index, context.places || {}, context.routes, context.site) : null;
+            const length = cached == null ? range.end - range.start + diff : cached + diff;
+            result = moveEdge(day, unitIndexOf(day, index), side, direction === 'back' ? range.start + length : range.end - length, mode, context);
             if (!result.ok) return result;
         }
         if (buffer) item.buffer = buffer; else delete item.buffer;

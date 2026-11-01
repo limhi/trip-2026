@@ -154,11 +154,11 @@
     //   'time'  整串時間文字（沒有完整區間的項目，例如「15:30 後」）：直接寫入，空字串刪除欄位
     // 被拒絕（格式不對、停留 ≤ 0、超出當天等）回傳 { ok: false, reason, message } 且不改任何資料。
     // 回傳 { ok, reason, message, changed }
-    function setItemTime(day, ii, part, value, mode = 'link') {
+    function setItemTime(day, ii, part, value, mode = 'link', context) {
         const it = day.items[ii];
         const done = () => ({ ok: true, reason: null, message: '', changed: [] });
         if (part === 'time') { if (value === '' || value == null) delete it.time; else it.time = value; return done(); }
-        if (part === 'start' || part === 'end') return M.adjustSpotEdge(day, ii, part, value, mode);
+        if (part === 'start' || part === 'end') return M.adjustSpotEdge(day, ii, part, value, mode, context);
         if (part === 'tail' && M.parseTimeRange(it.time)) {
             const head = TIME_HEAD.exec(it.time)[0];
             it.time = head + (String(value).trim() ? ' ' + String(value).trim() : '');
@@ -169,11 +169,11 @@
 
     // 設定移動列的緩衝（value 是輸入框文字：空白＝0＝刪除欄位；不是整數回傳拒絕）。direction 'forward'（開始邊動）｜'back'（結束邊動）；
     // mode 'link'｜'stretch'，規則在 model.adjustMoveBuffer。移動列沒有完整時間時只存 buffer，等路線算完再依長度補。回傳 { ok, reason, message, changed }
-    function setMoveBuffer(day, ii, value, direction = 'back', mode = 'link') {
+    function setMoveBuffer(day, ii, value, direction = 'back', mode = 'link', context) {
         const text = String(value).trim();
         const n = text === '' ? 0 : Number(text);
         if (!Number.isInteger(n)) return { ok: false, reason: 'invalid', message: '緩衝必須是整數分鐘', changed: [] };
-        return M.adjustMoveBuffer(day, ii, n, direction, mode);
+        return M.adjustMoveBuffer(day, ii, n, direction, mode, context);
     }
 
     // ---- 暫時套用（連動／伸縮之後先試算；「確認」才算數、「還原」回到操作前）----
@@ -193,12 +193,12 @@
     }
 
     // 試算一次待套用的欄位（field 'start'｜'end'｜'buffer'）：先拍快照，再就地套用連動或伸縮，結果暫時留在 day 上。
-    // opts：{ mode 'link'｜'stretch', direction 'forward'｜'back'（只有 buffer 用）}。
+    // opts：{ mode 'link'｜'stretch', direction 'forward'｜'back'（只有 buffer 用）, places, routes, site }；後三項提供移動的預估＋緩衝長度。
     // 成功回傳 { ok: true, snap, changed }，之後「確認」不用再改資料、「還原」用 restoreDay(day, snap)；
     // 被拒絕（停留 ≤ 0、超出一天、格式不對）回傳 { ok: false, message }，資料一個字都不變（沒有 snap）
-    function startTrial(day, ii, field, value, { mode = 'link', direction = 'back' } = {}) {
+    function startTrial(day, ii, field, value, { mode = 'link', direction = 'back', ...context } = {}) {
         const snap = snapshotDay(day);
-        const r = field === 'buffer' ? setMoveBuffer(day, ii, value, direction, mode) : setItemTime(day, ii, field, value, mode);
+        const r = field === 'buffer' ? setMoveBuffer(day, ii, value, direction, mode, context) : setItemTime(day, ii, field, value, mode, context);
         if (!r.ok) { restoreDay(day, snap); return { ok: false, message: r.message, reason: r.reason }; }
         return { ok: true, snap, changed: r.changed };
     }
