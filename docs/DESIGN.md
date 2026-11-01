@@ -142,7 +142,7 @@
 - `moveEdge`：邊界連動與伸縮的共同核心（以「單位」為單位，擇一組整組算一個）。整個操作先算好再一次套用，任何一步不合就整個不套用；reason 有 `stay`、`length`、`overflow`、`incomplete`（單位沒有完整時間）、`invalid-time`、`not-move`、`invalid`（單位索引超出範圍等）。
 - `adjustSpotEdge(day, index, side, newTime, mode, context)`：改完整時間項目的開始或結束。`context` 可傳 `{ places, routes, site }`，編輯器傳入當前草稿與路線；連動接齊操作側第一個完整項目，鄰近移動依預估＋緩衝重建長度，更遠項目依外側邊差平移、保留未涉及的斷點。伸縮同樣接齊，但只讓鄰近移動與景點吸收；不完整時間跳過、不改動。
 - `adjustMoveBuffer(day, index, buffer, direction, mode, context)`：改移動列緩衝。向後（`back`）＝結束邊動、後面跟著動；向前（`forward`）＝開始邊動、前面跟著動；伸縮由該方向鄰近景點吸收。移動沒有完整時間時只存 `buffer`（0 刪除欄位）。被拒絕時 `buffer` 與時間都不變。
-- `fitMoves`：依路線查詢長度調整指定移動列並平移後面（用 `cascadeDay(day, index, delta)`：後面完整區間的項目整段平移、不完整時間不動、超出當天不動並警告）。
+- `fitMoves`：依路線查詢長度調整指定移動列並平移後面；已填的不完整時間保留原文，只有缺少時間的新列才可初始化（用 `cascadeDay(day, index, delta)`：後面完整區間的項目整段平移、不完整時間不動、超出當天不動並警告）。
 - `rescheduleDay`：整天重排。以第一個完整時間項目的開始為起點，停留與移動長度不變；沒有路線查詢結果的移動列沿用現有長度並警告；可重複執行。
 - `deriveMoves`／`applyMoves`：找出缺的移動列並補列，另有多個、多餘的警告；只補不刪。
 - `getContinuityWarnings(day, places)`：比較相鄰完整時間項目，擇一組算一站、不完整時間跳過。回報空檔／重疊的項目、時間與分鐘差；編輯器、發布計畫與 CLI 共用，只警告、不改資料。

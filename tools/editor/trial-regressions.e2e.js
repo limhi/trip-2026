@@ -8,7 +8,7 @@ const M = require('../../js/model');
 const cache = require('../routing/cache');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 
-async function run({ incomplete = false, confirm = false, sameDay = false } = {}) {
+async function run({ incomplete = false, confirm = false, sameDay = false, delayed = false, noTrial = false } = {}) {
     const root = makeRepoCopy();
     let browser, server, release;
     try {
@@ -26,16 +26,17 @@ async function run({ incomplete = false, confirm = false, sameDay = false } = {}
         if (!incomplete && !sameDay) trip.days.push({ day: 2, date: '11/16', title: '路線', items: items(ids[2], ids[3]) });
         fs.writeFileSync(file, JSON.stringify(trip, null, 2) + '\n', 'utf8');
         const routes = cache.empty();
-        const pendingDay = sameDay ? 0 : 1;
+        const pendingDay = incomplete || sameDay ? 0 : 1;
+        const pendingRoutes = !incomplete || delayed;
         for (const [di, day] of trip.days.entries()) for (const leg of M.getLegs(day, places)) {
-            if (incomplete || di !== pendingDay) routes.legs[leg.key] = { distance: 1000, duration: 1800, geometry: '', provider: 'test', computedAt: '2026-11-01' };
+            if (!pendingRoutes || di !== pendingDay) routes.legs[leg.key] = { distance: 1000, duration: 1800, geometry: '', provider: 'test', computedAt: '2026-11-01' };
         }
         cache.write(root, routes);
         let started;
         const requested = new Promise(resolve => { started = resolve; });
         const gate = new Promise(resolve => { release = resolve; });
         server = createServer({ root, provider: { name: 'test', route: async () => {
-            assert.equal(incomplete, false);
+            assert.equal(pendingRoutes, true);
             started();
             await gate;
             return { distance: 1000, duration: 1800, geometry: '' };
@@ -51,21 +52,23 @@ async function run({ incomplete = false, confirm = false, sameDay = false } = {}
         if (process.env.TAILWIND_CSS) await page.addStyleTag({ content: fs.readFileSync(process.env.TAILWIND_CSS, 'utf8') });
         const rows = di => page.locator(`[data-item][data-di="${di}"] [data-time]`).allTextContents();
         const item = page.locator(`[data-item][data-di="0"][data-ii="${incomplete ? 1 : 0}"]`);
-        if (!incomplete) await requested;
-        await item.locator('[data-row]').click();
-        await item.locator(`[data-act="pendlink"][data-field="${incomplete ? 'buffer' : 'end'}"]`).click();
-        await page.waitForFunction(() => document.querySelector('#status').textContent.includes('暫時套用中'));
-        if (incomplete) {
-            assert.deepEqual(await rows(0), ['08:00 - 09:00', '17:10 後', '10:00 - 11:00']);
-        } else {
+        if (pendingRoutes) await requested;
+        if (!noTrial) {
+            await item.locator('[data-row]').click();
+            await item.locator(`[data-act="pendlink"][data-field="${incomplete ? 'buffer' : 'end'}"]`).click();
+            await page.waitForFunction(() => document.querySelector('#status').textContent.includes('暫時套用中'));
+            if (incomplete) assert.deepEqual(await rows(0), ['08:00 - 09:00', '17:10 後', '10:00 - 11:00']);
+        }
+        if (pendingRoutes) {
             const trialRows = await rows(0);
             const response = page.waitForResponse(r => r.url().endsWith('/api/routes/compute'));
             release();
             await response;
             await page.waitForFunction(() => !document.querySelector('#pane-days').textContent.includes('計算中'));
-            assert.deepEqual(await rows(0), trialRows, '路線結果不能改動進行中的試算');
+            assert.deepEqual(await rows(0), trialRows, noTrial ? '路線同步須保留不完整時間' : '路線結果不能改動進行中的試算');
         }
-        await item.locator(`[data-act="trial${confirm ? 'confirm' : 'revert'}"]:visible`).click();
+        if (!noTrial) await item.locator(`[data-act="trial${confirm ? 'confirm' : 'revert'}"]:visible`).click();
+        if (incomplete) assert.deepEqual(await rows(0), ['08:00 - 09:00', '17:10 後', '10:00 - 11:00'], '自動路線同步與確認／還原都必須保留已填的不完整時間');
         if (!incomplete) {
             if (!sameDay) await page.locator('[data-day="1"] [data-act="daytoggle"]').click();
             assert.deepEqual(await rows(pendingDay), ['08:00 - 09:00', '09:00 - 09:30', '10:10 - 11:10'], '結束試算後必須同步已完成的路線');
@@ -73,7 +76,7 @@ async function run({ incomplete = false, confirm = false, sameDay = false } = {}
         }
         assert.deepEqual(JSON.parse(fs.readFileSync(file, 'utf8')), trip);
         assert.deepEqual(errors, []);
-        console.log(`試算回歸通過：${incomplete ? '保留不完整時間' : `${sameDay ? '同日' : '他日'}路線延後同步／${confirm ? '確認' : '還原'}`}`);
+        console.log(`試算回歸通過：${incomplete ? `保留不完整時間／${delayed ? '延後路線' : '已有快取'}／${noTrial ? '無試算' : confirm ? '確認' : '還原'}` : `${sameDay ? '同日' : '他日'}路線延後同步／${confirm ? '確認' : '還原'}`}`);
     } finally {
         if (release) release();
         if (browser) await browser.close();
@@ -82,6 +85,9 @@ async function run({ incomplete = false, confirm = false, sameDay = false } = {}
     }
 }
 (async () => {
-    if (process.argv.includes('--incomplete')) await run({ incomplete: true });
-    else for (const sameDay of [false, true]) for (const confirm of [false, true]) await run({ sameDay, confirm });
+    if (process.argv.includes('--incomplete')) {
+        await run({ incomplete: true });
+        for (const confirm of [false, true]) await run({ incomplete: true, delayed: true, confirm });
+        await run({ incomplete: true, delayed: true, noTrial: true });
+    } else for (const sameDay of [false, true]) for (const confirm of [false, true]) await run({ sameDay, confirm });
 })().catch(error => { console.error(error); process.exitCode = 1; });

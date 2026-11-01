@@ -551,7 +551,8 @@
     // 依查詢結果調整移動列（就地修改 day）：只處理 want(item, legKey) 為真的移動列（擇一組同一列綁多條路段時只處理一次，路段 key 取第一條）。
     // 長度 = getMoveMinutesAt（查詢 + buffer，不小於 0）；沒有查詢結果的列不動。
     //   - 列有完整時間：開始不變、結束改成開始 + 長度，後面所有項目平移長度的差值（cascadeDay）。
-    //   - 列沒有完整時間（剛補出的列）：前一站（擇一組用共用時間框）有完整結束才算：開始 = 前一站結束、結束 = 開始 + 長度，
+    //   - 列已填不完整時間：保留原文、不改其他項目。
+    //   - 列沒有時間（剛補出的列）：前一站（擇一組用共用時間框）有完整結束才算：開始 = 前一站結束、結束 = 開始 + 長度，
     //     之後第一個完整時間項目的開始 = 這列結束（後面整段平移，不留空檔也不重複推）。
     // 由前往後處理；超出 00:00–23:59 的列不動並警告。回傳 { changed: [{ index, from, to }], warnings }
     function fitMoves(day, places, routes, site, want) {
@@ -573,6 +574,7 @@
                 start = range.start;
                 delta = length - (range.end - range.start);
             } else {
+                if (item.time) return;   // 明確填入的不完整時間不是新補的空白列
                 const group = getAltGroupAt(day, leg.fromItemIndex);
                 const prev = parseTimeRange(day.items[group ? group.start : leg.fromItemIndex].time);
                 if (!prev) return;
