@@ -116,6 +116,19 @@
         });
 
         trip.days.forEach(day => {
+            const bounds = getDayBoundaries(day);
+            if (bounds.departureIndex == null) errors.push(`DAY ${day.day}：每日出發與結束時間必填`);
+            day.items.forEach((item, index) => {
+                const group = getAltGroupAt(day, index);
+                if (item.type === 'notice' || (group && index !== group.start)) return;
+                const edge = index === bounds.departureIndex || index === bounds.endIndex;
+                const point = edge && !group && parseTimePoint(item.time) != null;
+                const m = typeof item.time === 'string' && /^\s*(\d{1,2}):(\d{2})\s*[-–—~]\s*(\d{1,2}):(\d{2})(?!\d)/.exec(item.time);
+                const validRange = m && +m[1] < 24 && +m[2] < 60 && +m[3] < 24 && +m[4] < 60 &&
+                    (+m[3] * 60 + +m[4] > +m[1] * 60 + +m[2] ||
+                     (item.type === 'move' && +m[3] * 60 + +m[4] === +m[1] * 60 + +m[2]));
+                if (!point && !validRange) errors.push(`DAY ${day.day} 第 ${index + 1} 項：${edge && !group ? '請填寫明確的邊界時間或完整起訖時間' : '請填寫明確的完整起訖時間'}`);
+            });
             day.items.forEach((item, index) => {
                 const where = `DAY ${day.day} 第 ${index + 1} 項`;
                 if ('duration' in item) errors.push(`${where}：項目的 duration 已改名為 note，請改用 note`);

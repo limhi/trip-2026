@@ -82,3 +82,17 @@ test('Host 標頭不是本機位址時拒絕（防 DNS rebinding）', async t =>
     });
     assert.equal(status, 403);
 });
+
+test('缺少明確時間可存草稿，發布計畫與發布指出位置並拒絕', async t => {
+    const { base, root } = await withServer(t);
+    const data = (await json(base, '/api/data', 'GET')).body;
+    data.trip.days[0].items[0].time = '17:10 後';
+    assert.equal((await json(base, '/api/data', 'PUT', data)).status, 200);
+    const saved = (await json(base, '/api/data', 'GET')).body;
+    assert.equal(saved.trip.days[0].items[0].time, '17:10 後');
+    const plan = (await json(base, '/api/publish/plan', 'GET')).body;
+    assert.match(plan.errors.join('\n'), /DAY 1 第 1 項.*時間/);
+    const result = await json(base, '/api/publish', 'POST', { trip: saved.trip, places: saved.places, message: 'test' });
+    assert.equal(result.status, 422);
+    assert.match(JSON.stringify(result.body.steps), /DAY 1 第 1 項.*時間/);
+});

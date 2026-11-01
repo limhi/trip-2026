@@ -7,7 +7,8 @@
     // 不能發布的原因（空陣列＝可以）。與 HEAD 相同、缺少路線快取只警告，不擋。
     function blockers(plan, { dirty, errors }) {
         const out = [];
-        if (errors.length) out.push(`資料驗證有 ${errors.length} 個問題`);
+        const count = Math.max(errors.length, (plan.errors || []).length);
+        if (count) out.push(`資料驗證有 ${count} 個問題`);
         if (dirty) out.push('還有未存檔的修改，請先存檔');
         if (!plan.onMain) out.push(`目前在「${plan.branch || '未知分支'}」，只能在 main 分支發布`);
         return out;
@@ -45,7 +46,8 @@
             try { plan = await call('GET', '/api/publish/plan'); }
             catch (e) { ctx.body.innerHTML = `<p class="text-rose-700">無法取得發布資訊：${esc(e.message)}</p><div class="mt-4 text-right"><button id="m-cancel" class="rounded border px-3 py-1.5">關閉</button></div>`; ctx.body.querySelector('#m-cancel').onclick = close; return; }
 
-            const { errors } = ctx.state();
+            const stateErrors = ctx.state().errors;
+            const errors = [...new Set([...stateErrors, ...(plan.errors || [])])];
             const dirty = ctx.dirty();
             const block = blockers(plan, { dirty, errors });
             const lines = changeLines(plan.changes);
@@ -61,6 +63,7 @@
                 </ol>
                 <h3 class="mb-1 font-bold">這次的異動（與 HEAD 比對）</h3>
                 <ul class="mb-3 list-disc pl-5 text-sm">${lines.map(l => `<li><strong>${esc(l.label)}</strong>：${esc(l.text)}</li>`).join('') || '<li class="text-slate-400">沒有</li>'}</ul>
+                ${errors.map(e => `<p class="mb-2 rounded bg-rose-50 p-2 text-rose-700">${esc(e)}</p>`).join('')}
                 ${warns.map(w => `<p class="mb-2 rounded bg-amber-50 p-2 text-amber-800">⚠ ${esc(w)}</p>`).join('')}
                 <label class="block"><span class="font-bold">commit 訊息（可編輯，不加 AI 署名）</span><textarea id="commitmsg" rows="3" class="mt-1 w-full rounded border p-2">${esc(plan.message)}</textarea></label>
                 ${block.length ? `<p class="mt-3 rounded bg-rose-50 p-2 text-rose-700">無法發布：${block.map(esc).join('；')}</p>` : '<p class="mt-3 text-xs text-slate-500">按下「確認發布」即確認這次內容：會 commit 並 push 到 main，公開網頁約 1–2 分鐘後更新。</p>'}
