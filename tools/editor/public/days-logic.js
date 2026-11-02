@@ -330,7 +330,15 @@
     };
     const dayErrors = (errors, dayNo) => errors.filter(e => e.startsWith(`DAY ${dayNo} `));
 
-    const api = { TYPES, moveItem, stepItem, changeType, newItem, altPosition, canJoinAlt, joinAlt, leaveAlt, stayHint, rowLength, timeParts, setItemTime, setMoveBuffer, isPendingEdit, snapshotDay, restoreDay, startTrial, startBoundaryTrial, moveKeys, syncMoves, rescheduleDay, startRescheduleTrial, moveWarnings, getPath, setPath, itemErrors, dayErrors };
+    // 標籤列：從 localStorage 讀到的「上次選中天」解析出目前應該選中的天號。
+    // stored 不是整數、或行程裡沒有這一天，就退回第一天；沒有天時回 null。
+    function resolveSelectedDay(days, stored) {
+        const n = Number(stored);
+        if (Number.isInteger(n) && days.some(d => d.day === n)) return n;
+        return days.length ? days[0].day : null;
+    }
+
+    const api = { TYPES, moveItem, stepItem, changeType, newItem, altPosition, canJoinAlt, joinAlt, leaveAlt, stayHint, rowLength, timeParts, setItemTime, setMoveBuffer, isPendingEdit, snapshotDay, restoreDay, startTrial, startBoundaryTrial, moveKeys, syncMoves, rescheduleDay, startRescheduleTrial, moveWarnings, getPath, setPath, itemErrors, dayErrors, resolveSelectedDay };
     root.DaysLogic = api;
     if (typeof module !== 'undefined') module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

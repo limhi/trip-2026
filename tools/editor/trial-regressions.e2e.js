@@ -70,9 +70,12 @@ async function run({ incomplete = false, confirm = false, sameDay = false, delay
         if (!noTrial) await item.locator(`[data-act="trial${confirm ? 'confirm' : 'revert'}"]:visible`).click();
         if (incomplete) assert.deepEqual(await rows(0), ['08:00 - 09:00', '17:10 後', '10:00 - 11:00'], '自動路線同步與確認／還原都必須保留已填的不完整時間');
         if (!incomplete) {
-            if (!sameDay) await page.locator('[data-day="1"] [data-act="daytoggle"]').click();
+            if (!sameDay) await page.locator('[data-act="selectday"][data-tabday="2"]').click();
             assert.deepEqual(await rows(pendingDay), ['08:00 - 09:00', '09:00 - 09:30', '10:10 - 11:10'], '結束試算後必須同步已完成的路線');
-            if (!sameDay) assert.deepEqual(await rows(0), confirm ? ['08:00 - 09:00', '09:00 - 09:30', '10:10 - 11:10'] : ['08:00 - 09:00', '09:00 - 09:20', '10:00 - 11:00']);
+            if (!sameDay) {
+                await page.locator('[data-act="selectday"][data-tabday="1"]').click();
+                assert.deepEqual(await rows(0), confirm ? ['08:00 - 09:00', '09:00 - 09:30', '10:10 - 11:10'] : ['08:00 - 09:00', '09:00 - 09:20', '10:00 - 11:00']);
+            }
         }
         assert.deepEqual(JSON.parse(fs.readFileSync(file, 'utf8')), trip);
         assert.deepEqual(errors, []);
