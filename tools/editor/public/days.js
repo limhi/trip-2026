@@ -12,12 +12,25 @@
         buffer: ['緩衝（分鐘，可正負）', 'int'], place: ['地點', 'place'], map: ['顯示在地圖', 'bool'], numbered: ['地圖上編號', 'bool'], backup: ['備案（不連線）', 'bool']
     };
 
-    // ctx：{ data(): {trip, places}, errors(): string[], changed(): 重新驗證並更新外框, toast(msg), setTrial(on): 暫時套用開始／結束（外框據此擋存檔與發布）, routes(): { legs }（路線快取，可省略） }
+    // ctx：{ data(): {trip, places}, errors(): string[], changed(): 重新驗證並更新外框, toast(msg), setTrial(on): 暫時套用開始／結束（外框據此擋存檔與發布）, routes(): { legs }（路線快取，可省略）, onDayOpen(day)：切換標籤時通知（預覽捲過去） }
+
+    // 標籤列記住的「上次選中天」：存在 localStorage，一律存天號（字串）
+    const SELECTED_DAY_KEY = 'tripEditor:selectedDay';
+    const loadSelectedDay = () => localStorage.getItem(SELECTED_DAY_KEY);
+    const saveSelectedDay = day => localStorage.setItem(SELECTED_DAY_KEY, String(day));
+
     function create(pane, ctx) {
         const scroller = pane.parentElement;
-        const ui = { openDays: new Set([1]), dayCfg: new Set(), openItem: null, drag: null, trial: null };   // trial：暫時套用中的 { di, item, field, snap }，null＝沒有
+        const ui = { selectedDay: loadSelectedDay(), dayCfg: new Set(), openItem: null, drag: null, trial: null };   // trial：暫時套用中的 { di, item, field, snap }，null＝沒有
         const draft = () => ctx.data();
         const deferredComputed = new Set();
+
+        // 切換到某一天：更新選中狀態、記住在 localStorage，並讓預覽捲過去
+        function selectDay(dayNo) {
+            ui.selectedDay = dayNo;
+            saveSelectedDay(dayNo);
+            if (ctx.onDayOpen) ctx.onDayOpen(dayNo);
+        }
 
         const placeName = id => (draft().places[id] && draft().places[id].name) || '';
         const itemLabel = it => {
@@ -97,75 +110,84 @@
             </div>`;
         }
 
+        // 標籤列：DAY1～DAY6 一排，選中的標籤樣式區分；放不下時水平捲動，不換行
+        function tabBarHtml(days) {
+            return `<div data-tabbar class="flex overflow-x-auto whitespace-nowrap border-b bg-slate-100">${days.map(day => `<button type="button" data-act="selectday" data-tabday="${day.day}" class="shrink-0 border-b-2 px-4 py-2 text-sm font-bold ${day.day === ui.selectedDay ? 'border-blue-600 bg-white text-blue-700' : 'border-transparent text-slate-500 hover:bg-slate-200'}">DAY ${day.day}</button>`).join('')}</div>`;
+        }
+
+        // 單天視圖：項目清單與日設定子面板，只給目前選中的那天
+        function daySectionHtml(day, di, errors, places) {
+            const byIndex = new Map(M.getMapPoints(day, places).map(p => [p.itemIndex, p]));
+            const rows = day.items.map((it, ii) => {
+                const meta = TYPES[it.type] || { label: it.type, chip: 'bg-rose-200 text-rose-800', fields: [] };
+                const point = byIndex.get(ii);
+                const errs = L.itemErrors(errors, day.day, ii);
+                const bad = errs.length > 0;
+                const isOpen = ui.openItem === it;
+                const isMove = it.type === 'move';
+                const num = point ? (point.number != null
+                    ? `<span title="地圖編號" class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">${point.label}</span>`
+                    : '<span title="在地圖上但不編號" class="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">◦</span>')
+                    : '<span class="h-5 w-5 shrink-0"></span>';
+                // 擇一組：整組外面加一圈外框（首項上框、尾項下框、每項左右框），第一項標示「二選一」與共用時間
+                const pos = L.altPosition(day, ii);
+                const frame = pos ? `border-x-4 border-violet-400 ${pos === 'first' ? 'border-t-4 rounded-t-lg' : ''} ${pos === 'last' ? 'border-b-4 rounded-b-lg' : ''}` : '';
+                const altTag = pos === 'first' ? `<div data-alttag class="bg-violet-100 px-2 py-0.5 text-[11px] font-bold text-violet-800">二選一（${esc(it.alt)}）</div>` : '';
+                const altBtn = it.type !== 'spot' ? ''
+                    : it.alt ? '<button data-act="leavealt" class="rounded px-1.5 text-[11px] text-violet-700 hover:bg-violet-100" title="移出擇一組">移出擇一</button>'
+                    : L.canJoinAlt(day, ii) ? '<button data-act="joinalt" class="rounded px-1.5 text-[11px] text-violet-700 hover:bg-violet-100" title="與相鄰的景點併成擇一組（只去其中一個）">併成擇一</button>' : '';
+                return `<div data-item data-di="${di}" data-ii="${ii}" class="${frame}">${altTag}
+                    <div data-row draggable="true" data-act="toggle" class="flex cursor-pointer items-center gap-2 border-b px-2 py-1.5 ${bad ? 'bg-rose-50' : isMove ? 'bg-sky-50 hover:bg-sky-100' : isOpen ? 'bg-blue-50' : 'hover:bg-slate-50'}">
+                        <span class="cursor-grab select-none text-slate-400">⋮⋮</span>${num}
+                        ${isMove ? '<span title="移動" class="shrink-0 text-sky-600">🚗</span>' : ''}<span class="shrink-0 rounded px-1.5 py-0.5 text-[11px] font-bold ${meta.chip}">${meta.label}</span>
+                        <span data-time class="w-28 shrink-0 whitespace-nowrap text-sm font-black tabular-nums text-slate-900">${esc(it.time || '')}</span>
+                        <span data-stay class="${lenCls(L.rowLength(day, ii))}">${esc(L.rowLength(day, ii))}</span>
+                        <span data-sum class="min-w-0 flex-1 truncate ${bad ? 'text-rose-700' : ''}">${bad ? '⚠ ' : ''}${esc(itemLabel(it))}</span>
+                        ${altBtn}
+                        <button data-act="up" class="rounded px-1.5 text-slate-500 hover:bg-slate-200" title="上移（到頂會跨到前一天）">↑</button>
+                        <button data-act="down" class="rounded px-1.5 text-slate-500 hover:bg-slate-200" title="下移（到底會跨到後一天）">↓</button>
+                        <button data-act="del" class="rounded px-1.5 text-rose-500 hover:bg-rose-100" title="刪除">✕</button>
+                    </div>
+                    ${isOpen ? `<div class="my-2 ml-6 mr-2 grid grid-cols-2 gap-2 rounded-lg border border-l-4 border-slate-300 ${meta.bar || 'border-l-slate-400'} bg-white p-3 shadow-sm" data-form data-di="${di}" data-ii="${ii}">
+                        <label class="col-span-2 block"><span class="text-xs text-slate-500">類型</span><select data-f="type" class="mt-0.5 w-full rounded border p-1.5">${Object.keys(TYPES).map(t => `<option value="${t}" ${t === it.type ? 'selected' : ''}>${TYPES[t].label}（${t}）</option>`).join('')}</select></label>
+                        ${meta.fields.map(f => fieldHtml(f, it, day, ii)).join('')}
+                        ${bad ? `<ul class="col-span-2 list-disc pl-5 text-xs text-rose-600">${errs.map(e => `<li>${esc(e)}</li>`).join('')}</ul>` : ''}
+                    </div>` : ''}
+                    ${ctx.legHtml ? `<div data-legslot data-di="${di}" data-ii="${ii}">${ctx.legHtml(di, ii)}</div>` : ''}
+                </div>`;
+            }).join('');
+            return `<section class="border-b-4 border-slate-200" data-day="${di}">
+                <div data-dayhead data-di="${di}" class="flex items-center gap-2 bg-slate-100 px-3 py-2">
+                    <div class="flex min-w-0 flex-1 items-center gap-2">
+                        <strong class="shrink-0">DAY ${day.day}</strong><span class="shrink-0 text-xs text-slate-500">${esc(day.date)}</span>
+                        <span class="min-w-0 truncate">${esc(day.title)}</span>
+                        <span class="shrink-0 rounded bg-white px-1.5 text-xs text-slate-500">${day.items.length} 項</span>
+                        ${ctx.dayHeadHtml ? `<span data-dayroute data-di="${di}" class="contents">${ctx.dayHeadHtml(di)}</span>` : ''}
+                    </div>
+                    <button data-act="dayresched" class="rounded border bg-white px-2 py-0.5 text-xs" title="以第一個有完整時間的項目的開始為起點，依停留與移動長度（預估 + 緩衝）重排整天；按了才執行">整天重排</button>
+                    <button data-act="daycfg" class="rounded border bg-white px-2 py-0.5 text-xs">日設定</button>
+                </div>
+                ${trialBar('reschedule', !!ui.trial && ui.trial.di === di && ui.trial.field === 'reschedule')}
+                ${ui.dayCfg.has(day.day) ? dayCfgHtml(day, di) : ''}
+                ${rows}
+                <div data-dropend data-di="${di}" class="flex items-center gap-2 px-3 py-2">
+                    <select data-newtype="${di}" class="rounded border p-1 text-xs">${Object.keys(TYPES).map(t => `<option value="${t}">${TYPES[t].label}</option>`).join('')}</select>
+                    <button data-act="add" class="rounded bg-slate-800 px-2 py-1 text-xs font-bold text-white">＋ 新增項目</button>
+                    <span class="text-xs text-slate-400">也可把項目拖到這一列＝放到這天最後</span>
+                </div>
+            </section>`;
+        }
+
         function render() {
             const errors = ctx.errors();
             const { trip, places } = draft();
             const y = scroller.scrollTop;
-            pane.innerHTML = trip.days.map((day, di) => {
-                const open = ui.openDays.has(day.day);
-                const byIndex = new Map(M.getMapPoints(day, places).map(p => [p.itemIndex, p]));
-                const dayErrs = L.dayErrors(errors, day.day);
-                const rows = open ? day.items.map((it, ii) => {
-                    const meta = TYPES[it.type] || { label: it.type, chip: 'bg-rose-200 text-rose-800', fields: [] };
-                    const point = byIndex.get(ii);
-                    const errs = L.itemErrors(errors, day.day, ii);
-                    const bad = errs.length > 0;
-                    const isOpen = ui.openItem === it;
-                    const isMove = it.type === 'move';
-                    const num = point ? (point.number != null
-                        ? `<span title="地圖編號" class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">${point.label}</span>`
-                        : '<span title="在地圖上但不編號" class="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">◦</span>')
-                        : '<span class="h-5 w-5 shrink-0"></span>';
-                    // 擇一組：整組外面加一圈外框（首項上框、尾項下框、每項左右框），第一項標示「二選一」與共用時間
-                    const pos = L.altPosition(day, ii);
-                    const frame = pos ? `border-x-4 border-violet-400 ${pos === 'first' ? 'border-t-4 rounded-t-lg' : ''} ${pos === 'last' ? 'border-b-4 rounded-b-lg' : ''}` : '';
-                    const altTag = pos === 'first' ? `<div data-alttag class="bg-violet-100 px-2 py-0.5 text-[11px] font-bold text-violet-800">二選一（${esc(it.alt)}）</div>` : '';
-                    const altBtn = it.type !== 'spot' ? ''
-                        : it.alt ? '<button data-act="leavealt" class="rounded px-1.5 text-[11px] text-violet-700 hover:bg-violet-100" title="移出擇一組">移出擇一</button>'
-                        : L.canJoinAlt(day, ii) ? '<button data-act="joinalt" class="rounded px-1.5 text-[11px] text-violet-700 hover:bg-violet-100" title="與相鄰的景點併成擇一組（只去其中一個）">併成擇一</button>' : '';
-                    return `<div data-item data-di="${di}" data-ii="${ii}" class="${frame}">${altTag}
-                        <div data-row draggable="true" data-act="toggle" class="flex cursor-pointer items-center gap-2 border-b px-2 py-1.5 ${bad ? 'bg-rose-50' : isMove ? 'bg-sky-50 hover:bg-sky-100' : isOpen ? 'bg-blue-50' : 'hover:bg-slate-50'}">
-                            <span class="cursor-grab select-none text-slate-400">⋮⋮</span>${num}
-                            ${isMove ? '<span title="移動" class="shrink-0 text-sky-600">🚗</span>' : ''}<span class="shrink-0 rounded px-1.5 py-0.5 text-[11px] font-bold ${meta.chip}">${meta.label}</span>
-                            <span data-time class="w-28 shrink-0 whitespace-nowrap text-sm font-black tabular-nums text-slate-900">${esc(it.time || '')}</span>
-                            <span data-stay class="${lenCls(L.rowLength(day, ii))}">${esc(L.rowLength(day, ii))}</span>
-                            <span data-sum class="min-w-0 flex-1 truncate ${bad ? 'text-rose-700' : ''}">${bad ? '⚠ ' : ''}${esc(itemLabel(it))}</span>
-                            ${altBtn}
-                            <button data-act="up" class="rounded px-1.5 text-slate-500 hover:bg-slate-200" title="上移（到頂會跨到前一天）">↑</button>
-                            <button data-act="down" class="rounded px-1.5 text-slate-500 hover:bg-slate-200" title="下移（到底會跨到後一天）">↓</button>
-                            <button data-act="del" class="rounded px-1.5 text-rose-500 hover:bg-rose-100" title="刪除">✕</button>
-                        </div>
-                        ${isOpen ? `<div class="my-2 ml-6 mr-2 grid grid-cols-2 gap-2 rounded-lg border border-l-4 border-slate-300 ${meta.bar || 'border-l-slate-400'} bg-white p-3 shadow-sm" data-form data-di="${di}" data-ii="${ii}">
-                            <label class="col-span-2 block"><span class="text-xs text-slate-500">類型</span><select data-f="type" class="mt-0.5 w-full rounded border p-1.5">${Object.keys(TYPES).map(t => `<option value="${t}" ${t === it.type ? 'selected' : ''}>${TYPES[t].label}（${t}）</option>`).join('')}</select></label>
-                            ${meta.fields.map(f => fieldHtml(f, it, day, ii)).join('')}
-                            ${bad ? `<ul class="col-span-2 list-disc pl-5 text-xs text-rose-600">${errs.map(e => `<li>${esc(e)}</li>`).join('')}</ul>` : ''}
-                        </div>` : ''}
-                        ${ctx.legHtml ? `<div data-legslot data-di="${di}" data-ii="${ii}">${ctx.legHtml(di, ii)}</div>` : ''}
-                    </div>`;
-                }).join('') : '';
-                return `<section class="border-b-4 border-slate-200" data-day="${di}">
-                    <div data-dayhead data-di="${di}" class="flex items-center gap-2 bg-slate-100 px-3 py-2">
-                        <button data-act="daytoggle" class="flex min-w-0 flex-1 items-center gap-2 text-left">
-                            <span>${open ? '▼' : '▶'}</span>
-                            <strong class="shrink-0">DAY ${day.day}</strong><span class="shrink-0 text-xs text-slate-500">${esc(day.date)}</span>
-                            <span class="min-w-0 truncate">${esc(day.title)}</span>
-                            <span class="shrink-0 rounded bg-white px-1.5 text-xs text-slate-500">${day.items.length} 項</span>
-                            ${dayErrs.length ? `<span class="shrink-0 rounded bg-rose-100 px-1.5 text-xs text-rose-700">⚠ ${dayErrs.length}</span>` : ''}
-                            ${ctx.dayHeadHtml ? `<span data-dayroute data-di="${di}" class="contents">${ctx.dayHeadHtml(di)}</span>` : ''}
-                        </button>
-                        <button data-act="dayresched" class="rounded border bg-white px-2 py-0.5 text-xs" title="以第一個有完整時間的項目的開始為起點，依停留與移動長度（預估 + 緩衝）重排整天；按了才執行">整天重排</button>
-                        <button data-act="daycfg" class="rounded border bg-white px-2 py-0.5 text-xs">日設定</button>
-                    </div>
-                    ${trialBar('reschedule', !!ui.trial && ui.trial.di === di && ui.trial.field === 'reschedule')}
-                    ${ui.dayCfg.has(day.day) ? dayCfgHtml(day, di) : ''}
-                    ${rows}
-                    ${open ? `<div data-dropend data-di="${di}" class="flex items-center gap-2 px-3 py-2">
-                        <select data-newtype="${di}" class="rounded border p-1 text-xs">${Object.keys(TYPES).map(t => `<option value="${t}">${TYPES[t].label}</option>`).join('')}</select>
-                        <button data-act="add" class="rounded bg-slate-800 px-2 py-1 text-xs font-bold text-white">＋ 新增項目</button>
-                        <span class="text-xs text-slate-400">也可把項目拖到這一列＝放到這天最後</span>
-                    </div>` : ''}
-                </section>`;
-            }).join('') + '<datalist id="placelist">' + Object.entries(places).map(([id, p]) => `<option value="${esc(id)}" label="${esc(p.name)}"></option>`).join('') + '</datalist>';
+            ui.selectedDay = L.resolveSelectedDay(trip.days, ui.selectedDay);
+            const di = trip.days.findIndex(d => d.day === ui.selectedDay);
+            const day = trip.days[di];
+            pane.innerHTML = tabBarHtml(trip.days)
+                + (day ? daySectionHtml(day, di, errors, places) : '')
+                + '<datalist id="placelist">' + Object.entries(places).map(([id, p]) => `<option value="${esc(id)}" label="${esc(p.name)}"></option>`).join('') + '</datalist>';
             scroller.scrollTop = y;
         }
 
@@ -291,7 +313,8 @@
             const moved = day.items[pos.ii];
             syncDays(before);   // 補列會讓索引位移，重新找被搬的項目
             pos = { di: pos.di, ii: day.items.indexOf(moved) };
-            ui.openDays.add(day.day);
+            ui.selectedDay = day.day;
+            saveSelectedDay(day.day);
             rerender();
             const el = pane.querySelector(`[data-item][data-di="${pos.di}"][data-ii="${pos.ii}"] [data-row]`);
             if (el) { el.classList.add('flash'); el.scrollIntoView({ block: 'nearest' }); }
@@ -303,6 +326,7 @@
             const act = el.dataset.act;
             if (act === 'trialconfirm') return endTrial(true);
             if (act === 'trialrevert') return endTrial(false);
+            if (act === 'selectday') { selectDay(+el.dataset.tabday); return render(); }
             if (blockedByTrial()) return;
             const itemEl = el.closest('[data-item]');
             const { trip } = draft();
@@ -330,19 +354,17 @@
             const headEl = el.closest('[data-dayhead]');
             if (headEl) {
                 const day = days[+headEl.dataset.di];
-                if (act === 'daytoggle') { if (ui.openDays.has(day.day)) ui.openDays.delete(day.day); else { ui.openDays.add(day.day); if (ctx.onDayOpen) ctx.onDayOpen(day.day); } return render(); }
                 if (act === 'dayresched') {
                     const r = L.startRescheduleTrial(day, draft().places, { routes: routesOf(), site: draft().trip.site });
                     const di = +headEl.dataset.di;
                     ui.trial = { di, field: 'reschedule', snap: r.snap };
-                    ui.openDays.add(day.day);
                     ctx.setTrial(true);
                     rerender();
                     const nr = r.warnings.filter(w => w.type === 'no-route').length, other = r.warnings.length - nr;
                     ctx.toast(`已暫時重排 DAY ${day.day}：${r.changed} 項時間更新${r.added ? `（補上 ${r.added} 個移動列）` : ''}${nr ? `；${nr} 個移動列沒有路線查詢結果` : ''}${other ? `；${other} 則其他警告：${r.warnings.find(w => w.type !== 'no-route').message}` : ''}`);
                     return;
                 }
-                if (act === 'daycfg') { if (ui.dayCfg.has(day.day)) ui.dayCfg.delete(day.day); else { ui.dayCfg.add(day.day); ui.openDays.add(day.day); } return render(); }
+                if (act === 'daycfg') { if (ui.dayCfg.has(day.day)) ui.dayCfg.delete(day.day); else ui.dayCfg.add(day.day); return render(); }
             }
             if (act === 'add') {
                 const di = +el.closest('[data-dropend]').dataset.di;

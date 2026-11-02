@@ -107,6 +107,22 @@ test('itemErrors：只挑出該天該項的驗證訊息（第 1 項不會誤抓�
     assert.deepEqual(L.dayErrors(errors, 1), ['DAY 1 第 1 項：a', 'DAY 1 第 10 項：b', 'DAY 1 住宿：d']);
 });
 
+test('resolveSelectedDay：記錄的天還在，就用記錄的天', () => {
+    const days = [{ day: 1 }, { day: 2 }, { day: 3 }];
+    assert.equal(L.resolveSelectedDay(days, '2'), 2);
+});
+
+test('resolveSelectedDay：沒有記錄、記錄的天不存在、或記錄不是整數，退回第一天', () => {
+    const days = [{ day: 2 }, { day: 5 }];
+    assert.equal(L.resolveSelectedDay(days, null), 2);
+    assert.equal(L.resolveSelectedDay(days, '9'), 2);
+    assert.equal(L.resolveSelectedDay(days, 'abc'), 2);
+});
+
+test('resolveSelectedDay：沒有天數資料回傳 null', () => {
+    assert.equal(L.resolveSelectedDay([], '1'), null);
+});
+
 test('類型選單沒有 drive', () => {
     assert.equal('drive' in L.TYPES, false);
     assert.ok(L.TYPES.move);
