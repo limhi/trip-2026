@@ -85,6 +85,23 @@ const STORAGE_KEY = 'tripEditor:selectedDay';
             assert.ok(tops.every(y => Math.abs(y - tops[0]) < 1), '標籤不應該換行，所有標籤的垂直位置應該相同');
         }
 
+        // 暫時套用中（整天重排）：切換標籤被擋，提示文案與既有「暫時套用中」規則一致；確認／還原後恢復可切換
+        await tab(1).click();
+        await page.getByText('第 1 天的景點').waitFor();
+        await page.locator('[data-act="dayresched"]').click();
+        await page.waitForFunction(() => document.querySelector('#status').textContent.includes('暫時套用中'));
+        await tab(2).click();
+        assert.equal(await page.getByText('第 1 天的景點').count(), 1, '暫時套用中切換標籤應該被擋下，畫面仍留在原本那天');
+        assert.equal(await page.getByText('第 2 天的景點').count(), 0);
+        assert.match(await tab(1).getAttribute('class'), /border-blue-600/);
+        await page.locator('#toast').filter({ hasText: /確認|還原/ }).waitFor();
+
+        await page.locator('[data-act="trialrevert"]:visible').click();
+        await page.waitForFunction(() => !document.querySelector('#status').textContent.includes('暫時套用中'));
+        await tab(2).click();
+        await page.getByText('第 2 天的景點').waitFor();
+        assert.match(await tab(2).getAttribute('class'), /border-blue-600/);
+
         // 04：標籤顯示驗證錯誤提示——DAY2 缺少邊界時間，標籤要出現錯誤提示；其餘天沒有錯誤，維持一般樣式
         const errClass = /(text-rose|border-rose|bg-rose)/;
         const tabClass = n => tab(n).getAttribute('class');
@@ -94,7 +111,6 @@ const STORAGE_KEY = 'tripEditor:selectedDay';
         for (const n of [1, 3, 4, 5, 6]) assert.doesNotMatch(await tabClass(n), errClass, `DAY${n} 標籤不應該顯示錯誤提示`);
 
         // 修正：在「日設定」補上每日出發時間（這個只有單一項目的天，出發＝結束＝同一項），錯誤提示要即時消失，不用重新整理
-        await tab(2).click();
         await page.locator('[data-act="daycfg"]').click();
         await page.locator('[data-boundary="departure"]').fill('09:00');
         await page.locator('[data-act="boundarylink"][data-field="departure"]').click();
@@ -104,7 +120,7 @@ const STORAGE_KEY = 'tripEditor:selectedDay';
 
         assert.deepEqual(JSON.parse(fs.readFileSync(file, 'utf8')), trip);
         assert.deepEqual(errors, []);
-        console.log('✓ 標籤列與單天視圖：切換只顯示選中天、標籤樣式、localStorage 記錄與退回 DAY1、窄視窗水平捲動、標籤錯誤提示即時更新');
+        console.log('✓ 標籤列與單天視圖：切換只顯示選中天、標籤樣式、localStorage 記錄與退回 DAY1、窄視窗水平捲動、暫時套用期間鎖定切換標籤、標籤錯誤提示即時更新');
     } finally {
         if (browser) await browser.close();
         if (server) await new Promise(resolve => server.close(resolve));

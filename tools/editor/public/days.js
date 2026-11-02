@@ -333,7 +333,7 @@
             const act = el.dataset.act;
             if (act === 'trialconfirm') return endTrial(true);
             if (act === 'trialrevert') return endTrial(false);
-            if (act === 'selectday') { selectDay(+el.dataset.tabday); return render(); }
+            if (act === 'selectday') { if (blockedByTrial()) return; selectDay(+el.dataset.tabday); return render(); }
             if (blockedByTrial()) return;
             const itemEl = el.closest('[data-item]');
             const { trip } = draft();
