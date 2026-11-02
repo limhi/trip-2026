@@ -15,7 +15,7 @@ const STORAGE_KEY = 'tripEditor:selectedDay';
         const trip = JSON.parse(fs.readFileSync(file, 'utf8'));
         trip.days = [1, 2, 3, 4, 5, 6].map(day => ({
             day, date: `11/${14 + day}`, title: `第 ${day} 天標題`,
-            items: [{ type: 'spot', title: `第 ${day} 天的景點` }]
+            items: [{ type: 'spot', title: `第 ${day} 天的景點`, ...(day === 2 ? {} : { time: '09:00' }) }]
         }));
         fs.writeFileSync(file, JSON.stringify(trip, null, 2) + '\n', 'utf8');
         server = createServer({ root, provider: { async route() { throw Error('禁止外部路線'); } } });
@@ -85,9 +85,26 @@ const STORAGE_KEY = 'tripEditor:selectedDay';
             assert.ok(tops.every(y => Math.abs(y - tops[0]) < 1), '標籤不應該換行，所有標籤的垂直位置應該相同');
         }
 
+        // 04：標籤顯示驗證錯誤提示——DAY2 缺少邊界時間，標籤要出現錯誤提示；其餘天沒有錯誤，維持一般樣式
+        const errClass = /(text-rose|border-rose|bg-rose)/;
+        const tabClass = n => tab(n).getAttribute('class');
+        await page.locator('[data-act="errtoggle"]').click();
+        await page.locator('#errbar li').filter({ hasText: /DAY 2 第 1 項/ }).waitFor();
+        assert.match(await tabClass(2), errClass, 'DAY2 標籤應該顯示錯誤提示');
+        for (const n of [1, 3, 4, 5, 6]) assert.doesNotMatch(await tabClass(n), errClass, `DAY${n} 標籤不應該顯示錯誤提示`);
+
+        // 修正：在「日設定」補上每日出發時間（這個只有單一項目的天，出發＝結束＝同一項），錯誤提示要即時消失，不用重新整理
+        await tab(2).click();
+        await page.locator('[data-act="daycfg"]').click();
+        await page.locator('[data-boundary="departure"]').fill('09:00');
+        await page.locator('[data-act="boundarylink"][data-field="departure"]').click();
+        await page.locator('#errbar').filter({ hasText: '資料驗證通過' }).waitFor();
+        assert.doesNotMatch(await tabClass(2), errClass, '修正後 DAY2 標籤的錯誤提示應該即時消失');
+        await page.locator('[data-trialbar="departure"] [data-act="trialconfirm"]').click();
+
         assert.deepEqual(JSON.parse(fs.readFileSync(file, 'utf8')), trip);
         assert.deepEqual(errors, []);
-        console.log('✓ 標籤列與單天視圖：切換只顯示選中天、標籤樣式、localStorage 記錄與退回 DAY1、窄視窗水平捲動');
+        console.log('✓ 標籤列與單天視圖：切換只顯示選中天、標籤樣式、localStorage 記錄與退回 DAY1、窄視窗水平捲動、標籤錯誤提示即時更新');
     } finally {
         if (browser) await browser.close();
         if (server) await new Promise(resolve => server.close(resolve));

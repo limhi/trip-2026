@@ -110,9 +110,16 @@
             </div>`;
         }
 
-        // 標籤列：DAY1～DAY6 一排，選中的標籤樣式區分；放不下時水平捲動，不換行
-        function tabBarHtml(days) {
-            return `<div data-tabbar class="flex overflow-x-auto whitespace-nowrap border-b bg-slate-100">${days.map(day => `<button type="button" data-act="selectday" data-tabday="${day.day}" class="shrink-0 border-b-2 px-4 py-2 text-sm font-bold ${day.day === ui.selectedDay ? 'border-blue-600 bg-white text-blue-700' : 'border-transparent text-slate-500 hover:bg-slate-200'}">DAY ${day.day}</button>`).join('')}</div>`;
+        // 標籤列：DAY1～DAY6 一排，選中的標籤樣式區分；放不下時水平捲動，不換行；有驗證錯誤的天標籤上加 ⚠ 與紅色提示
+        function tabBarHtml(days, errors) {
+            return `<div data-tabbar class="flex overflow-x-auto whitespace-nowrap border-b bg-slate-100">${days.map(day => {
+                const bad = L.dayErrors(errors, day.day).length > 0;
+                const selected = day.day === ui.selectedDay;
+                const cls = selected
+                    ? (bad ? 'border-rose-600 bg-white text-rose-700' : 'border-blue-600 bg-white text-blue-700')
+                    : (bad ? 'border-transparent text-rose-600 hover:bg-rose-100' : 'border-transparent text-slate-500 hover:bg-slate-200');
+                return `<button type="button" data-act="selectday" data-tabday="${day.day}" class="shrink-0 border-b-2 px-4 py-2 text-sm font-bold ${cls}">${bad ? '⚠ ' : ''}DAY ${day.day}</button>`;
+            }).join('')}</div>`;
         }
 
         // 單天視圖：項目清單與日設定子面板，只給目前選中的那天
@@ -185,7 +192,7 @@
             ui.selectedDay = L.resolveSelectedDay(trip.days, ui.selectedDay);
             const di = trip.days.findIndex(d => d.day === ui.selectedDay);
             const day = trip.days[di];
-            pane.innerHTML = tabBarHtml(trip.days)
+            pane.innerHTML = tabBarHtml(trip.days, errors)
                 + (day ? daySectionHtml(day, di, errors, places) : '')
                 + '<datalist id="placelist">' + Object.entries(places).map(([id, p]) => `<option value="${esc(id)}" label="${esc(p.name)}"></option>`).join('') + '</datalist>';
             scroller.scrollTop = y;
