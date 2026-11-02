@@ -85,9 +85,26 @@ const STORAGE_KEY = 'tripEditor:selectedDay';
             assert.ok(tops.every(y => Math.abs(y - tops[0]) < 1), '標籤不應該換行，所有標籤的垂直位置應該相同');
         }
 
+        // 暫時套用中（整天重排）：切換標籤被擋，提示文案與既有「暫時套用中」規則一致；確認／還原後恢復可切換
+        await tab(1).click();
+        await page.getByText('第 1 天的景點').waitFor();
+        await page.locator('[data-act="dayresched"]').click();
+        await page.waitForFunction(() => document.querySelector('#status').textContent.includes('暫時套用中'));
+        await tab(2).click();
+        assert.equal(await page.getByText('第 1 天的景點').count(), 1, '暫時套用中切換標籤應該被擋下，畫面仍留在原本那天');
+        assert.equal(await page.getByText('第 2 天的景點').count(), 0);
+        assert.match(await tab(1).getAttribute('class'), /border-blue-600/);
+        await page.locator('#toast').filter({ hasText: /確認|還原/ }).waitFor();
+
+        await page.locator('[data-act="trialrevert"]:visible').click();
+        await page.waitForFunction(() => !document.querySelector('#status').textContent.includes('暫時套用中'));
+        await tab(2).click();
+        await page.getByText('第 2 天的景點').waitFor();
+        assert.match(await tab(2).getAttribute('class'), /border-blue-600/);
+
         assert.deepEqual(JSON.parse(fs.readFileSync(file, 'utf8')), trip);
         assert.deepEqual(errors, []);
-        console.log('✓ 標籤列與單天視圖：切換只顯示選中天、標籤樣式、localStorage 記錄與退回 DAY1、窄視窗水平捲動');
+        console.log('✓ 標籤列與單天視圖：切換只顯示選中天、標籤樣式、localStorage 記錄與退回 DAY1、窄視窗水平捲動、暫時套用期間鎖定切換標籤');
     } finally {
         if (browser) await browser.close();
         if (server) await new Promise(resolve => server.close(resolve));
