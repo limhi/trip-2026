@@ -66,6 +66,16 @@
                     <label class="block"><span class="text-xs text-slate-500">時間說明</span><input data-f="tail" value="${esc(parts.tail)}" ${rw}></label>
                 </div>`;
             }
+            if (name === 'time' && item.type !== 'move') {   // 還沒有完整起訖區間：先給開始／結束兩個欄位直接寫入字串（不經連動／伸縮，沒東西可依據平移）；兩邊都合法會變成完整區間，下次重繪就換成上面那組連動／伸縮欄位
+                const point = M.parseTimePoint(item.time);
+                const hint = item.time && point == null ? `<div class="col-span-2 text-xs text-slate-500">目前文字：「${esc(item.time)}」，開始、結束都填好會換成完整區間</div>` : '';
+                return `<div class="col-span-2 grid grid-cols-3 gap-2">
+                    <label class="block"><span class="text-xs text-slate-500">開始（HH:MM）</span><input data-f="rangestart" value="${point != null ? esc(item.time) : ''}" placeholder="HH:MM" class="mt-0.5 w-full rounded border p-1.5"></label>
+                    <label class="block"><span class="text-xs text-slate-500">結束（HH:MM）</span><input data-f="rangeend" value="" placeholder="HH:MM" class="mt-0.5 w-full rounded border p-1.5"></label>
+                    <label class="block"><span class="text-xs text-slate-500">時間說明</span><input data-f="rangetail" value="" class="mt-0.5 w-full rounded border p-1.5"></label>
+                    ${hint}
+                </div>`;
+            }
             if (name === 'buffer' && item.type === 'move') {   // 移動列緩衝：向前＝開始邊動（前面跟著動）、向後＝結束邊動（後面跟著動）；方向與伸縮不存，只存總緩衝
                 return `<div class="block"><span class="text-xs text-slate-500">${label}</span><div class="mt-0.5 flex gap-1"><input data-f="buffer" inputmode="numeric" value="${esc(item.buffer)}" class="min-w-0 flex-1 rounded border p-1.5"><select data-f="bufdir" class="shrink-0 rounded border bg-white p-1 text-xs" title="這次調整哪一邊動（不存）"><option value="back" selected>向後</option><option value="forward">向前</option></select></div>${pendBar('buffer')}${trialBar('buffer', isTrial(item, 'buffer'))}</div>`;
             }

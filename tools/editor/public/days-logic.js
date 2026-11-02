@@ -283,7 +283,7 @@
         const warnings = M.fitMoves(day, places, routes, site, item => added.has(item)).warnings;
         added.forEach(item => {
             if (!item.time && !warnings.some(w => w.type === 'no-route' && day.items[w.index] === item)) {
-                warnings.push({ type: 'no-route', index: day.items.indexOf(item), message: `DAY ${day.day} 第 ${day.items.indexOf(item) + 1} 項：新補的移動列沒有路線查詢結果，時間留空` });
+                warnings.push({ type: 'no-route', index: day.items.indexOf(item), message: `DAY ${day.day} 第 ${day.items.indexOf(item) + 1} 項（${M.itemLabel(item, places)}）：新補的移動列沒有路線查詢結果，時間留空` });
             }
         });
         const r = M.rescheduleDay(day, places, routes, site);
@@ -323,8 +323,11 @@
         for (let i = chain.length - 1; i > 0; i--) if (!Object.keys(chain[i]).length) delete chain[i - 1][keys[i - 1]];
     }
 
-    // validate 回傳的字串開頭是「DAY n 第 k 項」或「DAY n 住宿」，由此對應回項目
-    const itemErrors = (errors, dayNo, ii) => errors.filter(e => e.startsWith(`DAY ${dayNo} 第 ${ii + 1} 項：`));
+    // validate 回傳的字串開頭是「DAY n 第 k 項」（後面可能接「（說明）」再接「：」）或「DAY n 住宿」，由此對應回項目
+    const itemErrors = (errors, dayNo, ii) => {
+        const prefix = `DAY ${dayNo} 第 ${ii + 1} 項`;
+        return errors.filter(e => e.startsWith(prefix) && /^[（：]/.test(e.slice(prefix.length)));
+    };
     const dayErrors = (errors, dayNo) => errors.filter(e => e.startsWith(`DAY ${dayNo} `));
 
     const api = { TYPES, moveItem, stepItem, changeType, newItem, altPosition, canJoinAlt, joinAlt, leaveAlt, stayHint, rowLength, timeParts, setItemTime, setMoveBuffer, isPendingEdit, snapshotDay, restoreDay, startTrial, startBoundaryTrial, moveKeys, syncMoves, rescheduleDay, startRescheduleTrial, moveWarnings, getPath, setPath, itemErrors, dayErrors };

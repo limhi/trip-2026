@@ -286,16 +286,19 @@ test('HTTP：GET /api/publish/plan 與 POST /api/publish', async t => {
 
 test('時間斷點：載入、存檔與發布保留原時間，plan 與成功檢查均提示警告', t => {
     const { root, remote } = makePublishRepo(t);
-    const loaded = store.load(root);
-    const original = structuredClone(loaded.trip.days[0].items);
-    assert.ok(original.some(i => i.time === '07:10 - 09:00'));
+    // 斷點（DAY1）與重疊（DAY2）都用這裡建的假資料，不依賴真實行程當下剛好有沒有空檔
     const body = saveEdit(root, d => {
         d.trip.site.documentTitle = '保留時間斷點';
+        d.trip.days[0].items = [
+            { type: 'brief', title: '斷點前站', time: '08:00 - 09:00' },
+            { type: 'brief', text: '斷點後站', time: '09:40 - 10:00' }
+        ];
         d.trip.days[1].items = [
             { type: 'brief', title: '重疊前站', time: '08:00 - 09:00' },
             { type: 'brief', text: '重疊後站', time: '08:50 - 10:00' }
         ];
     });
+    const original = structuredClone(body.trip.days[0].items);
     const plan = publisher.plan(root, { now: NOW });
     assert.ok(plan.continuityWarnings.some(w => /DAY 1.*09:00.*09:40：空檔 40分/.test(w.message)));
     assert.ok(plan.continuityWarnings.some(w => /DAY 2.*09:00.*08:50：重疊 10分/.test(w.message)));

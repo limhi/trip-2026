@@ -570,9 +570,9 @@ test('validate：buffer 只能在 move 且必須是整數', () => {
     const mv = buffer => ({ type: 'move', text: 'm', time: '10:00 - 10:30', buffer });
     assert.deepEqual(errs([spot('x', { time: '09:00 - 10:00' }), mv(-15), spot('y', { time: '10:30 - 11:00' })]), []);
     assert.deepEqual(errs([spot('x', { time: '09:00 - 10:00' }), mv(20), spot('y', { time: '10:30 - 11:00' })]), []);
-    assert.ok(errs([spot('x'), mv(1.5), spot('y')]).some(e => e.startsWith('DAY 1 第 2 項：') && e.includes('buffer')));
+    assert.ok(errs([spot('x'), mv(1.5), spot('y')]).some(e => e.startsWith('DAY 1 第 2 項（m）：') && e.includes('buffer')));
     assert.ok(errs([spot('x'), mv('10'), spot('y')]).some(e => e.includes('buffer')));
-    assert.ok(errs([spot('x', { buffer: 10 })]).some(e => e.startsWith('DAY 1 第 1 項：') && e.includes('buffer')));
+    assert.ok(errs([spot('x', { buffer: 10 })]).some(e => e.startsWith('DAY 1 第 1 項（X）：') && e.includes('buffer')));
 });
 
 // ---- rescheduleDay（「整天重排」按鈕與 CLI 共用）：先補缺的移動列，再整天重排 ----

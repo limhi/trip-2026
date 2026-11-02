@@ -81,7 +81,7 @@
                 M.getLegs(day, places).forEach(leg => {   // 移動列沒有查詢結果：時間沿用現有值，不會連動
                     if (leg.rowIndex == null || leg.closeLoop || noRoute.has(leg.rowIndex) || ctl.status(leg.key) === 'computing') return;
                     noRoute.add(leg.rowIndex);
-                    if (M.getMoveMinutesAt(day, leg.rowIndex, places, { legs: ctl.known }, trip.site) == null) out.push(`DAY ${day.day} 第 ${leg.rowIndex + 1} 項：移動列沒有路線查詢結果，時間沿用現有值（算出路線後才會連動）`);
+                    if (M.getMoveMinutesAt(day, leg.rowIndex, places, { legs: ctl.known }, trip.site) == null) out.push(`DAY ${day.day} 第 ${leg.rowIndex + 1} 項（${M.itemLabel(day.items[leg.rowIndex], places)}）：移動列沒有路線查詢結果，時間沿用現有值（算出路線後才會連動）`);
                 });
                 M.getTimeWarnings(day, places, { legs: ctl.known }, trip.site).forEach(w => out.push(w.message));
                 M.getLegs(day, places).forEach((leg, n) => {

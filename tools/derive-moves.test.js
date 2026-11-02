@@ -122,11 +122,11 @@ test('applyMoves：fill = false 不補列', () => {
     assert.equal(day.items.length, 2);
 });
 
-test('真實行程資料：轉為提醒的兩個無時間移動列會提示缺列', () => {
+test('真實行程資料：移動列已補齊，沒有缺列或警告', () => {
     const trip = require('../data/trip.json'), places = require('../data/places.json');
     for (const day of trip.days) {
         const r = model.deriveMoves(day, places);
-        assert.equal(r.missing.length, day.day === 5 || day.day === 6 ? 1 : 0, `DAY ${day.day} 缺移動列`);
+        assert.equal(r.missing.length, 0, `DAY ${day.day} 缺移動列`);
         assert.deepEqual(r.warnings.map(w => w.message), []);
     }
 });

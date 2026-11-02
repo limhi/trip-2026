@@ -108,6 +108,11 @@
         return getAltGroups(day).find(g => index >= g.start && index <= g.end);
     }
 
+    // 項目的簡短識別文字（錯誤／警告訊息用，幫助對應到清單上看得到的項目）：標題 > 地點名稱 > 文字 > 型別
+    function itemLabel(item, places = {}) {
+        return item.title || (places[item.place] && places[item.place].name) || item.text || item.type;
+    }
+
     // 檢查資料，回傳問題清單（空陣列代表沒問題）
     function validate(trip, places) {
         const errors = [];
@@ -127,10 +132,10 @@
                 const validRange = m && +m[1] < 24 && +m[2] < 60 && +m[3] < 24 && +m[4] < 60 &&
                     (+m[3] * 60 + +m[4] > +m[1] * 60 + +m[2] ||
                      (item.type === 'move' && +m[3] * 60 + +m[4] === +m[1] * 60 + +m[2]));
-                if (!point && !validRange) errors.push(`DAY ${day.day} 第 ${index + 1} 項：${edge && !group ? '請填寫明確的邊界時間或完整起訖時間' : '請填寫明確的完整起訖時間'}`);
+                if (!point && !validRange) errors.push(`DAY ${day.day} 第 ${index + 1} 項（${itemLabel(item, places)}）：${edge && !group ? '請填寫明確的邊界時間或完整起訖時間' : '請填寫明確的完整起訖時間'}`);
             });
             day.items.forEach((item, index) => {
-                const where = `DAY ${day.day} 第 ${index + 1} 項`;
+                const where = `DAY ${day.day} 第 ${index + 1} 項（${itemLabel(item, places)}）`;
                 if ('duration' in item) errors.push(`${where}：項目的 duration 已改名為 note，請改用 note`);
                 if (item.type === 'drive') errors.push(`${where}：項目類型 drive 已移除，請改用 move`);
                 else if (!ALL_TYPES.includes(item.type)) errors.push(`${where}：不認得的類型「${item.type}」`);
@@ -151,7 +156,7 @@
                 seen.add(group.alt);
                 if (group.end === group.start) errors.push(`${label}：至少 2 項`);
                 for (let i = group.start; i <= group.end; i++) {
-                    const where = `DAY ${day.day} 第 ${i + 1} 項`;
+                    const where = `DAY ${day.day} 第 ${i + 1} 項（${itemLabel(day.items[i], places)}）`;
                     if (day.items[i].type !== 'spot') errors.push(`${where}：擇一組（alt）的成員只能是 spot`);
                     if (i > group.start && day.items[i].time) errors.push(`${where}：擇一組只有第一項可寫 time（共用時間）`);
                 }
@@ -389,7 +394,7 @@
         }
         day.items.forEach((item, index) => {
             if (ROW_TYPES.includes(item.type) && !inGap.has(index)) {
-                result.warnings.push({ type: 'extra', index, message: `DAY ${day.day} 第 ${index + 1} 項：這個移動列不在任何兩個地圖標記之間` });
+                result.warnings.push({ type: 'extra', index, message: `DAY ${day.day} 第 ${index + 1} 項（${itemLabel(item, places)}）：這個移動列不在任何兩個地圖標記之間` });
             }
         });
         return result;
@@ -449,7 +454,7 @@
             if (!range) continue;
             const start = range.start + delta, end = range.end + delta;
             if (start < 0 || end > DAY_END) {
-                out.warnings.push({ type: 'overflow', index: i, message: `DAY ${day.day} 第 ${i + 1} 項：平移 ${formatHM(delta)} 後超出當天，時間未更動` });
+                out.warnings.push({ type: 'overflow', index: i, message: `DAY ${day.day} 第 ${i + 1} 項（${itemLabel(item)}）：平移 ${formatHM(delta)} 後超出當天，時間未更動` });
                 continue;
             }
             const to = parseTimePoint(item.time) != null ? formatClock(start) : setTimeRange(item.time, start, end);
@@ -620,7 +625,7 @@
                 delta = next ? start + length - next.start : 0;
             }
             if (start + length > DAY_END) {
-                out.warnings.push({ type: 'overflow', index: i, message: `DAY ${day.day} 第 ${i + 1} 項：移動 ${formatHM(length)} 後超出當天，時間未更動` });
+                out.warnings.push({ type: 'overflow', index: i, message: `DAY ${day.day} 第 ${i + 1} 項（${itemLabel(item, places)}）：移動 ${formatHM(length)} 後超出當天，時間未更動` });
                 return;
             }
             const to = setTimeRange(item.time, start, start + length);
@@ -648,11 +653,11 @@
             if (ROW_TYPES.includes(item.type)) {
                 const minutes = getMoveMinutesAt(day, i, places, routes, site);
                 if (minutes != null) length = Math.max(0, minutes);
-                else out.warnings.push({ type: 'no-route', index: i, message: `DAY ${day.day} 第 ${i + 1} 項：沒有可用的路線查詢結果（路段還沒算，或這列不在兩個地圖標記之間），沿用現有移動時間` });
+                else out.warnings.push({ type: 'no-route', index: i, message: `DAY ${day.day} 第 ${i + 1} 項（${itemLabel(item, places)}）：沒有可用的路線查詢結果（路段還沒算，或這列不在兩個地圖標記之間），沿用現有移動時間` });
             }
             const start = cursor, end = cursor + length;
             if (end > DAY_END) {
-                out.warnings.push({ type: 'overflow', index: i, message: `DAY ${day.day} 第 ${i + 1} 項：重排後超出當天，時間未更動` });
+                out.warnings.push({ type: 'overflow', index: i, message: `DAY ${day.day} 第 ${i + 1} 項（${itemLabel(item, places)}）：重排後超出當天，時間未更動` });
                 return;
             }
             const to = parseTimePoint(item.time) != null ? formatClock(start) : setTimeRange(item.time, start, end);
@@ -694,7 +699,7 @@
     }
 
     Trip.model = {
-        getContact, getMapPoints, getAltGroups, getAltGroupAt, validate, forEachPlaceRef, lacksCoords, CARD_TYPES, ROW_TYPES,
+        getContact, getMapPoints, getAltGroups, getAltGroupAt, validate, itemLabel, forEachPlaceRef, lacksCoords, CARD_TYPES, ROW_TYPES,
         DEFAULT_ROUTING, formatCoord, legKey, getLegs, getTrafficFactor, displayMinutes, queryMinutes,
         formatHM, formatDistance, formatLeg, formatFactorNote, parseTimeRange, parseTimePoint, getDayBoundaries, getStayMinutes, getStayLabel, isUsableLeg, getLegSchedule, getTimeWarnings, getContinuityWarnings, deriveMoves, applyMoves,
         getMoveMinutes, getMoveMinutesAt, cascadeDay, fitMoves, setTimeRange, rescheduleDay,
