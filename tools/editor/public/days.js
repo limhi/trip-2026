@@ -480,6 +480,12 @@
             }
             const end = e.target.closest('[data-dropend],[data-dayhead]');
             if (end) { const di = +end.dataset.di; return { node: end, mark: 'drop-end', di, ii: draft().trip.days[di].items.length }; }
+            const tabEl = e.target.closest('[data-tabday]');
+            if (tabEl) {
+                const di = draft().trip.days.findIndex(d => d.day === +tabEl.dataset.tabday);
+                if (di < 0) return null;
+                return { node: tabEl, mark: 'drop-end', di, ii: null, tab: true };
+            }
             return null;
         }
         pane.addEventListener('dragover', e => {
@@ -497,7 +503,10 @@
             if (!t) return;
             e.preventDefault();
             const from = ui.drag; ui.drag = null;
-            const b = snap([from.di, t.di]); afterMove(L.moveItem(draft().trip, from.di, from.ii, t.di, t.ii), from.di, b);
+            if (t.tab && t.di === from.di) return;   // 拖到自己目前這天的標籤：不是跨天搬動，不做任何事
+            // 標籤放置位置沿用既有跨天搬動（↑／↓）的規則：搬到前面的天＝該天結尾，搬到後面的天＝該天開頭
+            const ii = t.tab ? (t.di < from.di ? draft().trip.days[t.di].items.length : 0) : t.ii;
+            const b = snap([from.di, t.di]); afterMove(L.moveItem(draft().trip, from.di, from.ii, t.di, ii), from.di, b);
         });
         pane.addEventListener('dragend', () => { ui.drag = null; clearMarks(); pane.querySelectorAll('.opacity-40').forEach(n => n.classList.remove('opacity-40')); });
 

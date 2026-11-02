@@ -15,7 +15,11 @@ const STORAGE_KEY = 'tripEditor:selectedDay';
         const trip = JSON.parse(fs.readFileSync(file, 'utf8'));
         trip.days = [1, 2, 3, 4, 5, 6].map(day => ({
             day, date: `11/${14 + day}`, title: `第 ${day} 天標題`,
-            items: [{ type: 'spot', title: `第 ${day} 天的景點`, ...(day === 6 ? {} : { time: '09:00' }) }]
+            items: day === 6
+                ? [{ type: 'spot', title: `第 ${day} 天的景點` }]
+                : (day <= 2
+                    ? [{ type: 'spot', title: `第 ${day} 天的景點`, time: '09:00' }, { type: 'spot', title: `項目${day}-2`, time: '09:00' }]
+                    : [{ type: 'spot', title: `第 ${day} 天的景點`, time: '09:00' }])
         }));
         fs.writeFileSync(file, JSON.stringify(trip, null, 2) + '\n', 'utf8');
         server = createServer({ root, provider: { async route() { throw Error('禁止外部路線'); } } });
@@ -86,6 +90,7 @@ const STORAGE_KEY = 'tripEditor:selectedDay';
         }
 
         // 暫時套用中（整天重排）：切換標籤被擋，提示文案與既有「暫時套用中」規則一致；確認／還原後恢復可切換
+        // （先跑這段：還原後資料會回到初始狀態，下面的拖曳測試才能照初始順序斷言）
         await tab(1).click();
         await page.getByText('第 1 天的景點').waitFor();
         await page.locator('[data-act="dayresched"]').click();
@@ -122,6 +127,46 @@ const STORAGE_KEY = 'tripEditor:selectedDay';
         assert.deepEqual(JSON.parse(fs.readFileSync(file, 'utf8')), trip);
         assert.deepEqual(errors, []);
         console.log('✓ 標籤列與單天視圖：切換只顯示選中天、標籤樣式、localStorage 記錄與退回 DAY1、窄視窗水平捲動、暫時套用期間鎖定切換標籤、標籤錯誤提示即時更新');
+
+        // 拖曳：同一天內排序（既有行為，單天視圖下應該不受影響）、跨天搬到 DAY N 標籤
+        await page.setViewportSize({ width: 1280, height: 900 });
+        const row = text => page.locator('[data-row]', { hasText: text });
+        const sums = async () => (await page.locator('[data-sum]').allTextContents()).map(t => t.replace(/^⚠\s*/, ''));
+
+        // 回到 DAY1：目前項目順序是 [第 1 天的景點, 項目1-2]
+        await tab(1).click();
+        await page.getByText('第 1 天的景點').waitFor();
+        assert.deepEqual(await sums(), ['第 1 天的景點', '項目1-2']);
+
+        // 同一天內拖曳排序：把「項目1-2」拖到「第 1 天的景點」上方，變成 [項目1-2, 第 1 天的景點]
+        await row('項目1-2').dragTo(row('第 1 天的景點'), { targetPosition: { x: 10, y: 2 } });
+        assert.deepEqual(await sums(), ['項目1-2', '第 1 天的景點']);
+
+        // 跨天（往後，1→2）：把「第 1 天的景點」拖到 DAY2 標籤上放開＝搬到 DAY2 開頭；afterMove 會自動切到 DAY2
+        await row('第 1 天的景點').dragTo(tab(2));
+        await page.getByText('第 2 天的景點').waitFor();
+        assert.match(await tab(2).getAttribute('class'), /border-blue-600/);
+        assert.deepEqual(await sums(), ['第 1 天的景點', '第 2 天的景點', '項目2-2']);
+        assert.equal(await page.getByText('第 1 天的景點').count(), 1, '搬到 DAY2 開頭，應該只剩這一個');
+
+        await tab(1).click();
+        assert.deepEqual(await sums(), ['項目1-2'], 'DAY1 應該少了被搬走的項目');
+        assert.equal(await page.getByText('第 1 天的景點').count(), 0, 'DAY1 不應該再看到被搬走的項目');
+
+        // 跨天（往前，2→1）：把「項目2-2」拖到 DAY1 標籤上放開＝搬到 DAY1 結尾；afterMove 會自動切回 DAY1
+        await tab(2).click();
+        await page.getByText('第 2 天的景點').waitFor();
+        await row('項目2-2').dragTo(tab(1));
+        await page.getByText('項目1-2').waitFor();
+        assert.match(await tab(1).getAttribute('class'), /border-blue-600/);
+        assert.deepEqual(await sums(), ['項目1-2', '項目2-2']);
+
+        await tab(2).click();
+        assert.deepEqual(await sums(), ['第 1 天的景點', '第 2 天的景點'], 'DAY2 應該少了被搬走的項目');
+        assert.equal(await page.getByText('項目2-2').count(), 0, 'DAY2 不應該再看到被搬走的項目');
+
+        assert.deepEqual(errors, []);
+        console.log('✓ 拖曳到 DAY N 標籤：同一天內排序不變、跨天往前搬到開頭、往後搬到結尾、原本那天少了該項目');
     } finally {
         if (browser) await browser.close();
         if (server) await new Promise(resolve => server.close(resolve));
