@@ -18,7 +18,8 @@ const STORAGE_KEY = 'tripEditor:selectedDay';
             items: day === 6
                 ? [{ type: 'spot', title: `第 ${day} 天的景點` }]
                 : (day <= 2
-                    ? [{ type: 'spot', title: `第 ${day} 天的景點`, time: '09:00' }, { type: 'spot', title: `項目${day}-2`, time: '09:00' }]
+                    // 完整起訖區間：不管之後被拖到哪個位置（開頭/中間/結尾）都合法，不會因為挪動位置而觸發驗證錯誤
+                    ? [{ type: 'spot', title: `第 ${day} 天的景點`, time: '09:00 - 09:30' }, { type: 'spot', title: `項目${day}-2`, time: '09:30 - 10:00' }]
                     : [{ type: 'spot', title: `第 ${day} 天的景點`, time: '09:00' }])
         }));
         fs.writeFileSync(file, JSON.stringify(trip, null, 2) + '\n', 'utf8');
@@ -114,6 +115,7 @@ const STORAGE_KEY = 'tripEditor:selectedDay';
         await page.locator('#errbar li').filter({ hasText: /DAY 6 第 1 項/ }).waitFor();
         assert.match(await tabClass(6), errClass, 'DAY6 標籤應該顯示錯誤提示');
         for (const n of [1, 2, 3, 4, 5]) assert.doesNotMatch(await tabClass(n), errClass, `DAY${n} 標籤不應該顯示錯誤提示`);
+        await page.locator('[data-act="errtoggle"]').click(); // 收起錯誤清單；下面拖曳測試可能暫時產生新的驗證警告，收起避免清單文字跟項目文字重複
 
         // 修正：切到 DAY6，在「日設定」補上每日出發時間（這個只有單一項目的天，出發＝結束＝同一項），錯誤提示要即時消失，不用重新整理
         await tab(6).click();
@@ -135,7 +137,7 @@ const STORAGE_KEY = 'tripEditor:selectedDay';
 
         // 回到 DAY1：目前項目順序是 [第 1 天的景點, 項目1-2]
         await tab(1).click();
-        await page.getByText('第 1 天的景點').waitFor();
+        await row('第 1 天的景點').waitFor();
         assert.deepEqual(await sums(), ['第 1 天的景點', '項目1-2']);
 
         // 同一天內拖曳排序：把「項目1-2」拖到「第 1 天的景點」上方，變成 [項目1-2, 第 1 天的景點]
@@ -144,26 +146,26 @@ const STORAGE_KEY = 'tripEditor:selectedDay';
 
         // 跨天（往後，1→2）：把「第 1 天的景點」拖到 DAY2 標籤上放開＝搬到 DAY2 開頭；afterMove 會自動切到 DAY2
         await row('第 1 天的景點').dragTo(tab(2));
-        await page.getByText('第 2 天的景點').waitFor();
+        await row('第 2 天的景點').waitFor();
         assert.match(await tab(2).getAttribute('class'), /border-blue-600/);
         assert.deepEqual(await sums(), ['第 1 天的景點', '第 2 天的景點', '項目2-2']);
-        assert.equal(await page.getByText('第 1 天的景點').count(), 1, '搬到 DAY2 開頭，應該只剩這一個');
+        assert.equal(await row('第 1 天的景點').count(), 1, '搬到 DAY2 開頭，應該只剩這一個');
 
         await tab(1).click();
         assert.deepEqual(await sums(), ['項目1-2'], 'DAY1 應該少了被搬走的項目');
-        assert.equal(await page.getByText('第 1 天的景點').count(), 0, 'DAY1 不應該再看到被搬走的項目');
+        assert.equal(await row('第 1 天的景點').count(), 0, 'DAY1 不應該再看到被搬走的項目');
 
         // 跨天（往前，2→1）：把「項目2-2」拖到 DAY1 標籤上放開＝搬到 DAY1 結尾；afterMove 會自動切回 DAY1
         await tab(2).click();
-        await page.getByText('第 2 天的景點').waitFor();
+        await row('第 2 天的景點').waitFor();
         await row('項目2-2').dragTo(tab(1));
-        await page.getByText('項目1-2').waitFor();
+        await row('項目1-2').waitFor();
         assert.match(await tab(1).getAttribute('class'), /border-blue-600/);
         assert.deepEqual(await sums(), ['項目1-2', '項目2-2']);
 
         await tab(2).click();
         assert.deepEqual(await sums(), ['第 1 天的景點', '第 2 天的景點'], 'DAY2 應該少了被搬走的項目');
-        assert.equal(await page.getByText('項目2-2').count(), 0, 'DAY2 不應該再看到被搬走的項目');
+        assert.equal(await row('項目2-2').count(), 0, 'DAY2 不應該再看到被搬走的項目');
 
         assert.deepEqual(errors, []);
         console.log('✓ 拖曳到 DAY N 標籤：同一天內排序不變、跨天往前搬到開頭、往後搬到結尾、原本那天少了該項目');
