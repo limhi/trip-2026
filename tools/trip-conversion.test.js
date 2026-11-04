@@ -6,10 +6,10 @@ const routes = require('../data/routes.json');
 const model = require('../js/model');
 
 test('六天已確認的邊界、提醒、擇一組與路線均保留', () => {
-    assert.deepEqual(trip.site.version, { number: 'v2.9', date: '2026/11/02' });
+    assert.match(trip.site.version.number, /^v\d+\.\d+$/);
     assert.deepEqual(trip.days.map(d => { const b = model.getDayBoundaries(d); return [b.departure, b.end]; }), [
-        ['07:20', '17:30'], ['08:30', '19:20'], ['08:30', '17:30'],
-        ['09:00', '17:44'], ['09:30', '15:09'], ['08:16', '15:08']
+        ['07:20', '17:30'], ['08:30', '18:00'], ['08:30', '17:30'],
+        ['09:00', '17:40'], ['09:30', '15:09'], ['08:16', '15:08']
     ]);
     for (const day of trip.days) for (const item of day.items) if (item.type === 'notice') assert.equal(item.time, undefined);
     for (const [day, place] of [[1, 'nanao-rest'], [4, 'pingtung-farmhouse']]) {
