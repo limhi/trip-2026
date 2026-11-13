@@ -448,8 +448,8 @@ async function guard(label, fn) {
                 return g ? (g.innerText.split(text).length - 1) : -1;
             }, { n: day.day, text });
             if (day.day === 4) {
-                check('T12 DAY 4 真實資料：擇一組顯示「停留 1小時40分」恰好一次', await stayCount('停留 1小時40分') === 1);
-                check('T12 DAY 4 反向：錯的停留時間文字比對會失敗', await stayCount('停留 1小時41分') !== 1);
+                check('T12 DAY 4 真實資料：擇一組顯示「停留 1小時30分」恰好一次', await stayCount('停留 1小時30分') === 1);
+                check('T12 DAY 4 反向：錯的停留時間文字比對會失敗', await stayCount('停留 1小時31分') !== 1);
             }
         }
         check('T12 真實資料頁面無 JS 錯誤、沒有紅色提示列', p.errors.length === 0 && !(await p.evaluate(() => !!document.querySelector('body > div.bg-rose-600'))), p.errors.join(' | '));
