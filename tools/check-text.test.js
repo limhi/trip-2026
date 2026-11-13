@@ -43,6 +43,8 @@ test('攻略與停車說明提到的日期不是該地點排定的那天會警�
     assert.ok(w.some(x => /攻略 b.*提到 11\/15.*排在 11\/16/.test(x)));
     assert.ok(w.some(x => /行程當天為週日.*排在週一/.test(x)));
     assert.ok(w.some(x => /地點 b 的交通與停車/.test(x)));
+    // 停車說明也可能是單一字串
+    assert.equal(textWarnings(trip(), { ...places, b: { name: '乙', parking: '11/15 可能客滿' } }).length, 1);
     // 行程以外的日期（例如保養期間 2026/11/15、12/01）不查
     assert.deepEqual(textWarnings(trip(), places, { b: guide('官方節目表 2026/11/15–12/24 適用；11/30 前免費') }), []);
 });

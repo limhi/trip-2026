@@ -93,7 +93,7 @@ function textWarnings(trip, places = {}, guides = {}) {
     // 2：停車說明
     for (const [id, place] of Object.entries(places)) {
         if (!placeDates.has(id)) continue;
-        for (const text of place.parking || []) if (typeof text === 'string') checkPlaceText(`地點 ${id} 的交通與停車`, id, text);
+        for (const text of [].concat(place.parking || [])) if (typeof text === 'string') checkPlaceText(`地點 ${id} 的交通與停車`, id, text);
     }
     return out;
 }
