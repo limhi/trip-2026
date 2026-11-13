@@ -72,6 +72,7 @@
 - 所有文字檔使用 UTF-8（無 BOM）。修改含中文的檔案後，確認沒有 U+FFFD 與亂碼；不要因為終端機顯示亂碼就覆寫檔案。
 - 每次改動行程或地點資料，更新 `data/trip.json` 的 `site.version`（版本與日期），再執行 `node tools/build-data.js`。用編輯器發布時版本號小版會自動 +1，不用手改。
 - 修改後驗證：先跑 `node tools/check.js`（`data/*.json` 與產生檔同步、資料能載入且 `Trip.model.validate` 沒問題、路線快取結構、攻略與確認清單一致、編碼正確）；改到 `js/`、`tools/` 再跑 `node --test`；動到功能（`js/`、`index.html`、`verify.html`、`css/`）再跑 `tools/e2e.js` 確認頁面沒有紅色提示列與 JS 錯誤（作法見 `docs/DESIGN.md` 第 10 節）。**commit 前要看檢查的結束碼，不要用 `cmd | tail && git commit`（會吃掉失敗狀態）。**
+- **停留多久、車程多久、幾點到只寫在時間表（`time`、`buffer`）**，說明文字與攻略不重複寫；景點搬到別天時，攻略與停車說明裡的日期、星期要一起改。`check.js` 對這類不一致只警告、不失敗，**看到警告就要處理**（規則見 `docs/DESIGN.md` 第 16 節）。
 - 完成 `docs/TODO.md` 裡的項目、或做了影響設計的改動，要同步更新那兩份文件，讓下一個接手的人看到的是現況。
 - 有不清楚的地方，先用編號條列跟使用者確認，選項也要編號。
 - 回報摘要預設使用繁體中文。

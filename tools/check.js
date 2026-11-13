@@ -15,6 +15,7 @@
  *   8. 路線快取：data/routes.js、routes-geo.js 與 routes.json 同步（併入第 0 項）、routes.json 結構正確；
  *      行程有路段沒快取、快取有沒被使用的舊筆只會警告，不失敗
  *   9. 移動列：缺移動列、重複、多餘只警告（見 tools/sync-moves.js）
+ *  10. 文字與時間表一致：說明與攻略重複寫停留／車程／抵達時間、日期或星期寫錯，只警告（見 tools/check-text.js）
  * 有任何問題會列出並以非 0 結束。這不能取代瀏覽器實測（見 docs/DESIGN.md 的「驗證方法」）。
  */
 const fs = require('fs');
@@ -120,6 +121,9 @@ if (guides && PLACES) {
     }
     if (drift > 5) fail(`…另外還有 ${drift - 5} 句不同步`);
 }
+
+// ───────── 10. 文字與時間表一致（只警告）─────────
+if (TRIP && PLACES) require('./check-text').textWarnings(TRIP, PLACES, guides || {}).forEach(w => warnings.push(w));
 
 // ───────── 5. verify.md ─────────
 if (fs.existsSync(path.join(root, 'verify.md'))) {
