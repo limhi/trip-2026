@@ -59,6 +59,7 @@
 | 區塊顏色與樣板 | `js/blocks.js` |
 | 公開確認清單（請人實際確認的題目） | `verify.md`（顯示頁 `verify.html`） |
 | 設計文件與待辦事項（接手用） | `docs/DESIGN.md`、`docs/TODO.md`（有重大變動或完成待辦就更新） |
+| 每天的天氣提醒卡（`tag: "天氣"` 的 `notice`） | 標題由 `tools/weather.js` 自動改寫（旅程期間本機 crontab 每天 05:30 執行並自動 push，使用者已授權，只限標題）；說明文字手改。見 `docs/DESIGN.md` 第 17 節 |
 | 一鍵檢查 | `node tools/check.js`（只需 Node） |
 | 單元與編輯器 API 測試 | `node --test`（只需 Node） |
 | 瀏覽器端到端測試 | `node tools/e2e.js`（需要 Playwright，用法見 `docs/DESIGN.md` 第 10.2 節） |
