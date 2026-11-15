@@ -387,5 +387,54 @@
       "驛站與草地旁有洗手間；沙坑旁有可沖洗的地方（遊記）。",
       "假日有攤商聚集；11/20 是週五，攤商營業情形以現場為準。座標取自 OpenStreetMap，導航請輸入「古坑綠色隧道」。"
     ]
+  },
+  "nanfang-fish-market": {
+    "name": "南方澳魚市場",
+    "mapType": "attraction",
+    "infoType": "旅遊景點",
+    "address": "宜蘭縣蘇澳鎮江夏路（南方澳漁港）",
+    "lat": 24.5853827,
+    "lng": 121.8674761,
+    "parking": [
+      "南方澳漁港周邊停車位少、假日擁擠；停車與收費以現場為準。"
+    ]
+  },
+  "taxi-museum": {
+    "name": "計程車博物館",
+    "mapType": "attraction",
+    "infoType": "旅遊景點",
+    "phone": "03-990-8088",
+    "address": "宜蘭縣蘇澳鎮中山路二段162巷2號",
+    "lat": 24.606368,
+    "lng": 121.8306883,
+    "parking": [
+      "在台鐵蘇澳新站正後方；停車方式與收費以現場為準。"
+    ]
+  },
+  "hualien-creative-park": {
+    "name": "花蓮文化創意產業園區",
+    "mapType": "attraction",
+    "infoType": "旅遊景點",
+    "phone": "03-831-2111",
+    "address": "花蓮縣花蓮市中華路144號",
+    "lat": 23.9766097,
+    "lng": 121.6045264,
+    "parking": [
+      "停車與收費以現場為準。"
+    ]
+  },
+  "katsuo-museum": {
+    "name": "七星柴魚博物館",
+    "mapType": "attraction",
+    "infoType": "旅遊景點",
+    "phone": "03-8236100",
+    "tel": "038236100",
+    "website": "https://www.katsuo.com.tw/",
+    "address": "花蓮縣新城鄉大漢村七星街148號",
+    "lat": 24.02694444,
+    "lng": 121.62944444,
+    "parking": [
+      "停車與收費以現場為準。"
+    ]
   }
 }
