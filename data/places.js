@@ -394,6 +394,7 @@ window.TRIP_PLACES = {
         "mapType": "attraction",
         "infoType": "旅遊景點",
         "address": "宜蘭縣蘇澳鎮江夏路（南方澳漁港）",
+        "navigationUrl": "https://www.google.com/maps/dir/?api=1&destination=24.5853827%2C121.8674761",
         "lat": 24.5853827,
         "lng": 121.8674761,
         "parking": [
